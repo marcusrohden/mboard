@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { net, protocol } from 'electron';
+import { bundleContentType } from './bundle-content-type';
 import { resolveBundleFilePath } from './bundle-path';
 import { APP_BUNDLE_HOST, APP_SCHEME } from './renderer-source';
 
@@ -53,14 +54,15 @@ async function respondWithBundleFile(
   }
   try {
     const fileResponse = await net.fetch(pathToFileURL(filePath).toString());
-    return withSecurityHeaders(fileResponse);
+    return withSecurityHeaders(fileResponse, bundleContentType(filePath));
   } catch {
     return notFound();
   }
 }
 
-function withSecurityHeaders(response: Response): Response {
+function withSecurityHeaders(response: Response, contentType: string): Response {
   const headers = new Headers(response.headers);
+  headers.set('Content-Type', contentType);
   headers.set('Content-Security-Policy', CONTENT_SECURITY_POLICY);
   headers.set('X-Content-Type-Options', 'nosniff');
   return new Response(response.body, {

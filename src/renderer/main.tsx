@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { AppErrorBoundary } from './app/AppErrorBoundary';
 import './index.css';
 
 const ROOT_ELEMENT_ID = 'root';
@@ -17,7 +18,9 @@ function mountApp(): void {
   }
   createRoot(container).render(
     <StrictMode>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
     </StrictMode>,
   );
 }
