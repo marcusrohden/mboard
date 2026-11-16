@@ -1,0 +1,98 @@
+:root {
+  color-scheme: light dark;
+
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-size-small: 11px;
+  --font-size-base: 13px;
+  --font-size-large: 15px;
+  --font-size-title: 20px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+
+  --radius-small: 4px;
+  --radius-medium: 8px;
+
+  --color-text: #1d1d1f;
+  --color-text-muted: #6e6e73;
+  --color-background: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-column: #ebebef;
+  --color-border: #d2d2d7;
+  --color-border-strong: #b0b0b8;
+  --color-hover: rgba(0, 0, 0, 0.06);
+  --color-overlay: rgba(0, 0, 0, 0.35);
+  --color-focus: #0a64d8;
+  --color-accent: #0a64d8;
+  --color-accent-text: #ffffff;
+  --color-danger: #c4241b;
+  --color-danger-text: #ffffff;
+
+  --stale-none: transparent;
+  --stale-amber: #e49b0f;
+  --stale-red: #d4352b;
+
+  --tone-neutral-bg: #e4e4ea;
+  --tone-neutral-fg: #4a4a52;
+  --tone-amber-bg: #fdebc4;
+  --tone-amber-fg: #7a4b00;
+  --tone-red-bg: #fbd9d6;
+  --tone-red-fg: #8f1c14;
+
+  --responsibility-me-bg: #d6e6fb;
+  --responsibility-me-fg: #0b4a9e;
+  --responsibility-client-bg: #eadcf8;
+  --responsibility-client-fg: #5b2a8c;
+  --responsibility-internal-bg: #d3f0df;
+  --responsibility-internal-fg: #14613a;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.12);
+  --shadow-popover: 0 6px 24px rgba(0, 0, 0, 0.2);
+  --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.12);
+
+  --drawer-width: 400px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text: #f5f5f7;
+    --color-text-muted: #a1a1a6;
+    --color-background: #1c1c1e;
+    --color-surface: #2c2c2e;
+    --color-surface-raised: #3a3a3c;
+    --color-column: #252527;
+    --color-border: #3d3d40;
+    --color-border-strong: #5a5a5e;
+    --color-hover: rgba(255, 255, 255, 0.08);
+    --color-overlay: rgba(0, 0, 0, 0.55);
+    --color-focus: #4c9cff;
+    --color-accent: #2f7cf6;
+    --color-danger: #ff5d52;
+    --color-danger-text: #1c1c1e;
+
+    --stale-amber: #f0b13a;
+    --stale-red: #ff6259;
+
+    --tone-neutral-bg: #3a3a3e;
+    --tone-neutral-fg: #c8c8ce;
+    --tone-amber-bg: #4d3b10;
+    --tone-amber-fg: #f6cf7d;
+    --tone-red-bg: #4f1f1b;
+    --tone-red-fg: #ffb0aa;
+
+    --responsibility-me-bg: #173d6b;
+    --responsibility-me-fg: #a9cdfb;
+    --responsibility-client-bg: #3e2761;
+    --responsibility-client-fg: #d6b9f5;
+    --responsibility-internal-bg: #1a4a31;
+    --responsibility-internal-fg: #a6e3c0;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-popover: 0 6px 24px rgba(0, 0, 0, 0.6);
+    --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.5);
+  }
+}

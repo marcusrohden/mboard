@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import type { AppState } from '../shared/contract';
-import { getMboardApi } from './mboard-api';
+import { useCallback, useEffect, useState } from 'react';
+import type { AppState } from '../../shared/contract';
+import { getMboardApi } from '../mboard-api';
 
 /**
  * Progress of loading the app state from the main process.
@@ -11,18 +11,21 @@ export type AppStateLoad =
   | { readonly status: 'failed'; readonly message: string };
 
 /**
- * Loads the app state once on mount and follows later changes pushed by main.
+ * Loads the app state once on mount and follows later changes pushed by main. `applyState` lets a
+ * screen adopt a state that a command returned, without waiting for the push.
  */
-export function useAppState(): AppStateLoad {
+export function useAppState(): { load: AppStateLoad; applyState: (state: AppState) => void } {
   const [load, setLoad] = useState<AppStateLoad>({ status: 'loading' });
+
+  const applyState = useCallback((state: AppState) => setLoad({ status: 'loaded', state }), []);
 
   useEffect(() => {
     let isMounted = true;
     const api = getMboardApi();
-    const unsubscribe = api.onAppState((state) => setLoad({ status: 'loaded', state }));
+    const unsubscribe = api.onAppState(applyState);
     api
       .getAppState()
-      .then((state) => isMounted && setLoad({ status: 'loaded', state }))
+      .then((state) => isMounted && applyState(state))
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
         if (isMounted) setLoad({ status: 'failed', message });
@@ -31,7 +34,7 @@ export function useAppState(): AppStateLoad {
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [applyState]);
 
-  return load;
+  return { load, applyState };
 }
