@@ -1,4 +1,4 @@
-import type { MboardApi } from '../preload/bridge-contract';
+import type { MboardApi } from '../shared/contract';
 
 declare global {
   interface Window {

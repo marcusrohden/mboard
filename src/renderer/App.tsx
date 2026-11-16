@@ -1,30 +1,29 @@
 import styles from './App.module.css';
-import { usePingReply, type PingState } from './use-ping-reply';
+import { useAppState, type AppStateLoad } from './use-app-state';
 
 /**
- * Root component of the renderer.
+ * Root component of the renderer. Placeholder until the renderer build lands.
  */
 export function App() {
-  const pingState = usePingReply();
+  const load = useAppState();
 
   return (
     <main className={styles.app}>
       <h1 className={styles.title}>mboard</h1>
       <p className={styles.bridgeStatus}>
-        Main process:{' '}
-        <output aria-label="Ping reply">{describePing(pingState)}</output>
+        App state: <output aria-label="App state">{describeLoad(load)}</output>
       </p>
     </main>
   );
 }
 
-function describePing(state: PingState): string {
-  switch (state.status) {
-    case 'waiting':
-      return 'waiting for a reply…';
-    case 'replied':
-      return state.reply;
+function describeLoad(load: AppStateLoad): string {
+  switch (load.status) {
+    case 'loading':
+      return 'loading…';
+    case 'loaded':
+      return load.state.kind;
     case 'failed':
-      return `no reply (${state.message})`;
+      return `unavailable (${load.message})`;
   }
 }

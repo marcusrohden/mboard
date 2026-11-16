@@ -6,7 +6,7 @@ const TRUSTED_ORIGIN = 'app://bundle';
 describe('assertTrustedSender', () => {
   it('accepts a frame on the trusted origin', () => {
     expect(() =>
-      assertTrustedSender('mboard:ping', TRUSTED_ORIGIN, TRUSTED_ORIGIN),
+      assertTrustedSender('board:getSnapshot', TRUSTED_ORIGIN, TRUSTED_ORIGIN),
     ).not.toThrow();
   });
 
@@ -17,7 +17,7 @@ describe('assertTrustedSender', () => {
     ['an opaque origin', 'null'],
   ])('refuses %s', (_description, senderOrigin) => {
     expect(() =>
-      assertTrustedSender('mboard:ping', senderOrigin, TRUSTED_ORIGIN),
+      assertTrustedSender('board:getSnapshot', senderOrigin, TRUSTED_ORIGIN),
     ).toThrow(UntrustedSenderError);
   });
 });

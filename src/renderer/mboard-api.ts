@@ -1,4 +1,4 @@
-import type { MboardApi } from '../preload/bridge-contract';
+import type { MboardApi } from '../shared/contract';
 
 /**
  * Returns the bridge the preload script exposes as `window.mboard`.

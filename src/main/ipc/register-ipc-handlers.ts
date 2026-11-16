@@ -1,15 +1,13 @@
-import { IpcChannel } from '../../preload/bridge-contract';
+import type { AppState } from '../../shared/contract';
+import { IPC } from '../../shared/contract';
 import { handleTrustedInvoke } from './handle-trusted-invoke';
 
-const PING_REPLY = 'pong';
+const PLACEHOLDER_STATE: AppState = { kind: 'needsSetup' };
 
 /**
- * Registers every IPC handler the renderer can invoke through `window.mboard`.
+ * Registers every IPC handler the renderer can invoke through `window.mboard`. Placeholder until the
+ * board backend wires the services from `ports.ts`.
  */
 export function registerIpcHandlers(trustedOrigin: string): void {
-  handleTrustedInvoke(IpcChannel.ping, trustedOrigin, replyToPing);
-}
-
-function replyToPing(): string {
-  return PING_REPLY;
+  handleTrustedInvoke(IPC.invoke.getAppState, trustedOrigin, () => PLACEHOLDER_STATE);
 }
