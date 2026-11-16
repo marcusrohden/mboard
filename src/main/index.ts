@@ -1,73 +1,137 @@
 import path from 'node:path';
-import { app, BrowserWindow, dialog, session } from 'electron';
-import {
-  registerAppSchemeAsPrivileged,
-  serveRendererBundle,
-} from './app-protocol';
+import { app, dialog, session, shell } from 'electron';
+import type { TaskId } from '../shared/contract';
+import { registerAppSchemeAsPrivileged, serveRendererBundle } from './app-protocol';
+import { FileBoardService } from './board/board-service';
+import { createClock } from './clock';
+import { createInvokeHandlers } from './ipc/invoke-handlers';
 import { registerIpcHandlers } from './ipc/register-ipc-handlers';
+import { bridgeRendererEvents } from './ipc/renderer-events';
 import { readLaunchConfig, type LaunchConfig } from './launch-config';
-import { createMainWindow } from './main-window';
-import { resolveRendererSource, type RendererSource } from './renderer-source';
-import {
-  denyPermissionRequests,
-  hardenWebContents,
-} from './web-contents-security';
+import { obsidianOpenUrl } from './obsidian-link';
+import { createPlatform } from './platform';
+import type { BoardService } from './ports';
+import { resolveRendererSource } from './renderer-source';
+import { FileSettingsStore } from './settings/settings-store';
+import { FileBoardSetupService } from './setup/board-setup-service';
+import { MenuFolderChange } from './setup/menu-folder-change';
+import { createTrash } from './trash/create-trash';
+import { denyPermissionRequests, hardenWebContents } from './web-contents-security';
+import { installAppMenu } from './window/app-menu';
+import { MainWindowController } from './window/main-window-controller';
+import { createNativeDialogs } from './window/native-dialogs';
 
 const PRELOAD_PATH = path.join(__dirname, 'preload.cjs');
-const RENDERER_BUNDLE_DIRECTORY = path.join(
-  __dirname,
-  '..',
-  'renderer',
-  MAIN_WINDOW_VITE_NAME,
-);
+const RENDERER_BUNDLE_DIRECTORY = path.join(__dirname, '..', 'renderer', MAIN_WINDOW_VITE_NAME);
 
 /**
- * Configures everything that must happen before Electron is ready, then
- * starts the app once it is.
+ * Configures everything that must happen before Electron is ready, then starts the app once it is. The
+ * single-instance lock is taken after the user-data override, because the lock lives in the user-data
+ * folder.
  */
 function bootstrap(): void {
   try {
-    applyLaunchConfig(readLaunchConfig(process.env));
+    const launchConfig = readLaunchConfig(process.env);
+    applyLaunchConfig(launchConfig);
+    if (!app.requestSingleInstanceLock()) {
+      app.quit();
+      return;
+    }
     registerAppSchemeAsPrivileged();
-    app.on('web-contents-created', (_event, contents) =>
-      hardenWebContents(contents),
-    );
+    app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
     app.on('window-all-closed', keepRunningWithoutWindows);
-    app.whenReady().then(startApp).catch(exitWithStartupError);
+    app
+      .whenReady()
+      .then(() => startApp(launchConfig))
+      .catch(exitWithStartupError);
   } catch (error) {
     exitWithStartupError(error);
   }
 }
 
 function applyLaunchConfig(config: LaunchConfig): void {
-  if (config.userDataPath !== undefined) {
-    app.setPath('userData', config.userDataPath);
-  }
-}
-
-async function startApp(): Promise<void> {
-  const rendererSource = resolveRendererSource(
-    MAIN_WINDOW_VITE_DEV_SERVER_URL,
-    RENDERER_BUNDLE_DIRECTORY,
-  );
-  denyPermissionRequests(session.defaultSession);
-  if (rendererSource.kind === 'bundle') {
-    serveRendererBundle(rendererSource.bundleDirectory);
-  }
-  registerIpcHandlers(rendererSource.trustedOrigin);
-  await createMainWindow(rendererSource, PRELOAD_PATH);
-  app.on('activate', () => reopenMainWindow(rendererSource));
-}
-
-function reopenMainWindow(rendererSource: RendererSource): void {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createMainWindow(rendererSource, PRELOAD_PATH).catch(exitWithStartupError);
-  }
+  if (config.userDataPath !== undefined) app.setPath('userData', config.userDataPath);
 }
 
 /**
- * Follows the macOS convention: the app stays active in the Dock after its
- * last window closes, until the user quits with Cmd+Q.
+ * The composition root: builds the clock, settings, board, setup and platform, wires IPC, push events, the
+ * app menu and the window, then resolves the launch state before showing the window.
+ */
+async function startApp(launchConfig: LaunchConfig): Promise<void> {
+  const rendererSource = resolveRendererSource(MAIN_WINDOW_VITE_DEV_SERVER_URL, RENDERER_BUNDLE_DIRECTORY);
+  denyPermissionRequests(session.defaultSession);
+  if (rendererSource.kind === 'bundle') serveRendererBundle(rendererSource.bundleDirectory);
+
+  const userDataPath = app.getPath('userData');
+  const clock = createClock(launchConfig);
+  const settings = new FileSettingsStore(userDataPath);
+  const board = new FileBoardService({ clock, trash: createTrash(launchConfig) });
+  const platform = createPlatform({ userDataPath, launchConfig });
+  const setup = new FileBoardSetupService({
+    settings,
+    board,
+    launchBoardPath: launchConfig.boardPath,
+    onFirstSetup: async () => platform.setOpenAtLogin((await settings.read()).openAtLogin),
+  });
+  const windows = new MainWindowController({
+    rendererSource,
+    preloadPath: PRELOAD_PATH,
+    settings,
+    onFocus: () => rescanInBackground(board),
+  });
+  const dialogs = createNativeDialogs(() => windows.current());
+  const folderChange = new MenuFolderChange(setup, dialogs, () => windows.show());
+  const showWindow = (taskId?: TaskId): void => {
+    windows.show(taskId).catch((error: unknown) => console.error('mboard could not show its window:', error));
+  };
+  const changeBoardFolder = (): void => void folderChange.run();
+
+  registerIpcHandlers(
+    rendererSource.trustedOrigin,
+    createInvokeHandlers({
+      setup,
+      board,
+      platform,
+      pickBoardFolder: () => dialogs.pickBoardFolder(),
+      openInObsidian: (absolutePath) => shell.openExternal(obsidianOpenUrl(absolutePath)),
+    }),
+  );
+  const stopRendererEvents = bridgeRendererEvents({ board, setup, platform }, windows.send);
+  installAppMenu({ changeBoardFolder });
+  handleAppLifecycle(windows, showWindow, () => {
+    stopRendererEvents();
+    platform.stop();
+    void board.close();
+  });
+
+  await setup.start();
+  platform.start({ board, settings, clock, showWindow, chooseFolder: changeBoardFolder, quit: () => app.quit() });
+  await windows.show();
+}
+
+/**
+ * A second launch or a Dock click shows the window. Quitting (Cmd+Q, the menu's Quit or `quit()`) first
+ * lets the window really close and finishes saving its bounds, then stops the platform and the board.
+ */
+function handleAppLifecycle(windows: MainWindowController, showWindow: () => void, onQuit: () => void): void {
+  app.on('second-instance', () => showWindow());
+  app.on('activate', () => showWindow());
+  app.on('before-quit', (event) => {
+    windows.markQuitting();
+    if (!windows.hasUnsavedBounds()) return;
+    event.preventDefault();
+    void windows.saveBoundsNow().finally(() => app.quit());
+  });
+  app.once('will-quit', onQuit);
+}
+
+function rescanInBackground(board: BoardService): void {
+  board.rescan().catch((error: unknown) => console.error('mboard could not rescan the board:', error));
+}
+
+/**
+ * Follows the macOS convention for a menu-bar app: it stays running after its last window closes, until the
+ * user quits.
  */
 function keepRunningWithoutWindows(): void {}
 

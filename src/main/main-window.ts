@@ -1,20 +1,26 @@
 import { BrowserWindow } from 'electron';
-import type { RendererSource } from './renderer-source';
+import type { WindowBounds } from './ports';
 
-const WINDOW_WIDTH = 1200;
-const WINDOW_HEIGHT = 800;
+const DEFAULT_WIDTH = 1200;
+const DEFAULT_HEIGHT = 800;
+const MINIMUM_WIDTH = 720;
+const MINIMUM_HEIGHT = 480;
+
+/** How the board window starts. `bounds` restores a saved position and size. */
+export interface MainWindowOptions {
+  preloadPath: string;
+  bounds?: WindowBounds;
+}
 
 /**
- * Opens the board window with Electron's secure defaults pinned explicitly and
- * resolves once the renderer has loaded. DevTools open only with the dev server.
+ * Creates the board window, hidden and not yet loaded, with Electron's secure defaults pinned explicitly.
  */
-export async function createMainWindow(
-  rendererSource: RendererSource,
-  preloadPath: string,
-): Promise<BrowserWindow> {
-  const window = new BrowserWindow({
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+export function createMainWindow({ preloadPath, bounds }: MainWindowOptions): BrowserWindow {
+  return new BrowserWindow({
+    ...(bounds ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }),
+    minWidth: MINIMUM_WIDTH,
+    minHeight: MINIMUM_HEIGHT,
+    show: false,
     title: 'mboard',
     webPreferences: {
       preload: preloadPath,
@@ -24,9 +30,4 @@ export async function createMainWindow(
       webSecurity: true,
     },
   });
-  if (rendererSource.kind === 'dev-server') {
-    window.webContents.openDevTools();
-  }
-  await window.loadURL(rendererSource.entryUrl);
-  return window;
 }
