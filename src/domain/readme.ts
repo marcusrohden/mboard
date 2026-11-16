@@ -1,0 +1,93 @@
+/**
+ * The text of the board folder's `README.md`, written once when the board is set up. It explains the
+ * folder layout, the task file's properties and its body sections, so that a person or an AI agent can
+ * read and write tasks correctly.
+ */
+export function buildBoardReadme(boardName: string): string {
+  return `# ${boardName}
+
+This folder is a Kanban board managed by mboard. Every task is one markdown file. There is no other data store, so anything you change here shows up on the board, and anything you change on the board is written here.
+
+You can read and edit these files in Obsidian, in any editor, or with a script or an AI agent. mboard picks up outside changes as they happen.
+
+## Folder layout
+
+\`\`\`text
+${boardName}/
+├── README.md     this file
+├── tasks/        live tasks, in any column
+└── archive/      archived tasks
+\`\`\`
+
+- The column a task is in is its \`status\` property. The folder never encodes the column.
+- Only tasks in Done can be archived. Archiving moves the file from \`tasks/\` to \`archive/\` and adds \`archived\`. Restoring moves it back to the top of Done and removes \`archived\`.
+- Put new task files directly in \`tasks/\`, not in a subfolder.
+- The file name is the title with characters that are unsafe in file names removed, for example \`Fix login bug.md\`. mboard renames the file when the title changes.
+
+## A task file
+
+\`\`\`markdown
+---
+title: "Why is the staging build failing?"
+status: In progress
+responsibility: Client
+project: Acme website
+due: 2026-11-20
+created: 2026-11-16T09:30:00
+updated: 2026-11-16T14:03:12
+order: 2
+---
+
+## Description
+
+The staging pipeline fails at the asset step since Friday.
+
+## Comments
+
+### 2026-11-16 14:02
+
+Asked the client for the staging credentials.
+
+## History
+
+- 2026-11-16 09:30 — Created in To do
+- 2026-11-16 10:05 — Moved from To do to In progress
+- 2026-11-16 14:02 — Comment added
+\`\`\`
+
+## Properties
+
+| Property | Meaning | Format |
+| --- | --- | --- |
+| \`title\` | The task's name | Text. Always double-quoted when mboard writes it. Falls back to the file name |
+| \`status\` | The column | \`To do\`, \`In progress\` or \`Done\`. Anything else reads as \`To do\` |
+| \`responsibility\` | Who has to take the next step | \`Me\`, \`Client\` (waiting on the client) or \`Internal\` (waiting on someone in the organisation). Anything else reads as \`Me\` |
+| \`project\` | An optional name that groups tasks | Text. Leave it out for none |
+| \`due\` | The date the task should be done by | \`YYYY-MM-DD\`, no time of day. Leave it out for none |
+| \`created\` | When the task was created | Local time, \`YYYY-MM-DDTHH:mm:ss\`, no offset |
+| \`updated\` | When mboard last changed the task | Local time, \`YYYY-MM-DDTHH:mm:ss\`, no offset |
+| \`archived\` | When the task was archived | Local time, \`YYYY-MM-DDTHH:mm:ss\`. Only in \`archive/\` |
+| \`order\` | Position within its column, lowest first | A number. Tasks without one sort last |
+
+- Keys are case-sensitive. An empty value (\`due:\` or \`due: null\`) is the same as leaving the key out.
+- Other properties, such as \`tags\` or \`aliases\`, are kept as they are.
+- A file with no frontmatter is still a task. The whole file is its description.
+- A file whose frontmatter isn't valid YAML is listed as unreadable and is never changed.
+
+## Body sections
+
+| Heading | Content |
+| --- | --- |
+| \`## Description\` | Free markdown. Other headings inside it are fine, except the two below |
+| \`## Comments\` | One \`### YYYY-MM-DD HH:mm\` heading per comment, then the comment text. Oldest first |
+| \`## History\` | One line per change, \`- YYYY-MM-DD HH:mm — <what changed>\`, oldest first |
+
+## Editing tasks as a person or an agent
+
+- To add a task, create a file in \`tasks/\` with the properties above. At least \`title\` and \`status\` are needed. Set \`created\` and \`updated\` to the current local time.
+- To move a task, change \`status\`. To reorder it, change \`order\`.
+- You don't need to update \`updated\` or the history. mboard never records outside edits in the history log, and it never rewrites a file just because you changed it.
+- Don't put a line that is just \`## Comments\` or \`## History\` inside a description or a comment.
+- Dates are local time with no offset. Don't add a time zone.
+`;
+}
