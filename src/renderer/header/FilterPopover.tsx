@@ -6,6 +6,7 @@ interface FilterPopoverProps {
   label: string;
   isActive: boolean;
   activeCount?: number;
+  closesOnChange?: boolean;
   children: ReactNode;
 }
 
@@ -13,7 +14,7 @@ interface FilterPopoverProps {
  * A header button that opens a small panel of options beneath it. The panel closes on Esc, on a click
  * outside it, or when focus leaves it. The button keeps the plain name of the filter, and marks an active filter visually.
  */
-export function FilterPopover({ label, isActive, activeCount, children }: FilterPopoverProps) {
+export function FilterPopover({ label, isActive, activeCount, closesOnChange = false, children }: FilterPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -61,7 +62,14 @@ export function FilterPopover({ label, isActive, activeCount, children }: Filter
         )}
       </Button>
       {isOpen && (
-        <div id={panelId} tabIndex={-1} role="group" aria-label={`${label} options`} className={styles.panel}>
+        <div
+          id={panelId}
+          tabIndex={-1}
+          role="group"
+          aria-label={`${label} options`}
+          className={styles.panel}
+          onChange={() => closesOnChange && setIsOpen(false)}
+        >
           {children}
         </div>
       )}

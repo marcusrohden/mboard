@@ -63,7 +63,7 @@ export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispa
       </FilterPopover>
       {showBoardOnlyFilters && (
         <>
-          <FilterPopover label="Due" isActive={criteria.due !== 'any'}>
+          <FilterPopover label="Due" isActive={criteria.due !== 'any'} closesOnChange>
             {DUE_OPTIONS.map((option) => (
               <label key={option.value}>
                 <input
