@@ -1,29 +1,49 @@
-import styles from './App.module.css';
-import { useAppState, type AppStateLoad } from './use-app-state';
+import { ToastProvider } from './notices/ToastProvider';
+import { BoardScreen } from './screens/BoardScreen';
+import { SetupScreen } from './screens/SetupScreen';
+import { UnavailableScreen } from './screens/UnavailableScreen';
+import screenStyles from './screens/Screens.module.css';
+import { useAppState } from './state/use-app-state';
 
-/**
- * Root component of the renderer. Placeholder until the renderer build lands.
- */
-export function App() {
-  const load = useAppState();
+function AppRoutes() {
+  const { load, applyState } = useAppState();
 
-  return (
-    <main className={styles.app}>
-      <h1 className={styles.title}>mboard</h1>
-      <p className={styles.bridgeStatus}>
-        App state: <output aria-label="App state">{describeLoad(load)}</output>
+  if (load.status === 'loading') {
+    return (
+      <p role="status" className={screenStyles.status}>
+        Loading…
       </p>
-    </main>
-  );
+    );
+  }
+  if (load.status === 'failed') {
+    return (
+      <main className={screenStyles.screen}>
+        <h1 className={screenStyles.heading}>Something went wrong</h1>
+        <p role="alert" className={screenStyles.error}>
+          {load.message}
+        </p>
+      </main>
+    );
+  }
+  const { state } = load;
+  switch (state.kind) {
+    case 'needsSetup':
+      return <SetupScreen onState={applyState} />;
+    case 'unavailable':
+      return <UnavailableScreen path={state.path} reason={state.reason} onState={applyState} />;
+    case 'ready':
+      return <BoardScreen boardName={state.boardName} />;
+  }
 }
 
-function describeLoad(load: AppStateLoad): string {
-  switch (load.status) {
-    case 'loading':
-      return 'loading…';
-    case 'loaded':
-      return load.state.kind;
-    case 'failed':
-      return `unavailable (${load.message})`;
-  }
+/**
+ * The application root: shows the setup screen, the "Can't open your board" screen or the board,
+ * following the app state from the main process.
+ */
+export function App() {
+  return (
+    <ToastProvider>
+      <AppRoutes />
+    </ToastProvider>
+  );
 }

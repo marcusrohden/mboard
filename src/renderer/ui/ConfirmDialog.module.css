@@ -1,0 +1,15 @@
+.title {
+  font-size: var(--font-size-large);
+  font-weight: 600;
+}
+
+.message {
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

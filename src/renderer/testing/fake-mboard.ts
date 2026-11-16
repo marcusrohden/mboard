@@ -1,0 +1,277 @@
+import { vi, type Mock } from 'vitest';
+import { columnTasks, formatLogTimestamp } from '../../domain';
+import type {
+  AppState,
+  BoardSnapshot,
+  MboardApi,
+  Preferences,
+  ReminderBannerItem,
+  Status,
+  Task,
+  TaskEdit,
+  TaskId,
+  UnreadableFile,
+} from '../../shared/contract';
+import { TEST_NOW, TEST_TODAY } from './builders';
+
+type Listeners<T> = Set<(payload: T) => void>;
+
+type MockedApi = { [Method in keyof MboardApi]: Mock<MboardApi[Method]> };
+
+export interface FakeMboardOptions {
+  appState?: AppState;
+  tasks?: Task[];
+  unreadable?: UnreadableFile[];
+  banner?: ReminderBannerItem[];
+  preferences?: Preferences;
+  now?: string;
+  today?: string;
+}
+
+export interface FakeMboard {
+  api: MockedApi;
+  install(): void;
+  tasks(): Task[];
+  setTasks(tasks: Task[]): void;
+  setUnreadable(unreadable: UnreadableFile[]): void;
+  pushAppState(state: AppState): void;
+  pushOpenTask(id: TaskId): void;
+  pushBanner(items: ReminderBannerItem[]): void;
+  pushPreferences(preferences: Preferences): void;
+}
+
+const READY_STATE: AppState = { kind: 'ready', boardPath: '/vault/Board', boardName: 'Board' };
+
+function nameOf(id: TaskId): string {
+  return id.slice(id.indexOf('/') + 1).replace(/\.md$/, '');
+}
+
+function emitAll<T>(listeners: Listeners<T>, payload: T): void {
+  listeners.forEach((listener) => listener(payload));
+}
+
+function subscribe<T>(listeners: Listeners<T>, listener: (payload: T) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/**
+ * Builds an in-memory stand-in for the main process: a task list that the bridge commands change and
+ * push snapshots from, with every method a `vi.fn` so that tests can assert on calls or force a rejection.
+ * It models just enough of the real backend to drive the UI: ids follow titles and folders, new and
+ * button-moved tasks go to the top, and every update bumps `updated` and adds one history entry.
+ * Test-only: never import it from production code.
+ */
+export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
+  let appState = options.appState ?? READY_STATE;
+  let tasks = [...(options.tasks ?? [])];
+  let unreadable = [...(options.unreadable ?? [])];
+  let banner = [...(options.banner ?? [])];
+  let preferences = options.preferences ?? { openAtLogin: true, notificationsAvailable: true };
+  const now = options.now ?? TEST_NOW;
+  const today = options.today ?? TEST_TODAY;
+
+  const snapshotListeners: Listeners<BoardSnapshot> = new Set();
+  const appStateListeners: Listeners<AppState> = new Set();
+  const openTaskListeners: Listeners<TaskId> = new Set();
+  const bannerListeners: Listeners<ReminderBannerItem[]> = new Set();
+  const preferencesListeners: Listeners<Preferences> = new Set();
+
+  const snapshot = (): BoardSnapshot => ({ tasks: structuredClone(tasks), unreadable: [...unreadable], now, today });
+  const publish = (): void => emitAll(snapshotListeners, snapshot());
+  const logStamp = formatLogTimestamp(new Date(now));
+
+  function find(id: TaskId): Task {
+    const task = tasks.find((candidate) => candidate.id === id);
+    if (task === undefined) throw new Error('That task no longer exists.');
+    return task;
+  }
+
+  function replace(id: TaskId, next: Task): Task {
+    tasks = tasks.map((task) => (task.id === id ? next : task));
+    publish();
+    return structuredClone(next);
+  }
+
+  function recorded(task: Task, text: string, changes: Partial<Task>): Task {
+    return { ...task, ...changes, updated: now, history: [...task.history, { at: logStamp, text }] };
+  }
+
+  function topOrder(status: Status, excluding: TaskId | null): number {
+    const orders = columnTasks(tasks, status)
+      .filter((task) => task.id !== excluding)
+      .flatMap((task) => (task.order === null ? [] : [task.order]));
+    return orders.length === 0 ? 1 : Math.min(...orders) - 1;
+  }
+
+  function applyEdit(task: Task, edit: TaskEdit): Task {
+    if (task.isArchived) throw new Error("Archived tasks can't be edited. Restore the task first.");
+    switch (edit.field) {
+      case 'title': {
+        const title = edit.value.trim();
+        if (title === '') throw new Error('A task needs a title.');
+        if (title === task.title) return task;
+        return recorded(task, `Title changed from "${task.title}" to "${title}"`, { title, id: `tasks/${title}.md` });
+      }
+      case 'description':
+        return edit.value === task.description ? task : recorded(task, 'Description edited', { description: edit.value });
+      case 'project': {
+        const project = edit.value === null || edit.value.trim() === '' ? null : edit.value.trim();
+        if (project === task.project) return task;
+        return recorded(task, `Project changed from ${task.project ?? '(none)'} to ${project ?? '(none)'}`, { project });
+      }
+      case 'responsibility':
+        if (edit.value === task.responsibility) return task;
+        return recorded(task, `Responsibility changed from ${task.responsibility} to ${edit.value}`, {
+          responsibility: edit.value,
+        });
+      case 'due':
+        if (edit.value === task.due) return task;
+        return recorded(task, `Due date changed from ${task.due ?? '(none)'} to ${edit.value ?? '(none)'}`, {
+          due: edit.value,
+        });
+    }
+  }
+
+  function renumberColumn(orderedIds: TaskId[]): void {
+    tasks = tasks.map((task) => {
+      const position = orderedIds.indexOf(task.id);
+      return position === -1 ? task : { ...task, order: position + 1 };
+    });
+  }
+
+  const api: MockedApi = {
+    getAppState: vi.fn(async () => appState),
+    chooseBoardFolder: vi.fn(async () => ({ kind: 'cancelled' as const })),
+    confirmBoardFolder: vi.fn(async () => ({ kind: 'cancelled' as const })),
+    retryOpenBoard: vi.fn(async () => appState),
+
+    getSnapshot: vi.fn(async () => snapshot()),
+    createTask: vi.fn(async (input) => {
+      const title = input.title.trim();
+      const created: Task = {
+        id: `tasks/${title}.md`,
+        title,
+        status: input.status,
+        responsibility: input.responsibility,
+        project: input.project,
+        due: input.due,
+        created: now,
+        updated: now,
+        archivedAt: null,
+        isArchived: false,
+        order: topOrder(input.status, null),
+        description: input.description,
+        comments: [],
+        history: [{ at: logStamp, text: `Created in ${input.status}` }],
+      };
+      tasks = [...tasks, created];
+      publish();
+      return structuredClone(created);
+    }),
+    editTask: vi.fn(async (id, edit) => replace(id, applyEdit(find(id), edit))),
+    addComment: vi.fn(async (id, text) => {
+      const task = find(id);
+      const comment = { at: logStamp, text: text.trim() };
+      return replace(id, recorded(task, 'Comment added', { comments: [...task.comments, comment] }));
+    }),
+    moveTask: vi.fn(async (id, status, beforeId) => {
+      const task = find(id);
+      const targetIds = columnTasks(tasks, status)
+        .map((candidate) => candidate.id)
+        .filter((candidateId) => candidateId !== id);
+      const insertAt = beforeId === null ? targetIds.length : targetIds.indexOf(beforeId);
+      if (insertAt === -1) throw new Error("That task isn't in the column any more.");
+      targetIds.splice(insertAt, 0, id);
+      const moved = status === task.status ? task : recorded(task, `Moved from ${task.status} to ${status}`, { status });
+      tasks = tasks.map((candidate) => (candidate.id === id ? moved : candidate));
+      renumberColumn(targetIds);
+      publish();
+      return structuredClone(find(id));
+    }),
+    archiveTask: vi.fn(async (id) => {
+      const task = find(id);
+      if (task.status !== 'Done') throw new Error('Only tasks in Done can be archived.');
+      const archived = recorded(task, 'Archived', {
+        id: `archive/${nameOf(id)}.md`,
+        isArchived: true,
+        archivedAt: now,
+        order: null,
+      });
+      return replace(id, archived);
+    }),
+    archiveAllDone: vi.fn(async () => {
+      const done = columnTasks(tasks, 'Done');
+      tasks = tasks.map((task) =>
+        done.some((candidate) => candidate.id === task.id)
+          ? recorded(task, 'Archived', { id: `archive/${nameOf(task.id)}.md`, isArchived: true, archivedAt: now, order: null })
+          : task,
+      );
+      publish();
+      return done.length;
+    }),
+    restoreTask: vi.fn(async (id) => {
+      const task = find(id);
+      const restored = recorded(task, 'Restored to Done', {
+        id: `tasks/${nameOf(id)}.md`,
+        isArchived: false,
+        archivedAt: null,
+        status: 'Done',
+        order: topOrder('Done', null),
+      });
+      return replace(id, restored);
+    }),
+    deleteTask: vi.fn(async (id) => {
+      find(id);
+      tasks = tasks.filter((task) => task.id !== id);
+      publish();
+    }),
+    openInObsidian: vi.fn(async () => undefined),
+
+    getPreferences: vi.fn(async () => preferences),
+    setOpenAtLogin: vi.fn(async (enabled) => {
+      preferences = { ...preferences, openAtLogin: enabled };
+      return preferences;
+    }),
+    getReminderBanner: vi.fn(async () => banner),
+    dismissReminderBanner: vi.fn(async () => {
+      banner = [];
+      emitAll(bannerListeners, banner);
+    }),
+
+    onSnapshot: vi.fn((listener) => subscribe(snapshotListeners, listener)),
+    onAppState: vi.fn((listener) => subscribe(appStateListeners, listener)),
+    onOpenTask: vi.fn((listener) => subscribe(openTaskListeners, listener)),
+    onReminderBanner: vi.fn((listener) => subscribe(bannerListeners, listener)),
+    onPreferences: vi.fn((listener) => subscribe(preferencesListeners, listener)),
+  };
+
+  return {
+    api,
+    install() {
+      Object.defineProperty(window, 'mboard', { value: api, configurable: true, writable: true });
+    },
+    tasks: () => structuredClone(tasks),
+    setTasks(next) {
+      tasks = [...next];
+      publish();
+    },
+    setUnreadable(next) {
+      unreadable = [...next];
+      publish();
+    },
+    pushAppState(state) {
+      appState = state;
+      emitAll(appStateListeners, state);
+    },
+    pushOpenTask: (id) => emitAll(openTaskListeners, id),
+    pushBanner(items) {
+      banner = [...items];
+      emitAll(bannerListeners, banner);
+    },
+    pushPreferences(next) {
+      preferences = next;
+      emitAll(preferencesListeners, preferences);
+    },
+  };
+}
