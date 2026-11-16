@@ -45,6 +45,21 @@ export electron_config_cache="$TMPDIR/electron-cache"
 
 Main reads these at launch (`src/main/launch-config.ts`, spec section 7): `MBOARD_USER_DATA`, `MBOARD_BOARD_PATH`, `MBOARD_FAKE_NOW`, `MBOARD_NOTIFIER_LOG`, `MBOARD_NOTIFIER_FAIL`, `MBOARD_TRASH_DIR` and `MBOARD_DISABLE_LOGIN_ITEM`. e2e fixtures always set the user-data, trash and login-item hooks.
 
+## VS Code tasks
+
+Run these from **Terminal › Run Task…** (`.vscode/tasks.json`). **mboard: build and open** is the default build task (Cmd+Shift+B).
+
+| Task | Does |
+| --- | --- |
+| mboard: build | `pnpm run package` |
+| mboard: open | quits a running mboard, then opens `out/mboard-darwin-arm64/mboard.app` |
+| mboard: build and open | quits, packages, then opens the new build |
+| mboard: dev | quits, then `pnpm start` with `MBOARD_DISABLE_LOGIN_ITEM=1` so a dev run never registers Electron as the login item |
+
+mboard keeps running in the menu bar after its window closes, so `open` on its own would only bring back the old process. `scripts/quit-mboard.sh` quits it first through AppleScript; the first run asks macOS to let VS Code control mboard. Stop a running **mboard: dev** before opening the packaged app, because both share one single-instance lock.
+
+The packaged and dev apps share `~/Library/Application Support/mboard/settings.json` (board folder, Open at Login, window bounds), so every build starts with the existing settings. Nothing here deletes that folder.
+
 ## Daily use
 
 1. Run `pnpm run package`.
