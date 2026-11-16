@@ -1,9 +1,10 @@
-import { mkdir, readdir, rename } from 'node:fs/promises';
+import { readdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 import type { TaskDocument } from '../../domain';
 import { fileNameForTitle, serialiseTaskFile, uniqueFileName } from '../../domain';
 import type { AtomicFileWriter } from '../fs/atomic-file-writer';
-import { isFileSystemError, isNotFound } from '../fs/fs-errors';
+import { createChildFolder } from '../fs/create-child-folder';
+import { isNotFound } from '../fs/fs-errors';
 import { BoardMessage, boardError } from './board-messages';
 import { loadTaskFile } from './task-file-loader';
 import {
@@ -128,9 +129,8 @@ export class TaskFiles {
 
   private async ensureFolder(folder: TaskFolder): Promise<void> {
     try {
-      await mkdir(path.join(this.boardPath, folder));
+      await createChildFolder(this.boardPath, folder);
     } catch (error) {
-      if (isFileSystemError(error, 'EEXIST')) return;
       if (isNotFound(error)) throw boardError(BoardMessage.boardFolderMissing);
       throw error;
     }
