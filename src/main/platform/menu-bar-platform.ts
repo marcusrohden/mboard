@@ -79,7 +79,10 @@ export function createMenuBarPlatform(options: MenuBarPlatformOptions): Platform
         openWindow: () => dependencies.showWindow(),
         chooseFolder: () => dependencies.chooseFolder(),
         toggleOpenAtLogin: (enabled) => {
-          setOpenAtLogin(enabled).catch(adapters.reportError);
+          setOpenAtLogin(enabled).catch((error: unknown) => {
+            adapters.reportError(error);
+            refreshMenu(running);
+          });
         },
         quit: () => dependencies.quit(),
       }),
@@ -90,7 +93,10 @@ export function createMenuBarPlatform(options: MenuBarPlatformOptions): Platform
     if (session !== null) {
       stop();
     }
-    const notifier = adapters.createNotifier({ clock: dependencies.clock, showWindow: dependencies.showWindow });
+    const notifier = adapters.createNotifier({
+      clock: dependencies.clock,
+      showWindow: (taskId) => dependencies.showWindow(taskId),
+    });
     const scheduler = createReminderScheduler({
       board: dependencies.board,
       clock: dependencies.clock,
