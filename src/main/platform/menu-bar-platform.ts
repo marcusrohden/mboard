@@ -101,9 +101,9 @@ export function createMenuBarPlatform(options: MenuBarPlatformOptions): Platform
     const running: RunningSession = {
       dependencies,
       tray: adapters.createTray(),
-      tick: () => {
+      tick: async () => {
         refreshTitle(running);
-        return scheduler.tick();
+        await scheduler.tick();
       },
       teardown: [],
     };
