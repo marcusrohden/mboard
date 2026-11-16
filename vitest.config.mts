@@ -7,7 +7,14 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'node',
-          include: ['src/{domain,shared,main}/**/*.test.ts'],
+          include: ['src/{domain,shared,main}/**/*.test.ts', 'src/renderer/**/*.test.ts'],
+        },
+      },
+      {
+        test: {
+          name: 'dom',
+          environment: 'jsdom',
+          include: ['src/renderer/**/*.test.tsx'],
         },
       },
     ],
