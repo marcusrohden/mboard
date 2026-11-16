@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_FILTER, isFilterActive } from '../../domain';
-import { beforeIdAfterDrop, buildColumnViews, columnCountLabel, topOfColumnBeforeId } from './board-view';
+import { beforeIdAfterDrop, buildColumnViews, columnCountLabel, resolveDrop, topOfColumnBeforeId } from './board-view';
 import { filterReducer } from './filters';
 import { formatDate, formatDateTime, formatLogTime } from './format';
 import { buildTask, TEST_TODAY } from '../testing/builders';
@@ -78,6 +78,31 @@ describe('placing a task', () => {
     expect(beforeIdAfterDrop(['a', 'b', 'c'], 'c')).toBeNull();
     expect(beforeIdAfterDrop(['a'], 'a')).toBeNull();
     expect(beforeIdAfterDrop(['a'], 'missing')).toBeNull();
+  });
+});
+
+describe('resolveDrop', () => {
+  const original = { 'To do': ['a', 'b', 'c'], 'In progress': ['d'], Done: [] as string[] };
+
+  it('reports the column and the task the dropped one now sits above', () => {
+    const arrangement = { 'To do': ['a', 'c'], 'In progress': ['d', 'b'], Done: [] as string[] };
+    expect(resolveDrop(original, arrangement, 'b')).toEqual({ status: 'In progress', beforeId: null });
+    const intoMiddle = { 'To do': ['a', 'c'], 'In progress': ['b', 'd'], Done: [] as string[] };
+    expect(resolveDrop(original, intoMiddle, 'b')).toEqual({ status: 'In progress', beforeId: 'd' });
+  });
+
+  it('reports a reorder within a column', () => {
+    const arrangement = { 'To do': ['c', 'a', 'b'], 'In progress': ['d'], Done: [] as string[] };
+    expect(resolveDrop(original, arrangement, 'c')).toEqual({ status: 'To do', beforeId: 'a' });
+  });
+
+  it('reports nothing when the task ends where it began', () => {
+    expect(resolveDrop(original, original, 'b')).toBeNull();
+    expect(resolveDrop(original, original, 'c')).toBeNull();
+  });
+
+  it('reports nothing when the task is in no column', () => {
+    expect(resolveDrop(original, original, 'zzz')).toBeNull();
   });
 });
 

@@ -3,24 +3,20 @@ import { DragDropProvider, KeyboardSensor, PointerSensor, useDroppable } from '@
 import { useSortable } from '@dnd-kit/react/sortable';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { COLUMNS, type Status, type TaskId } from '../../domain';
-import { beforeIdAfterDrop } from '../lib/board-view';
+import { resolveDrop, type ColumnArrangement } from '../lib/board-view';
 
 const TASK_TYPE = 'task';
 const COLUMN_TYPE = 'column';
 const COLUMN_COLLISION_PRIORITY_LOW = 1;
 const OPTIMISTIC_VIEW_LIFETIME_MS = 1500;
 
-export type ColumnIds = Record<Status, TaskId[]>;
+export type ColumnIds = ColumnArrangement;
 
 const KEYBOARD_START_WITHOUT_ENTER = KeyboardSensor.configure({
   keyboardCodes: { ...KeyboardSensor.defaults.keyboardCodes, start: ['Space'] },
 });
 
 const SENSORS = [PointerSensor, KEYBOARD_START_WITHOUT_ENTER];
-
-function columnOf(columns: ColumnIds, id: TaskId): Status | null {
-  return COLUMNS.find((status) => columns[status].includes(id)) ?? null;
-}
 
 function signatureOf(columns: ColumnIds): string {
   return JSON.stringify(COLUMNS.map((status) => columns[status]));
@@ -71,19 +67,13 @@ export function BoardDnd({ columns, onMove, children }: BoardDndProps) {
           return;
         }
         const id = String(droppedId);
-        const status = columnOf(arrangement, id);
-        if (status === null) {
-          clearOptimistic();
-          return;
-        }
-        const beforeId = beforeIdAfterDrop(arrangement[status], id);
-        const unchanged = columnOf(columns, id) === status && beforeIdAfterDrop(columns[status], id) === beforeId;
-        if (unchanged) {
+        const drop = resolveDrop(columns, arrangement, id);
+        if (drop === null) {
           clearOptimistic();
           return;
         }
         window.setTimeout(clearOptimistic, OPTIMISTIC_VIEW_LIFETIME_MS);
-        void onMove(id, status, beforeId).then((moved) => {
+        void onMove(id, drop.status, drop.beforeId).then((moved) => {
           if (!moved) clearOptimistic();
         });
       }}

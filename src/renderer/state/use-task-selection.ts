@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardSnapshot, Task, TaskId } from '../../shared/contract';
 import { useToasts } from '../notices/ToastProvider';
 
@@ -26,17 +26,23 @@ export function useTaskSelection(snapshot: BoardSnapshot | null): TaskSelection 
   const [selectedId, setSelectedId] = useState<TaskId | null>(null);
   const [commandsInFlight, setCommandsInFlight] = useState(0);
 
-  const selectedTask = useMemo(
+  const lastSeenTask = useRef<Task | null>(null);
+
+  const foundTask = useMemo(
     () => (selectedId === null ? null : (snapshot?.tasks.find((task) => task.id === selectedId) ?? null)),
     [selectedId, snapshot],
   );
+  if (foundTask !== null) lastSeenTask.current = foundTask;
+
+  const isAwaitingCommand = commandsInFlight > 0 && lastSeenTask.current?.id === selectedId;
+  const selectedTask = foundTask ?? (isAwaitingCommand ? lastSeenTask.current : null);
 
   useEffect(() => {
-    if (selectedId !== null && snapshot !== null && commandsInFlight === 0 && selectedTask === null) {
+    if (selectedId !== null && snapshot !== null && commandsInFlight === 0 && foundTask === null) {
       setSelectedId(null);
       notify(MISSING_TASK_NOTICE);
     }
-  }, [selectedId, snapshot, commandsInFlight, selectedTask, notify]);
+  }, [selectedId, snapshot, commandsInFlight, foundTask, notify]);
 
   const open = useCallback((id: TaskId) => setSelectedId(id), []);
   const close = useCallback(() => setSelectedId(null), []);

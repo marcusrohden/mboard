@@ -40,6 +40,26 @@ export function topOfColumnBeforeId(tasks: readonly Task[], status: Status, movi
   return columnTasks(tasks, status).find((task) => task.id !== movingId)?.id ?? null;
 }
 
+export type ColumnArrangement = Record<Status, TaskId[]>;
+
+export interface DropTarget {
+  status: Status;
+  beforeId: TaskId | null;
+}
+
+/**
+ * Works out the move a drop asks for: the column the dropped task landed in and the visible task it now
+ * sits above. Returns `null` when the task isn't in the arrangement, or when it ended where it began.
+ */
+export function resolveDrop(original: ColumnArrangement, arrangement: ColumnArrangement, droppedId: TaskId): DropTarget | null {
+  const status = COLUMNS.find((column) => arrangement[column].includes(droppedId));
+  if (status === undefined) return null;
+  const beforeId = beforeIdAfterDrop(arrangement[status], droppedId);
+  const startedHere = original[status].includes(droppedId);
+  const unchanged = startedHere && beforeIdAfterDrop(original[status], droppedId) === beforeId;
+  return unchanged ? null : { status, beforeId };
+}
+
 /**
  * Where a dropped task now sits: the id of the task after it in its column's visible list, or `null`
  * when it is last.
