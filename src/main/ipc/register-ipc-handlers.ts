@@ -1,13 +1,13 @@
-import type { AppState } from '../../shared/contract';
-import { IPC } from '../../shared/contract';
+import { IPC, type InvokeMethod } from '../../shared/contract';
 import { handleTrustedInvoke } from './handle-trusted-invoke';
-
-const PLACEHOLDER_STATE: AppState = { kind: 'needsSetup' };
+import type { InvokeHandlers } from './invoke-handlers';
 
 /**
- * Registers every IPC handler the renderer can invoke through `window.mboard`. Placeholder until the
- * board backend wires the services from `ports.ts`.
+ * Registers a handler for every invoke channel in the contract, each answering only the trusted renderer
+ * origin.
  */
-export function registerIpcHandlers(trustedOrigin: string): void {
-  handleTrustedInvoke(IPC.invoke.getAppState, trustedOrigin, () => PLACEHOLDER_STATE);
+export function registerIpcHandlers(trustedOrigin: string, handlers: InvokeHandlers): void {
+  for (const method of Object.keys(IPC.invoke) as InvokeMethod[]) {
+    handleTrustedInvoke(IPC.invoke[method], trustedOrigin, handlers[method]);
+  }
 }
