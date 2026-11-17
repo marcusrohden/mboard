@@ -12,10 +12,12 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 ## Task
 
 - **Task**: the unit of work on the board, stored as one markdown file. _Avoid_: card, item, ticket (a ticket is an issue on the wayfinder map).
-- **Column**: one of the board's three fixed stages: To do, In progress, Done. A task's column is its **status**.
+- **Column**: one of the board's five fixed stages: To do, In progress, Internal, With client, Done. A task's column is its **status**, and it can move between any two columns. The column also says who has the next step: me in To do and In progress, someone else in Internal and With client.
+- **Internal**: the column for a task waiting on someone else in my organisation. _Avoid_: blocked, on hold.
+- **With client**: the column for a task waiting on the client. _Avoid_: Client on its own (the removed responsibility value), blocked.
 - **Complete**: a task is complete when it is in Done. _Avoid_: closed, finished.
 - **Order**: a task's manual position within its column.
-- **Responsibility**: who has to take the next step: **Me**, **Client** (waiting on the client) or **Internal** (waiting on someone else in my organisation). _Avoid_: owner, assignee.
+- **Responsibility**: _removed_ (ADR 0006). It was a separate Me, Client or Internal property for who had the next step; the Internal and With client columns replace it. Older files may still carry a `responsibility` key: on a To do or In progress task, Client or Internal reads as With client or Internal, and the key is dropped on the next write. _Avoid_: owner, assignee.
 - **Project**: an optional free-text name grouping tasks. The list of projects is derived from the task files.
 - **Due date**: an optional calendar date (no time of day) by which the task should be done.
 - **Reminder**: one notification at 09:00 local time on a task's due date, caught up at launch if missed.
