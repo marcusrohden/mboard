@@ -20,6 +20,7 @@ ${boardName}/
 \`\`\`
 
 - The column a task is in is its \`status\` property. The folder never encodes the column.
+- The columns, left to right, are To do, In progress, Internal, With client and Done. \`Internal\` means the task is waiting on someone in my organisation, and \`With client\` means it is waiting on the client. A task can move between any of them.
 - Only tasks in Done can be archived. Archiving moves the file from \`tasks/\` to \`archive/\` and adds \`archived\`. Restoring moves it back to the top of Done and removes \`archived\`.
 - Put new task files directly in \`tasks/\`, not in a subfolder.
 - The file name is the title with characters that are unsafe in file names removed, for example \`Fix login bug.md\`. mboard renames the file when the title changes.
@@ -29,8 +30,7 @@ ${boardName}/
 \`\`\`markdown
 ---
 title: "Why is the staging build failing?"
-status: In progress
-responsibility: Client
+status: With client
 project: Acme website
 due: 2026-11-20
 created: 2026-11-16T09:30:00
@@ -53,6 +53,7 @@ Asked the client for the staging credentials.
 - 2026-11-16 09:30 — Created in To do
 - 2026-11-16 10:05 — Moved from To do to In progress
 - 2026-11-16 14:02 — Comment added
+- 2026-11-16 14:03 — Moved from In progress to With client
 \`\`\`
 
 ## Properties
@@ -60,8 +61,7 @@ Asked the client for the staging credentials.
 | Property | Meaning | Format |
 | --- | --- | --- |
 | \`title\` | The task's name | Text. Always double-quoted when mboard writes it. Falls back to the file name |
-| \`status\` | The column | \`To do\`, \`In progress\` or \`Done\`. Anything else reads as \`To do\` |
-| \`responsibility\` | Who has to take the next step | \`Me\`, \`Client\` (waiting on the client) or \`Internal\` (waiting on someone in the organisation). Anything else reads as \`Me\` |
+| \`status\` | The column | \`To do\`, \`In progress\`, \`Internal\`, \`With client\` or \`Done\`. Anything else reads as \`To do\` |
 | \`project\` | An optional name that groups tasks | Text. Leave it out for none |
 | \`due\` | The date the task should be done by | \`YYYY-MM-DD\`, no time of day. Leave it out for none |
 | \`created\` | When the task was created | Local time, \`YYYY-MM-DDTHH:mm:ss\`, no offset |

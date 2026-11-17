@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { COLUMNS } from '../../domain';
 import { FakeClock } from '../test-support/board-test-kit';
 import { inertFolderWatch } from '../test-support/folder-watching';
 import { createTemporaryFolder, removeTemporaryFolder } from '../test-support/temporary-folder';
@@ -10,7 +11,6 @@ import { FileBoardService } from './board-service';
 
 const TASK_COUNT = 1_000;
 const LOAD_BUDGET_MS = 500;
-const COLUMNS = ['To do', 'In progress', 'Done'] as const;
 
 function realisticTaskFile(index: number): string {
   const day = String((index % 28) + 1).padStart(2, '0');
@@ -18,7 +18,6 @@ function realisticTaskFile(index: number): string {
     '---',
     `title: "Task number ${index} for the performance check"`,
     `status: ${COLUMNS[index % COLUMNS.length]}`,
-    'responsibility: Client',
     `project: Project ${index % 17}`,
     `due: 2026-12-${day}`,
     `created: 2026-11-${day}T09:30:00`,
@@ -47,7 +46,7 @@ function realisticTaskFile(index: number): string {
     `- 2026-11-${day} 09:30 — Created in To do`,
     `- 2026-11-${day} 10:05 — Moved from To do to In progress`,
     `- 2026-11-${day} 14:02 — Comment added`,
-    `- 2026-11-${day} 14:03 — Responsibility changed from Me to Client`,
+    `- 2026-11-${day} 14:03 — Moved from In progress to With client`,
     '',
   ].join('\n');
 }

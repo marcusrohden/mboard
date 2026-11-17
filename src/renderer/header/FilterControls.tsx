@@ -1,4 +1,4 @@
-import { RESPONSIBILITIES, type DueFilter, type FilterCriteria, type Responsibility } from '../../domain';
+import type { DueFilter, FilterCriteria } from '../../domain';
 import type { FilterAction } from '../lib/filters';
 import { FilterPopover } from './FilterPopover';
 import styles from './Header.module.css';
@@ -19,7 +19,7 @@ interface FilterControlsProps {
 }
 
 /**
- * The header's Project, Responsibility, Due and Stale only controls. Due and Stale only apply to the
+ * The header's Project, Due and Stale only controls. Due and Stale only apply to the
  * board, so the archived view hides them.
  */
 export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispatch }: FilterControlsProps) {
@@ -42,22 +42,6 @@ export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispa
               onChange={() => dispatch({ type: 'toggleProject', project })}
             />
             {project}
-          </label>
-        ))}
-      </FilterPopover>
-      <FilterPopover
-        label="Responsibility"
-        isActive={criteria.responsibilities.size > 0}
-        activeCount={criteria.responsibilities.size}
-      >
-        {RESPONSIBILITIES.map((responsibility: Responsibility) => (
-          <label key={responsibility}>
-            <input
-              type="checkbox"
-              checked={criteria.responsibilities.has(responsibility)}
-              onChange={() => dispatch({ type: 'toggleResponsibility', responsibility })}
-            />
-            {responsibility}
           </label>
         ))}
       </FilterPopover>

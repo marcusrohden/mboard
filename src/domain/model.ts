@@ -1,11 +1,10 @@
-/** The board's fixed columns, left to right. A task's column is its status. */
-export const COLUMNS = ['To do', 'In progress', 'Done'] as const;
-
-/** Who has to take the next step on a task. */
-export const RESPONSIBILITIES = ['Me', 'Client', 'Internal'] as const;
+/**
+ * The board's fixed columns, left to right. A task's column is its status. Internal means the task is
+ * waiting on someone in my organisation, and With client means it is waiting on the client.
+ */
+export const COLUMNS = ['To do', 'In progress', 'Internal', 'With client', 'Done'] as const;
 
 export type Status = (typeof COLUMNS)[number];
-export type Responsibility = (typeof RESPONSIBILITIES)[number];
 
 /** The task file's path relative to the board folder, with `/` separators, for example `tasks/Fix login bug.md`. */
 export type TaskId = string;
@@ -33,7 +32,6 @@ export interface Task {
   id: TaskId;
   title: string;
   status: Status;
-  responsibility: Responsibility;
   project: string | null;
   due: LocalDate | null;
   created: LocalDateTime;
@@ -55,16 +53,13 @@ export interface UnknownFrontmatterEntry {
 /**
  * A parsed task file, without its location.
  *
- * `rawStatus` and `rawResponsibility` hold the file's own spelling when it isn't one the app
- * recognises exactly (for example `in progress` or an unknown value). They are written back until
- * the field is changed.
+ * `rawStatus` holds the file's own spelling when it isn't one the app recognises exactly (for example
+ * `in progress` or an unknown value). It is written back until the status changes.
  */
 export interface TaskDocument {
   title: string;
   status: Status;
   rawStatus: string | null;
-  responsibility: Responsibility;
-  rawResponsibility: string | null;
   project: string | null;
   due: LocalDate | null;
   created: LocalDateTime;
@@ -81,7 +76,6 @@ export interface TaskDocument {
 export interface NewTaskInput {
   title: string;
   status: Status;
-  responsibility: Responsibility;
   project: string | null;
   due: LocalDate | null;
   description: string;
@@ -92,7 +86,6 @@ export type TaskEdit =
   | { field: 'title'; value: string }
   | { field: 'description'; value: string }
   | { field: 'project'; value: string | null }
-  | { field: 'responsibility'; value: Responsibility }
   | { field: 'due'; value: LocalDate | null };
 
 /** Whether `value` is exactly one of the column names. */
@@ -100,22 +93,8 @@ export function isStatus(value: unknown): value is Status {
   return COLUMNS.some((column) => column === value);
 }
 
-/** Whether `value` is exactly one of the responsibility names. */
-export function isResponsibility(value: unknown): value is Responsibility {
-  return RESPONSIBILITIES.some((responsibility) => responsibility === value);
-}
-
-function matchIgnoringCase<T extends string>(options: readonly T[], raw: string): T | null {
-  const wanted = raw.trim().toLowerCase();
-  return options.find((option) => option.toLowerCase() === wanted) ?? null;
-}
-
 /** Matches a raw value to a column, ignoring case and surrounding spaces. Returns `null` when none matches. */
 export function matchStatus(raw: string): Status | null {
-  return matchIgnoringCase(COLUMNS, raw);
-}
-
-/** Matches a raw value to a responsibility, ignoring case and surrounding spaces. Returns `null` when none matches. */
-export function matchResponsibility(raw: string): Responsibility | null {
-  return matchIgnoringCase(RESPONSIBILITIES, raw);
+  const wanted = raw.trim().toLowerCase();
+  return COLUMNS.find((column) => column.toLowerCase() === wanted) ?? null;
 }

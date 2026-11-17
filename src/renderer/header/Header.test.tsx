@@ -7,9 +7,9 @@ import { renderBoard } from '../testing/render-board';
 useDomEnvironment();
 
 const TASKS = () => [
-  buildTask({ title: 'Fix login', project: 'Acme', responsibility: 'Me', description: 'staging credentials', due: '2026-11-10' }),
-  buildTask({ title: 'Write docs', project: 'Acme', responsibility: 'Client', due: '2026-11-16' }),
-  buildTask({ title: 'Plan trip', project: null, responsibility: 'Internal', due: '2026-11-18' }),
+  buildTask({ title: 'Fix login', project: 'Acme', description: 'staging credentials', due: '2026-11-10' }),
+  buildTask({ title: 'Write docs', project: 'Acme', due: '2026-11-16' }),
+  buildTask({ title: 'Plan trip', project: null, due: '2026-11-18' }),
   buildTask({ title: 'Old thing', project: 'Other', status: 'In progress', updated: '2026-11-01T09:00:00', due: null }),
   buildTask({ title: 'Shipped', project: 'Acme', status: 'Done' }),
 ];
@@ -28,9 +28,10 @@ function countOf(column: string): string {
 describe('Header', () => {
   it('has the named controls, and Clear only while something is active', async () => {
     const { user } = await renderBoard({ tasks: TASKS() });
-    for (const name of ['New task', 'Archived', 'Project', 'Responsibility', 'Due']) {
+    for (const name of ['New task', 'Archived', 'Project', 'Due']) {
       expect(screen.getByRole('button', { name })).toBeTruthy();
     }
+    expect(screen.queryByRole('button', { name: 'Responsibility' })).toBeNull();
     expect(screen.getByRole('switch', { name: 'Stale only' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Archived' }).getAttribute('aria-pressed')).toBe('false');
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
@@ -62,11 +63,23 @@ describe('Header', () => {
     expect(countOf('To do')).toBe('1 of 3');
   });
 
-  it('filters by responsibility', async () => {
-    const { user } = await renderBoard({ tasks: TASKS() });
-    await user.click(screen.getByRole('button', { name: 'Responsibility' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Client' }));
-    expect(titles('To do')).toEqual(['Write docs']);
+  it('shows "shown of total" in Internal and With client too', async () => {
+    const { user } = await renderBoard({
+      tasks: [
+        ...TASKS(),
+        buildTask({ title: 'Chase design', project: 'Acme', status: 'Internal' }),
+        buildTask({ title: 'Await sign-off', project: 'Acme', status: 'With client' }),
+        buildTask({ title: 'Await quote', project: 'Other', status: 'With client' }),
+      ],
+    });
+    expect(countOf('Internal')).toBe('1');
+    expect(countOf('With client')).toBe('2');
+    await user.click(screen.getByRole('button', { name: 'Project' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Other' }));
+    expect(titles('With client')).toEqual(['Await quote']);
+    expect(countOf('With client')).toBe('1 of 2');
+    expect(countOf('Internal')).toBe('0 of 1');
+    expect(within(screen.getByRole('region', { name: 'Internal' })).getByText('No matching tasks')).toBeTruthy();
   });
 
   it('filters by due: overdue, today, this week and none', async () => {

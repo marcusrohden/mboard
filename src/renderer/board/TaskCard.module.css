@@ -47,27 +47,11 @@
   color: var(--color-text-muted);
 }
 
-.badge,
 .chip,
 .stale {
   padding: 0 6px;
   border-radius: 999px;
   font-weight: 600;
-}
-
-.badge[data-responsibility='Me'] {
-  background: var(--responsibility-me-bg);
-  color: var(--responsibility-me-fg);
-}
-
-.badge[data-responsibility='Client'] {
-  background: var(--responsibility-client-bg);
-  color: var(--responsibility-client-fg);
-}
-
-.badge[data-responsibility='Internal'] {
-  background: var(--responsibility-internal-bg);
-  color: var(--responsibility-internal-fg);
 }
 
 .chip[data-tone='neutral'] {

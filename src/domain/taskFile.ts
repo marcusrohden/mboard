@@ -1,6 +1,6 @@
 import { Document, Scalar, parseDocument } from 'yaml';
-import type { HistoryEntry, LocalDateTime, Task, TaskComment, TaskDocument, TaskId, UnknownFrontmatterEntry } from './model';
-import { matchResponsibility, matchStatus } from './model';
+import type { HistoryEntry, LocalDateTime, Status, Task, TaskComment, TaskDocument, TaskId, UnknownFrontmatterEntry } from './model';
+import { matchStatus } from './model';
 import { normaliseProject } from './projects';
 import { formatLocalDateTime, normaliseLogTimestamp, normaliseTimestamp, parseLocalDate } from './time';
 
@@ -26,10 +26,18 @@ const HISTORY_LINE = /^-[ \t]+(.*)$/;
 const DATED_HISTORY_TEXT = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2})[ \t]+[—–-][ \t]+(.*)$/;
 const DUE_PREFIX = /^\d{4}-\d{2}-\d{2}(?=$|[T ])/;
 
+const DEFAULT_STATUS: Status = 'To do';
+const LEGACY_RESPONSIBILITY_KEY = 'responsibility';
+const STATUSES_BEFORE_WAITING: ReadonlySet<Status> = new Set<Status>(['To do', 'In progress']);
+const COLUMN_FOR_LEGACY_RESPONSIBILITY: ReadonlyMap<string, Status> = new Map<string, Status>([
+  ['client', 'With client'],
+  ['internal', 'Internal'],
+]);
+
 const KNOWN_KEYS: ReadonlySet<unknown> = new Set([
   'title',
   'status',
-  'responsibility',
+  LEGACY_RESPONSIBILITY_KEY,
   'project',
   'due',
   'created',
@@ -107,20 +115,25 @@ function readTitle(value: unknown, fileName: string): string {
   return text ? text : titleFromFileName(fileName);
 }
 
-interface RecognisedChoice<T> {
-  value: T;
-  raw: string | null;
+interface ReadStatus {
+  status: Status;
+  rawStatus: string | null;
 }
 
-function readChoice<T extends string>(
-  value: unknown,
-  match: (raw: string) => T | null,
-  defaultValue: T,
-): RecognisedChoice<T> {
+function columnForLegacyResponsibility(status: Status, responsibility: unknown): Status | null {
+  if (!STATUSES_BEFORE_WAITING.has(status)) return null;
+  const waitingOn = scalarText(responsibility)?.trim().toLowerCase();
+  return waitingOn === undefined ? null : (COLUMN_FOR_LEGACY_RESPONSIBILITY.get(waitingOn) ?? null);
+}
+
+function readStatus(value: unknown, legacyResponsibility: unknown): ReadStatus {
   const text = scalarText(value)?.trim();
-  if (!text) return { value: defaultValue, raw: null };
-  const matched = match(text);
-  return { value: matched ?? defaultValue, raw: matched === text ? null : text };
+  if (!text) return { status: DEFAULT_STATUS, rawStatus: null };
+  const matched = matchStatus(text);
+  if (matched === null) return { status: DEFAULT_STATUS, rawStatus: text };
+  const legacyColumn = columnForLegacyResponsibility(matched, legacyResponsibility);
+  if (legacyColumn !== null) return { status: legacyColumn, rawStatus: null };
+  return { status: matched, rawStatus: matched === text ? null : text };
 }
 
 function sectionBuckets(body: string): { description: string[]; comments: string[]; history: string[] } {
@@ -202,17 +215,21 @@ function readFrontmatterMap(frontmatter: string): Map<unknown, unknown> | string
 /**
  * Parses a task file's text.
  *
- * Reading is tolerant: a file without frontmatter is a task, unknown status and responsibility values
- * fall back to defaults, and timestamps are read in several formats. Frontmatter that isn't a valid
- * YAML mapping makes the file unreadable.
+ * Reading is tolerant: a file without frontmatter is a task, an unknown status reads as To do, and
+ * timestamps are read in several formats. Frontmatter that isn't a valid YAML mapping makes the file
+ * unreadable.
+ *
+ * A file from before the Internal and With client columns may still carry `responsibility`. When its
+ * status is To do or In progress and its responsibility is Client or Internal, ignoring case, the task
+ * reads as With client or Internal. The key itself is never kept, so the next write drops it and writes
+ * the effective status.
  */
 export function parseTaskFile(content: string, fallback: FileFallback): ParseResult {
   const { frontmatter, body } = splitFrontmatter(content);
   const properties = frontmatter === null ? new Map<unknown, unknown>() : readFrontmatterMap(frontmatter);
   if (typeof properties === 'string') return { kind: 'unreadable', reason: properties };
 
-  const status = readChoice(properties.get('status'), matchStatus, 'To do');
-  const responsibility = readChoice(properties.get('responsibility'), matchResponsibility, 'Me');
+  const { status, rawStatus } = readStatus(properties.get('status'), properties.get(LEGACY_RESPONSIBILITY_KEY));
   const buckets = sectionBuckets(body);
   const unknownFrontmatter: UnknownFrontmatterEntry[] = [...properties]
     .filter(([key]) => !KNOWN_KEYS.has(key))
@@ -222,10 +239,8 @@ export function parseTaskFile(content: string, fallback: FileFallback): ParseRes
     kind: 'ok',
     document: {
       title: readTitle(properties.get('title'), fallback.fileName),
-      status: status.value,
-      rawStatus: status.raw,
-      responsibility: responsibility.value,
-      rawResponsibility: responsibility.raw,
+      status,
+      rawStatus,
       project: normaliseProject(scalarText(properties.get('project'))),
       due: readDue(properties.get('due')),
       created: readTimestamp(properties.get('created')) ?? formatLocalDateTime(fallback.birthtime),
@@ -250,7 +265,6 @@ function frontmatterEntries(document: TaskDocument): [unknown, unknown][] {
   const entries: [unknown, unknown][] = [
     ['title', quotedTitle(document.title)],
     ['status', document.rawStatus ?? document.status],
-    ['responsibility', document.rawResponsibility ?? document.responsibility],
   ];
   if (document.project !== null) entries.push(['project', document.project]);
   if (document.due !== null) entries.push(['due', document.due]);
@@ -304,7 +318,6 @@ export function toTask(document: TaskDocument, id: TaskId, isArchived: boolean):
     id,
     title: document.title,
     status: document.status,
-    responsibility: document.responsibility,
     project: document.project,
     due: document.due,
     created: document.created,

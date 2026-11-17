@@ -17,7 +17,6 @@ export function buildTask(overrides: Partial<Task> = {}): Task {
     id: `${isArchived ? 'archive' : 'tasks'}/${title}.md`,
     title,
     status: 'To do',
-    responsibility: 'Me',
     project: null,
     due: null,
     created: '2026-11-10T09:00:00',

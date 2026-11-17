@@ -12,15 +12,15 @@ async function openDialog(user: Awaited<ReturnType<typeof renderBoard>>['user'])
 }
 
 describe('New task dialog', () => {
-  it('has every field and starts with To do and Me', async () => {
+  it('has every field, starts in To do and has no responsibility control', async () => {
     const { user } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
     const dialog = await openDialog(user);
     for (const label of ['Title', 'Column', 'Project', 'Due date', 'Description']) {
       expect(within(dialog).getByLabelText(label)).toBeTruthy();
     }
     expect((within(dialog).getByLabelText('Column') as HTMLSelectElement).value).toBe('To do');
-    const group = within(dialog).getByRole('radiogroup', { name: 'Responsibility' });
-    expect((within(group).getByRole('radio', { name: 'Me' }) as HTMLInputElement).checked).toBe(true);
+    expect(within(dialog).queryByRole('radiogroup')).toBeNull();
+    expect(within(dialog).queryByText('Responsibility')).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'Create task' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeTruthy();
     expect(document.activeElement).toBe(within(dialog).getByLabelText('Title'));
@@ -33,7 +33,6 @@ describe('New task dialog', () => {
     const dialog = await openDialog(user);
     await user.type(within(dialog).getByLabelText('Title'), '  Write the brief  ');
     await user.selectOptions(within(dialog).getByLabelText('Column'), 'In progress');
-    await user.click(within(dialog).getByRole('radio', { name: 'Client' }));
     await user.type(within(dialog).getByLabelText('Project'), '  Acme   website ');
     await user.type(within(dialog).getByLabelText('Due date'), '2026-11-20');
     await user.type(within(dialog).getByLabelText('Description'), 'Line one{Enter}Line two');
@@ -42,7 +41,6 @@ describe('New task dialog', () => {
     expect(fake.api.createTask).toHaveBeenCalledWith({
       title: 'Write the brief',
       status: 'In progress',
-      responsibility: 'Client',
       project: 'Acme website',
       due: '2026-11-20',
       description: 'Line one\nLine two',
@@ -55,12 +53,37 @@ describe('New task dialog', () => {
     ]);
   });
 
+  it('offers all five columns', async () => {
+    const { user } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
+    const dialog = await openDialog(user);
+    const select = within(dialog).getByLabelText('Column') as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual(['To do', 'In progress', 'Internal', 'With client', 'Done']);
+  });
+
+  it.each(['Internal', 'With client'] as const)('creates a task straight into %s', async (status) => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
+    const dialog = await openDialog(user);
+    await user.type(within(dialog).getByLabelText('Title'), 'Waiting on someone');
+    await user.selectOptions(within(dialog).getByLabelText('Column'), status);
+    await user.click(within(dialog).getByRole('button', { name: 'Create task' }));
+
+    expect(fake.api.createTask).toHaveBeenCalledWith({
+      title: 'Waiting on someone',
+      status,
+      project: null,
+      due: null,
+      description: '',
+    });
+    const column = screen.getByRole('region', { name: status });
+    expect(within(column).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual(['Waiting on someone']);
+  });
+
   it('creates with Enter in the title', async () => {
     const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
     const dialog = await openDialog(user);
     await user.type(within(dialog).getByLabelText('Title'), 'Quick one{Enter}');
     expect(fake.api.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Quick one', status: 'To do', responsibility: 'Me', project: null, due: null }),
+      expect.objectContaining({ title: 'Quick one', status: 'To do', project: null, due: null }),
     );
     expect(screen.queryByRole('dialog')).toBeNull();
   });

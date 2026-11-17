@@ -17,7 +17,7 @@ interface BoardProps {
 }
 
 function idsByColumn(views: ColumnView[]): ColumnIds {
-  const ids: ColumnIds = { 'To do': [], 'In progress': [], Done: [] };
+  const ids: ColumnIds = { 'To do': [], 'In progress': [], Internal: [], 'With client': [], Done: [] };
   views.forEach((view) => {
     ids[view.status] = view.visible.map((task) => task.id);
   });
@@ -25,7 +25,7 @@ function idsByColumn(views: ColumnView[]): ColumnIds {
 }
 
 /**
- * The three columns, with drag and drop between and within them. An empty board invites the first task.
+ * The five columns, with drag and drop between and within them. An empty board invites the first task.
  */
 export function Board({ views, isFiltered, today, onOpen, onArchive, onArchiveAll, onMove, onNewTask }: BoardProps) {
   const totalTasks = views.reduce((sum, view) => sum + view.total, 0);
