@@ -10,6 +10,8 @@ export const BoardMessage = {
   placedBeforeItself: "A task can't be placed before itself.",
   staleRevert: 'This task changed since you opened its history. Check it and try again.',
   boardFolderMissing: "The board folder can't be found. It may have been moved or renamed.",
+  projectsFileUnreadable: "projects.md couldn't be read, so mboard won't change it. Fix the file in Obsidian first.",
+  projectNameMissing: 'Choose a project before giving it a colour.',
 } as const;
 
 /** Builds the error a refused board command rejects with. */

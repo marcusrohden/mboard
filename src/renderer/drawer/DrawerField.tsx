@@ -1,4 +1,4 @@
-import { useId, type KeyboardEvent } from 'react';
+import { useId, type KeyboardEvent, type ReactNode } from 'react';
 import { Button } from '../ui/Button';
 import { ProjectInput } from '../ui/ProjectInput';
 import fields from '../ui/fields.module.css';
@@ -16,12 +16,14 @@ interface DrawerFieldProps {
   readOnly: boolean;
   suggestions?: readonly string[];
   isHeading?: boolean;
+  renderBelow?: (displayed: string) => ReactNode;
 }
 
 /**
  * One inline-editable field in the detail drawer. It saves on blur or Enter (Cmd+Enter for the
  * description), and a date can be removed with its own button. Esc reaches the drawer, which closes
- * without saving the edit. When `readOnly` the value is shown but can't be changed.
+ * without saving the edit. When `readOnly` the value is shown but can't be changed. `renderBelow` adds
+ * controls under the input that follow the value as shown, draft included.
  */
 export function DrawerField({
   label,
@@ -31,6 +33,7 @@ export function DrawerField({
   readOnly,
   suggestions = [],
   isHeading = false,
+  renderBelow,
 }: DrawerFieldProps) {
   const id = useId();
   const editable = useEditableValue(value, onSave);
@@ -93,6 +96,7 @@ export function DrawerField({
           )}
         </div>
       )}
+      {renderBelow?.(editable.displayed)}
     </div>
   );
 }

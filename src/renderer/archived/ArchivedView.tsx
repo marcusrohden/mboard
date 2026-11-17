@@ -1,6 +1,7 @@
 import { compareArchivedTasks, localDateOf, type Task, type TaskId } from '../../domain';
 import { formatDate } from '../lib/format';
 import styles from './ArchivedView.module.css';
+import { ProjectLabel } from '../ui/ProjectLabel';
 
 interface ArchivedViewProps {
   tasks: readonly Task[];
@@ -41,7 +42,7 @@ export function ArchivedView({ tasks, hasArchivedTasks, onOpen }: ArchivedViewPr
                   {task.title}
                 </button>
               </td>
-              <td>{task.project ?? ''}</td>
+              <td>{task.project === null ? '' : <ProjectLabel project={task.project} />}</td>
               <td>{task.archivedAt === null ? '' : formatDate(localDateOf(task.archivedAt))}</td>
             </tr>
           ))}

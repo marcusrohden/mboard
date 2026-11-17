@@ -11,7 +11,13 @@ import { IPC } from '../../shared/contract';
 import type { BoardService, BoardSetupService } from '../ports';
 import { createInvokeHandlers, type InvokeHandlerDependencies } from './invoke-handlers';
 
-const SNAPSHOT: BoardSnapshot = { tasks: [], unreadable: [], now: '2026-11-16T09:30:00', today: '2026-11-16' };
+const SNAPSHOT: BoardSnapshot = {
+  tasks: [],
+  unreadable: [],
+  projectColours: {},
+  now: '2026-11-16T09:30:00',
+  today: '2026-11-16',
+};
 const TASK = { id: 'tasks/A.md', title: 'A' } as Task;
 const UPDATE_STATUS: AppUpdateStatus = {
   currentVersion: '0.1.0',
@@ -39,6 +45,7 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     restoreTask: vi.fn(async () => TASK),
     revertTask: vi.fn(async () => TASK),
     deleteTask: vi.fn(async () => undefined),
+    setProjectColour: vi.fn(async () => undefined),
     absolutePath: vi.fn((id: string) => `/Vault/Board/${id}`),
   };
   const setup = {
@@ -95,11 +102,15 @@ describe('createInvokeHandlers', () => {
     await expect(handlers.archiveAllDone()).resolves.toBe(2);
     await expect(handlers.getSnapshot()).resolves.toBe(SNAPSHOT);
     await handlers.revertTask('tasks/A.md', 2, EXPECTED);
+    await handlers.setProjectColour('Acme', 'teal');
+    await handlers.setProjectColour('Acme', null);
 
     expect(board.createTask).toHaveBeenCalledWith(NEW_TASK);
     expect(board.editTask).toHaveBeenCalledWith('tasks/A.md', { field: 'project', value: null });
     expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'Done', null);
     expect(board.revertTask).toHaveBeenCalledWith('tasks/A.md', 2, EXPECTED);
+    expect(board.setProjectColour).toHaveBeenNthCalledWith(1, 'Acme', 'teal');
+    expect(board.setProjectColour).toHaveBeenNthCalledWith(2, 'Acme', null);
   });
 
   it('accepts every column, including Internal and With client', async () => {
@@ -131,6 +142,9 @@ describe('createInvokeHandlers', () => {
     ['addComment without text', 'addComment', ['tasks/A.md']],
     ['deleteTask with an object id', 'deleteTask', [{ id: 'tasks/A.md' }]],
     ['setOpenAtLogin with text', 'setOpenAtLogin', ['yes']],
+    ['setProjectColour with a colour outside the palette', 'setProjectColour', ['Acme', 'magenta']],
+    ['setProjectColour without a colour', 'setProjectColour', ['Acme']],
+    ['setProjectColour with a numeric project', 'setProjectColour', [7, 'red']],
     ['setAgeThresholds without one threshold', 'setAgeThresholds', [{ nudgeFrom: 3, stallingFrom: 5 }]],
     ['setAgeThresholds with an extra key', 'setAgeThresholds', [{ ...THRESHOLDS, greenFrom: 0 }]],
     ['getAgeThresholds with an argument', 'getAgeThresholds', [THRESHOLDS]],

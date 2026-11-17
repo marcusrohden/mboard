@@ -38,7 +38,7 @@ export class FakeBoard {
   tasks: Task[] = [];
   private readonly listeners = new Set<(snapshot: BoardSnapshot) => void>();
 
-  snapshot = (): BoardSnapshot => ({ tasks: [...this.tasks], unreadable: [], now: '', today: '' });
+  snapshot = (): BoardSnapshot => ({ tasks: [...this.tasks], unreadable: [], projectColours: {}, now: '', today: '' });
 
   onChange = (listener: (snapshot: BoardSnapshot) => void): (() => void) => {
     this.listeners.add(listener);

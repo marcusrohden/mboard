@@ -1,4 +1,5 @@
 import { realpathSync, watch, type FSWatcher } from 'node:fs';
+import { PROJECTS_FILE_NAME } from '../../domain';
 import { isTaskFolder } from './task-location';
 
 /** How long the watcher waits after the last change before asking for a rescan. */
@@ -14,13 +15,15 @@ export type FolderWatchFactory = (boardPath: string, onChange: () => void) => Bo
 
 /**
  * Whether a change reported at `relativePath` (relative to the board folder) can affect the board. Dot-files
- * and dot-folders anywhere in the path are ignored, as is anything outside `tasks/` and `archive/`. A change
- * with no path is always relevant, because the platform didn't say what changed.
+ * and dot-folders anywhere in the path are ignored, as is anything outside `tasks/`, `archive/` and the
+ * board's `projects.md`. A change with no path is always relevant, because the platform didn't say what
+ * changed.
  */
 export function isRelevantBoardChange(relativePath: string | null): boolean {
   if (relativePath === null) return true;
   const segments = relativePath.split(/[\\/]/).filter((segment) => segment !== '');
   if (segments.some((segment) => segment.startsWith('.'))) return false;
+  if (segments.length === 1 && segments[0] === PROJECTS_FILE_NAME) return true;
   return isTaskFolder(segments[0]);
 }
 

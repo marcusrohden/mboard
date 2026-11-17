@@ -794,6 +794,83 @@ describe('unreadable files', () => {
   });
 });
 
+describe('project colours', () => {
+  it('reads them from projects.md when the board opens and after a rescan', async () => {
+    await seed('projects.md', '---\ncolours:\n  Acme website: teal\n---\n');
+    await openBoard();
+    expect(service.snapshot().projectColours).toEqual({ 'Acme website': 'teal' });
+
+    await seed('projects.md', '---\ncolours:\n  Acme website: red\n---\n');
+    await service.rescan();
+    expect(service.snapshot().projectColours).toEqual({ 'Acme website': 'red' });
+  });
+
+  it('has none without projects.md, and never creates it just by opening', async () => {
+    await openBoard();
+    expect(service.snapshot().projectColours).toEqual({});
+    expect(existsSync(boardFile('projects.md'))).toBe(false);
+  });
+
+  it('creates projects.md on the first colour, in the spelling the tasks use, without touching any task', async () => {
+    await openBoard();
+    await service.createTask(NEW_TASK);
+    const task = await fileState(boardFile('tasks/Fix login bug.md'));
+    const snapshots: BoardSnapshot[] = [];
+    service.onChange((snapshot) => snapshots.push(snapshot));
+
+    await service.setProjectColour('  acme   WEBSITE ', 'teal');
+
+    expect(await read('projects.md')).toMatch(/^---\ncolours:\n {2}Acme website: teal\n---\n/);
+    expect(service.snapshot().projectColours).toEqual({ 'Acme website': 'teal' });
+    expect(snapshots.at(-1)?.projectColours).toEqual({ 'Acme website': 'teal' });
+    expect(await fileState(boardFile('tasks/Fix login bug.md'))).toEqual(task);
+  });
+
+  it('changes and removes a colour, keeping the rest of the file', async () => {
+    await seed('projects.md', '---\nowner: me\ncolours:\n  Acme: red\n  Beta: blue\n---\n\nNotes.\n');
+    await openBoard();
+    await service.setProjectColour('acme', 'green');
+    await service.setProjectColour('Beta', null);
+    expect(service.snapshot().projectColours).toEqual({ acme: 'green' });
+    const text = await read('projects.md');
+    expect(text).toContain('owner: me');
+    expect(text.endsWith('\nNotes.\n')).toBe(true);
+  });
+
+  it('lists an unreadable projects.md, and never writes it', async () => {
+    await seed('projects.md', '---\ncolours: [unclosed\n---\n');
+    await openBoard();
+    const before = await fileState(boardFile('projects.md'));
+
+    expect(service.snapshot().projectColours).toEqual({});
+    expect(service.snapshot().unreadable.map((file) => file.id)).toEqual(['projects.md']);
+    await expect(service.setProjectColour('Acme', 'red')).rejects.toThrow(BoardMessage.projectsFileUnreadable);
+    expect(await fileState(boardFile('projects.md'))).toEqual(before);
+  });
+
+  it('refuses a colour for an empty project name', async () => {
+    await openBoard();
+    await expect(service.setProjectColour('   ', 'red')).rejects.toThrow(BoardMessage.projectNameMissing);
+    expect(existsSync(boardFile('projects.md'))).toBe(false);
+  });
+
+  it.skipIf(!WATCHING_WORKS)('picks up an outside edit to projects.md', async () => {
+    const watchingService = new FileBoardService({
+      clock,
+      trash: new FolderTrash(trashPath),
+      watchFolder: (folder, onChange) => watchBoardFolder(folder, onChange, 50),
+    });
+    try {
+      await watchingService.open(boardPath);
+      const coloured = waitForSnapshot(watchingService, (snapshot) => snapshot.projectColours['Acme'] === 'pink');
+      await seed('projects.md', '---\ncolours:\n  Acme: pink\n---\n');
+      expect((await coloured).projectColours).toEqual({ Acme: 'pink' });
+    } finally {
+      await watchingService.close();
+    }
+  });
+});
+
 describe('task ids', () => {
   it.each([
     ['tasks/../../escape.md'],

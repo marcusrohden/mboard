@@ -3,6 +3,8 @@ import {
   DEFAULT_AGE_THRESHOLDS,
   ageThresholdsProblem,
   columnTasks,
+  normaliseProject,
+  type ProjectColour,
   formatLogTimestamp,
   isSameRevertPoint,
   revertDocument,
@@ -17,6 +19,7 @@ import type {
   BoardSnapshot,
   MboardApi,
   Preferences,
+  ProjectColours,
   ReminderBannerItem,
   Status,
   Task,
@@ -37,6 +40,7 @@ export interface FakeMboardOptions {
   banner?: ReminderBannerItem[];
   preferences?: Preferences;
   ageThresholds?: AgeThresholds;
+  projectColours?: ProjectColours;
   appUpdateStatus?: AppUpdateStatus;
   /** Whether the menu asked to open Settings before the app mounted. */
   pendingSettingsRequest?: boolean;
@@ -94,6 +98,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   let banner = [...(options.banner ?? [])];
   let preferences = options.preferences ?? { openAtLogin: true, notificationsAvailable: true };
   let ageThresholds = options.ageThresholds ?? { ...DEFAULT_AGE_THRESHOLDS };
+  let projectColours: Record<string, ProjectColour> = { ...options.projectColours };
   let appUpdateStatus = options.appUpdateStatus ?? { currentVersion: '0.1.0', stage: { kind: 'idle' } };
   let isSettingsRequested = options.pendingSettingsRequest ?? false;
   const now = options.now ?? TEST_NOW;
@@ -108,7 +113,13 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   const appUpdateListeners: Listeners<AppUpdateStatus> = new Set();
   const openSettingsListeners: Listeners<void> = new Set();
 
-  const snapshot = (): BoardSnapshot => ({ tasks: structuredClone(tasks), unreadable: [...unreadable], now, today });
+  const snapshot = (): BoardSnapshot => ({
+    tasks: structuredClone(tasks),
+    unreadable: [...unreadable],
+    projectColours: { ...projectColours },
+    now,
+    today,
+  });
   const publish = (): void => emitAll(snapshotListeners, snapshot());
   const logStamp = formatLogTimestamp(new Date(now));
 
@@ -278,6 +289,14 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       publish();
     }),
     openInObsidian: vi.fn(async () => undefined),
+    setProjectColour: vi.fn(async (project, colour) => {
+      const name = normaliseProject(project);
+      if (name === null) throw new Error('Choose a project before giving it a colour.');
+      const wanted = name.toLowerCase();
+      const others = Object.entries(projectColours).filter(([existing]) => existing.toLowerCase() !== wanted);
+      projectColours = Object.fromEntries(colour === null ? others : [...others, [name, colour]]);
+      publish();
+    }),
 
     getPreferences: vi.fn(async () => preferences),
     setOpenAtLogin: vi.fn(async (enabled) => {

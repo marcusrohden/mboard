@@ -18,6 +18,7 @@ import { ReminderBanner } from '../notices/ReminderBanner';
 import { UnreadableNotice } from '../notices/UnreadableNotice';
 import { useSettingsDialog } from '../settings/SettingsProvider';
 import { useAgeThresholds } from '../state/age-thresholds';
+import { ProjectColoursProvider } from '../state/project-colours';
 import { useBoardData } from '../state/use-board-data';
 import { useGlobalShortcuts } from '../state/use-global-shortcuts';
 import { useTaskCommands } from '../state/use-task-commands';
@@ -32,7 +33,7 @@ function archivedCriteria(criteria: FilterCriteria): FilterCriteria {
 
 /**
  * The board screen: header, notices, the board or the archived view, the task detail drawer and the
- * New task and Archive all dialogs. Search and filters live here, in memory, and reset on launch.
+ * New task and Archive all dialogs, all sharing the board's project colours. Search and filters live here, in memory, and reset on launch.
  */
 export function BoardScreen({ boardName }: { boardName: string }) {
   const { snapshot, banner, preferences, dismissBanner } = useBoardData();
@@ -95,69 +96,72 @@ export function BoardScreen({ boardName }: { boardName: string }) {
     );
 
   return (
-    <div className={styles.screen}>
-      <Header
-        boardName={boardName}
-        criteria={criteria}
-        projects={projectOptions}
-        isArchivedView={isArchivedView}
-        isFilterActive={isFilterActive(activeCriteria)}
-        searchRef={searchRef}
-        dispatch={dispatch}
-        onToggleArchived={() => setIsArchivedView((current) => !current)}
-        onNewTask={() => setIsNewTaskOpen(true)}
-        onOpenSettings={settings.open}
-      />
-      <UnreadableNotice files={snapshot.unreadable} />
-      <ReminderBanner
-        items={banner}
-        notificationsUnavailable={preferences?.notificationsAvailable === false}
-        onOpenTask={openTask}
-        onDismiss={dismissReminders}
-      />
-      <div className={styles.workspace}>
-        <main className={styles.main}>
-          {isArchivedView ? (
-            <ArchivedView tasks={shownArchived} hasArchivedTasks={archivedTasks.length > 0} onOpen={openTask} />
-          ) : (
-            <Board
-              views={views}
-              isFiltered={isFilterActive(criteria)}
+    <ProjectColoursProvider colours={snapshot.projectColours}>
+      <div className={styles.screen}>
+        <Header
+          boardName={boardName}
+          criteria={criteria}
+          projects={projectOptions}
+          isArchivedView={isArchivedView}
+          isFilterActive={isFilterActive(activeCriteria)}
+          searchRef={searchRef}
+          dispatch={dispatch}
+          onToggleArchived={() => setIsArchivedView((current) => !current)}
+          onNewTask={() => setIsNewTaskOpen(true)}
+          onOpenSettings={settings.open}
+        />
+        <UnreadableNotice files={snapshot.unreadable} />
+        <ReminderBanner
+          items={banner}
+          notificationsUnavailable={preferences?.notificationsAvailable === false}
+          onOpenTask={openTask}
+          onDismiss={dismissReminders}
+        />
+        <div className={styles.workspace}>
+          <main className={styles.main}>
+            {isArchivedView ? (
+              <ArchivedView tasks={shownArchived} hasArchivedTasks={archivedTasks.length > 0} onOpen={openTask} />
+            ) : (
+              <Board
+                views={views}
+                isFiltered={isFilterActive(criteria)}
+                today={snapshot.today}
+                onOpen={openTask}
+                onArchive={(id) => void commands.archive(id)}
+                onArchiveAll={() => setIsConfirmingArchiveAll(true)}
+                onMove={commands.drop}
+                onNewTask={() => setIsNewTaskOpen(true)}
+              />
+            )}
+          </main>
+          {selection.selectedTask !== null && (
+            <TaskDrawer
+              task={selection.selectedTask}
               today={snapshot.today}
-              onOpen={openTask}
-              onArchive={(id) => void commands.archive(id)}
-              onArchiveAll={() => setIsConfirmingArchiveAll(true)}
-              onMove={commands.drop}
-              onNewTask={() => setIsNewTaskOpen(true)}
+              projectSuggestions={suggestions}
+              commands={commands}
+              onClose={selection.close}
             />
           )}
-        </main>
-        {selection.selectedTask !== null && (
-          <TaskDrawer
-            task={selection.selectedTask}
-            today={snapshot.today}
+        </div>
+        {isNewTaskOpen && (
+          <NewTaskDialog
             projectSuggestions={suggestions}
-            commands={commands}
-            onClose={selection.close}
+            onCreate={commands.create}
+            onSetProjectColour={commands.setProjectColour}
+            onClose={() => setIsNewTaskOpen(false)}
+          />
+        )}
+        {isConfirmingArchiveAll && (
+          <ConfirmDialog
+            title="Archive all done tasks?"
+            message={`${doneCount === 1 ? 'The 1 task' : `All ${doneCount} tasks`} in Done will move to the archive.`}
+            confirmLabel="Archive all"
+            onConfirm={() => void archiveAll()}
+            onCancel={() => setIsConfirmingArchiveAll(false)}
           />
         )}
       </div>
-      {isNewTaskOpen && (
-        <NewTaskDialog
-          projectSuggestions={suggestions}
-          onCreate={commands.create}
-          onClose={() => setIsNewTaskOpen(false)}
-        />
-      )}
-      {isConfirmingArchiveAll && (
-        <ConfirmDialog
-          title="Archive all done tasks?"
-          message={`${doneCount === 1 ? 'The 1 task' : `All ${doneCount} tasks`} in Done will move to the archive.`}
-          confirmLabel="Archive all"
-          onConfirm={() => void archiveAll()}
-          onCancel={() => setIsConfirmingArchiveAll(false)}
-        />
-      )}
-    </div>
+    </ProjectColoursProvider>
   );
 }

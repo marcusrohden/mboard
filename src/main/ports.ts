@@ -6,6 +6,7 @@ import type {
   FolderChoice,
   NewTaskInput,
   Preferences,
+  ProjectColour,
   ReminderBannerItem,
   RevertExpectation,
   Status,
@@ -77,6 +78,7 @@ export interface BoardService {
   restoreTask(id: TaskId): Promise<Task>;
   revertTask(id: TaskId, toEntryIndex: number, expected: RevertExpectation): Promise<Task>;
   deleteTask(id: TaskId): Promise<void>;
+  setProjectColour(project: string, colour: ProjectColour | null): Promise<void>;
   absolutePath(id: TaskId): string;
 }
 

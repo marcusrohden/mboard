@@ -10,6 +10,8 @@ import {
   readNewTaskInput,
   readEntryIndex,
   readOptionalTaskId,
+  readProjectColour,
+  readProjectName,
   readRevertExpectation,
   readStatus,
   readTaskEdit,
@@ -83,6 +85,10 @@ function boardHandlers(dependencies: InvokeHandlerDependencies) {
       return board.revertTask(readTaskId(id), readEntryIndex(toEntryIndex), readRevertExpectation(expected));
     },
     deleteTask: async (...args: unknown[]) => board.deleteTask(readTaskId(expectArguments(args, 1)[0])),
+    setProjectColour: async (...args: unknown[]) => {
+      const [project, colour] = expectArguments(args, 2);
+      await board.setProjectColour(readProjectName(project), readProjectColour(colour));
+    },
     openInObsidian: async (...args: unknown[]) => {
       const absolutePath = board.absolutePath(readTaskId(expectArguments(args, 1)[0]));
       await dependencies.openInObsidian(absolutePath);

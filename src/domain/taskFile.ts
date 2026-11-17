@@ -1,4 +1,5 @@
-import { Document, Scalar, parseDocument } from 'yaml';
+import { Document, Scalar } from 'yaml';
+import { FRONTMATTER_FENCE, readFrontmatterMap, splitFrontmatter } from './frontmatter';
 import { encodeLedgerComment, splitLedgerComment } from './ledger';
 import type {
   HistoryEntry,
@@ -23,7 +24,6 @@ export interface FileFallback {
 
 export type ParseResult = { kind: 'ok'; document: TaskDocument } | { kind: 'unreadable'; reason: string };
 
-const FRONTMATTER_FENCE = '---';
 const HISTORY_SEPARATOR = '—';
 
 const COMMENTS_HEADING = /^##[ \t]+comments[ \t]*$/i;
@@ -53,26 +53,6 @@ const KNOWN_KEYS: ReadonlySet<unknown> = new Set([
   'archived',
   'order',
 ]);
-
-interface SplitContent {
-  frontmatter: string | null;
-  body: string;
-}
-
-function normaliseLineEndings(content: string): string {
-  return content.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
-}
-
-function splitFrontmatter(content: string): SplitContent {
-  const lines = normaliseLineEndings(content).split('\n');
-  if (lines[0]?.trimEnd() !== FRONTMATTER_FENCE) return { frontmatter: null, body: lines.join('\n') };
-  const closingIndex = lines.findIndex((line, index) => index > 0 && line.trimEnd() === FRONTMATTER_FENCE);
-  if (closingIndex === -1) return { frontmatter: null, body: lines.join('\n') };
-  return {
-    frontmatter: lines.slice(1, closingIndex).join('\n'),
-    body: lines.slice(closingIndex + 1).join('\n'),
-  };
-}
 
 function isBlank(line: string): boolean {
   return line.trim() === '';
@@ -200,25 +180,6 @@ function readHistory(lines: readonly string[]): HistoryEntry[] {
     const lineText = HISTORY_LINE.exec(line)?.[1];
     return lineText === undefined ? [] : [readHistoryEntry(lineText)];
   });
-}
-
-function describeYamlFailure(error: { message: string }): string {
-  const firstLine = error.message.split('\n')[0] ?? error.message;
-  return firstLine.replace(/:$/, '');
-}
-
-function readFrontmatterMap(frontmatter: string): Map<unknown, unknown> | string {
-  const yamlDocument = parseDocument(frontmatter, { schema: 'core', uniqueKeys: true });
-  const [firstError] = yamlDocument.errors;
-  if (firstError) return `The frontmatter isn't valid YAML: ${describeYamlFailure(firstError)}.`;
-  if (yamlDocument.contents === null) return new Map();
-  let parsed: unknown;
-  try {
-    parsed = yamlDocument.toJS({ mapAsMap: true });
-  } catch (error) {
-    return `The frontmatter isn't valid YAML: ${error instanceof Error ? error.message : 'it could not be read'}.`;
-  }
-  return parsed instanceof Map ? parsed : "The frontmatter isn't a mapping of keys to values.";
 }
 
 /**

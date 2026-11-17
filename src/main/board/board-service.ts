@@ -2,8 +2,10 @@ import {
   COLUMNS,
   FIRST_ORDER,
   addComment as appendComment,
+  PROJECTS_FILE_NAME,
   applyEdit,
   archiveDocument,
+  canonicalProject,
   columnTasks,
   createTaskDocument,
   fileNameForTitle,
@@ -12,6 +14,7 @@ import {
   isSameRevertPoint,
   isStatus,
   moveToColumn,
+  normaliseProject,
   orderForInsertBefore,
   orderForTopOfColumn,
   projectSuggestions,
@@ -20,6 +23,8 @@ import {
   setOrder,
   type ChangeContext,
   type OrderAssignment,
+  type ProjectColour,
+  type ProjectsFileContent,
   type TaskDocument,
 } from '../../domain';
 import type {
@@ -30,6 +35,7 @@ import type {
   Task,
   TaskEdit,
   TaskId,
+  UnreadableFile,
 } from '../../shared/contract';
 import { AtomicFileWriter } from '../fs/atomic-file-writer';
 import { SerialQueue } from '../fs/serial-queue';
@@ -37,6 +43,7 @@ import type { BoardService, Clock, Trash } from '../ports';
 import { userFacingMessage } from '../user-facing-error';
 import { BoardMessage, boardError } from './board-messages';
 import { watchBoardFolder, type BoardWatcher, type FolderWatchFactory } from './board-watcher';
+import { ProjectsFile } from './projects-file';
 import { TaskFileIndex, taskAt } from './task-file-index';
 import { TaskFiles, type ReadTaskFile } from './task-files';
 import { ARCHIVE_FOLDER, LIVE_FOLDER, isArchivedLocation, type TaskLocation } from './task-location';
@@ -53,8 +60,12 @@ type ChangeListener = (snapshot: BoardSnapshot) => void;
 interface OpenBoard {
   files: TaskFiles;
   index: TaskFileIndex;
+  projects: ProjectsFile;
+  projectSettings: ProjectsFileContent;
   watcher: BoardWatcher | null;
 }
+
+const NO_PROJECT_SETTINGS: ProjectsFileContent = { kind: 'ok', colours: {} };
 
 function requireStatus(status: Status): Status {
   if (!isStatus(status)) throw new Error(`The column must be one of: ${COLUMNS.join(', ')}.`);
@@ -66,8 +77,9 @@ function archiveAllStopped(archived: number, total: number, error: unknown): Err
 }
 
 /**
- * The board backend (spec sections 2 and 3). It loads every task file of the open board folder, watches the
- * folder for outside edits, and applies each command as a read-modify-write of the file on disk.
+ * The board backend (spec sections 2 and 3). It loads every task file of the open board folder and its
+ * `projects.md`, watches the folder for outside edits, and applies each command as a read-modify-write of
+ * the file on disk.
  *
  * Commands, scans, `open` and `close` all run one at a time through a single queue. That serialises every
  * write to a path, and it also keeps two commands from choosing the same free file name and a slow scan
@@ -87,11 +99,18 @@ export class FileBoardService implements BoardService {
     return this.queue.run(async () => {
       this.closeBoard();
       const files = new TaskFiles(boardPath, this.writer);
-      const board: OpenBoard = { files, index: new TaskFileIndex(files), watcher: null };
+      const board: OpenBoard = {
+        files,
+        index: new TaskFileIndex(files),
+        projects: new ProjectsFile(files.boardPath, this.writer),
+        projectSettings: NO_PROJECT_SETTINGS,
+        watcher: null,
+      };
       this.board = board;
       board.watcher = this.startWatching(files.boardPath);
       try {
         await board.index.scan();
+        await this.loadProjectSettings(board);
       } catch (error) {
         this.closeBoard();
         throw error;
@@ -110,9 +129,13 @@ export class FileBoardService implements BoardService {
 
   snapshot(): BoardSnapshot {
     const now = this.options.clock.now();
+    const projectSettings = this.board?.projectSettings ?? NO_PROJECT_SETTINGS;
+    const unreadableProjects: UnreadableFile[] =
+      projectSettings.kind === 'unreadable' ? [{ id: PROJECTS_FILE_NAME, reason: projectSettings.reason }] : [];
     return {
       tasks: [...(this.board?.index.tasks() ?? [])],
-      unreadable: [...(this.board?.index.unreadable() ?? [])],
+      unreadable: [...(this.board?.index.unreadable() ?? []), ...unreadableProjects],
+      projectColours: projectSettings.kind === 'ok' ? { ...projectSettings.colours } : {},
       now: formatLocalDateTime(now),
       today: formatLocalDate(now),
     };
@@ -131,6 +154,7 @@ export class FileBoardService implements BoardService {
       const board = this.board;
       if (board === null) return;
       await board.index.scan();
+      await this.loadProjectSettings(board);
       this.emitChange();
     });
     return this.queuedRescan;
@@ -257,6 +281,21 @@ export class FileBoardService implements BoardService {
     });
   }
 
+  /**
+   * Gives a project a colour in `projects.md`, or removes its colour when `colour` is `null`. The name is
+   * tidied and takes the spelling the board's tasks already use. Not a task update: no task file changes.
+   */
+  setProjectColour(project: string, colour: ProjectColour | null): Promise<void> {
+    return this.queue.run(async () => {
+      const board = this.requireBoard();
+      const name = normaliseProject(project);
+      if (name === null) throw boardError(BoardMessage.projectNameMissing);
+      await board.projects.setColour(canonicalProject(name, projectSuggestions(board.index.tasks())) ?? name, colour);
+      await this.loadProjectSettings(board);
+      this.emitChange();
+    });
+  }
+
   absolutePath(id: TaskId): string {
     const board = this.requireBoard();
     return board.files.pathOf(board.files.locate(id));
@@ -272,6 +311,15 @@ export class FileBoardService implements BoardService {
         if (board.index.revision !== revision) this.emitChange();
       }
     });
+  }
+
+  private async loadProjectSettings(board: OpenBoard): Promise<void> {
+    try {
+      board.projectSettings = await board.projects.read();
+    } catch (error) {
+      console.error('mboard could not read projects.md:', error);
+      board.projectSettings = { kind: 'unreadable', reason: userFacingMessage(error) };
+    }
   }
 
   private async archive(board: OpenBoard, location: TaskLocation, current: ReadTaskFile): Promise<Task> {

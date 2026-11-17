@@ -154,4 +154,38 @@ describe('New task dialog', () => {
     expect(screen.getByRole('dialog', { name: 'New task' })).toBeTruthy();
     expect((within(dialog).getByLabelText('Title') as HTMLInputElement).value).toBe('Doomed');
   });
+
+  it('offers a colour only for a project the board does not have yet, and saves it after the task', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Existing', project: 'Acme website' })] });
+    const dialog = await openDialog(user);
+    const colours = () => within(dialog).queryByRole('radiogroup', { name: "New project's colour" });
+    await user.type(within(dialog).getByLabelText('Title'), 'Kick-off');
+    await user.type(within(dialog).getByLabelText('Project'), 'acme WEBSITE');
+    expect(colours()).toBeNull();
+
+    await user.clear(within(dialog).getByLabelText('Project'));
+    await user.type(within(dialog).getByLabelText('Project'), ' Zed  labs ');
+    expect(
+      (within(colours() as HTMLElement).getByRole('radio', { name: 'No colour' }) as HTMLInputElement).checked,
+    ).toBe(true);
+    await user.click(within(colours() as HTMLElement).getByRole('radio', { name: 'Teal' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Create task' }));
+
+    expect(fake.api.setProjectColour).toHaveBeenCalledWith('Zed labs', 'teal');
+    expect(fake.api.createTask.mock.invocationCallOrder[0]).toBeLessThan(
+      fake.api.setProjectColour.mock.invocationCallOrder[0] ?? 0,
+    );
+    const label = within(screen.getByRole('article', { name: 'Kick-off' })).getByText('Zed labs');
+    expect(label.getAttribute('data-colour')).toBe('teal');
+  });
+
+  it('saves no colour when none is picked for a new project', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
+    const dialog = await openDialog(user);
+    await user.type(within(dialog).getByLabelText('Title'), 'Kick-off');
+    await user.type(within(dialog).getByLabelText('Project'), 'Zed labs');
+    await user.click(within(dialog).getByRole('button', { name: 'Create task' }));
+    expect(fake.api.createTask).toHaveBeenCalled();
+    expect(fake.api.setProjectColour).not.toHaveBeenCalled();
+  });
 });

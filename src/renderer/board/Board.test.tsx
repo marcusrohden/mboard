@@ -80,6 +80,20 @@ describe('Board', () => {
     expect(screen.queryByText('Me')).toBeNull();
   });
 
+  it('shows the project in its colour from projects.md, matched ignoring case, and plain without one', async () => {
+    await renderBoard({
+      projectColours: { 'Acme Website': 'teal' },
+      tasks: [
+        buildTask({ title: 'Coloured', project: 'acme website' }),
+        buildTask({ title: 'Plain', project: 'Other' }),
+      ],
+    });
+    const project = (title: string, name: string) =>
+      within(screen.getByRole('article', { name: title })).getByText(name);
+    expect(project('Coloured', 'acme website').getAttribute('data-colour')).toBe('teal');
+    expect(project('Plain', 'Other').hasAttribute('data-colour')).toBe(false);
+  });
+
   it('opens the detail on click and on Enter', async () => {
     const { user } = await renderBoard({ tasks: [buildTask({ title: 'Open me' })] });
     await user.click(screen.getByRole('article', { name: 'Open me' }));

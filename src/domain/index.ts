@@ -5,6 +5,7 @@ export * from './folder';
 export * from './ledger';
 export * from './model';
 export * from './ordering';
+export * from './projectColours';
 export * from './projects';
 export * from './readme';
 export * from './reminders';

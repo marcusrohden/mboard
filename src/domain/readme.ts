@@ -1,3 +1,7 @@
+import { PROJECT_COLOURS } from './projectColours';
+
+const PALETTE_TEXT = `${PROJECT_COLOURS.slice(0, -1).join(', ')} or ${PROJECT_COLOURS.at(-1)}`;
+
 /**
  * The text of the board folder's `README.md`, written once when the board is set up. It explains the
  * folder layout, the task file's properties and its body sections, so that a person or an AI agent can
@@ -15,6 +19,7 @@ You can read and edit these files in Obsidian, in any editor, or with a script o
 \`\`\`text
 ${boardName}/
 ├── README.md     this file
+├── projects.md   project colours, once a project has one
 ├── tasks/        live tasks, in any column
 └── archive/      archived tasks
 \`\`\`
@@ -81,6 +86,17 @@ Asked the client for the staging credentials.
 | \`## Description\` | Free markdown. Other headings inside it are fine, except the two below |
 | \`## Comments\` | One \`### YYYY-MM-DD HH:mm\` heading per comment, then the comment text. Oldest first |
 | \`## History\` | One line per change, \`- YYYY-MM-DD HH:mm — <what changed>\`, oldest first, usually followed by a hidden \`<!-- mboard-ledger {…} -->\` comment |
+
+## Project colours
+
+\`projects.md\` gives projects a colour on the board. Its frontmatter has \`colours\`, a mapping from project name to one of ${PALETTE_TEXT}. Names match each task's \`project\` ignoring case. mboard creates the file when a project first gets a colour, and you can edit it too.
+
+\`\`\`markdown
+---
+colours:
+  Acme website: teal
+---
+\`\`\`
 
 ## Editing tasks as a person or an agent
 

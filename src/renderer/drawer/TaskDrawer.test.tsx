@@ -125,7 +125,7 @@ describe('Task detail drawer fields', () => {
   it('has no responsibility field', async () => {
     const { user } = await renderBoard({ tasks: [SAMPLE()] });
     const drawer = await openTask(user, 'Fix login');
-    expect(within(drawer).queryByRole('radiogroup')).toBeNull();
+    expect(within(drawer).queryByRole('radiogroup', { name: /responsibility/i })).toBeNull();
     expect(within(drawer).queryByText('Responsibility')).toBeNull();
   });
 
@@ -266,6 +266,39 @@ describe('Task detail drawer Save', () => {
     await user.click(within(drawer).getByRole('button', { name: 'Save' }));
     expect(await screen.findByText('The file is locked.')).toBeTruthy();
     expect(drawerOrNull()).not.toBeNull();
+  });
+});
+
+describe('Task detail drawer project colour', () => {
+  it("picks the project's colour under the Project field and colours the card", async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE(), buildTask({ title: 'Sibling', project: 'acme' })] });
+    const drawer = await openTask(user, 'Fix login');
+    const picker = within(drawer).getByRole('radiogroup', { name: 'Colour for Acme' });
+    await user.click(within(picker).getByRole('radio', { name: 'Purple' }));
+    expect(fake.api.setProjectColour).toHaveBeenCalledWith('Acme', 'purple');
+    expect((within(picker).getByRole('radio', { name: 'Purple' }) as HTMLInputElement).checked).toBe(true);
+    const sibling = within(screen.getByRole('article', { name: 'Sibling' })).getByText('acme');
+    expect(sibling.getAttribute('data-colour')).toBe('purple');
+    expect(drawerOrNull()).not.toBeNull();
+  });
+
+  it('follows the project as it is typed, and has no picker without a project or for an archived task', async () => {
+    const { user } = await renderBoard({
+      tasks: [
+        buildTask({ title: 'Loose' }),
+        buildTask({ title: 'Old', status: 'Done', isArchived: true, project: 'Acme' }),
+      ],
+    });
+    const drawer = await openTask(user, 'Loose');
+    expect(within(drawer).queryByRole('radiogroup')).toBeNull();
+    await user.type(input(drawer, 'Project'), 'Zed');
+    expect(within(drawer).getByRole('radiogroup', { name: 'Colour for Zed' })).toBeTruthy();
+
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Archived' }));
+    await user.click(screen.getByRole('button', { name: 'Old' }));
+    const archived = screen.getByRole('complementary', { name: 'Task details' });
+    expect(within(archived).queryByRole('radiogroup')).toBeNull();
   });
 });
 

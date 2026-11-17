@@ -1,8 +1,9 @@
-import { COLUMNS, ageThresholdsProblem, isStatus } from '../../domain';
+import { COLUMNS, PROJECT_COLOURS, ageThresholdsProblem, isProjectColour, isStatus } from '../../domain';
 import type {
   AgeThresholds,
   LocalDate,
   NewTaskInput,
+  ProjectColour,
   RevertExpectation,
   Status,
   TaskEdit,
@@ -163,4 +164,15 @@ export function readAgeThresholds(value: unknown): AgeThresholds {
   const problem = ageThresholdsProblem(thresholds);
   if (problem !== null) throw new Error(problem);
   return thresholds;
+}
+
+/** A project's name, as text. Whether it names a project is the board's decision. */
+export function readProjectName(value: unknown): string {
+  return readString(value, 'the project');
+}
+
+/** One of the palette's project colours, or `null` for none. */
+export function readProjectColour(value: unknown): ProjectColour | null {
+  if (value === null || isProjectColour(value)) return value;
+  throw invalidRequest(`the colour must be one of ${PROJECT_COLOURS.join(', ')}, or null`);
 }

@@ -1,5 +1,5 @@
-import { useId, useRef, useState } from 'react';
-import { COLUMNS, type LocalDate, type Status, type Task } from '../../domain';
+import { useId, useRef, useState, type ReactNode } from 'react';
+import { COLUMNS, normaliseProject, type LocalDate, type Status, type Task } from '../../domain';
 import { formatDateTime } from '../lib/format';
 import type { TaskCommands } from '../state/use-task-commands';
 import { AgeChip } from '../ui/AgeChip';
@@ -11,6 +11,7 @@ import { useLightDismiss } from '../ui/use-light-dismiss';
 import { CommentsSection } from './CommentsSection';
 import { DrawerField } from './DrawerField';
 import { HistorySection } from './HistorySection';
+import { ProjectColourField } from './ProjectColourField';
 import { PendingFieldSavesContext, usePendingFieldSaves, type PendingFieldSaves } from './pending-field-saves';
 import styles from './Drawer.module.css';
 
@@ -24,7 +25,7 @@ interface TaskDrawerProps {
 
 /**
  * The task detail drawer, on the right with the board still visible. Fields save as they are edited and
- * refresh from new snapshots, except the one being edited. Save commits the field still being edited and
+ * refresh from new snapshots, except the one being edited. Under the project, its colour can be picked. Save commits the field still being edited and
  * closes the drawer once that save succeeds. The close button, Esc, or a press on the page outside the
  * drawer closes it without saving that field. An archived task is read-only apart from Restore and Delete.
  */
@@ -69,6 +70,13 @@ function TaskDrawerPanel({
     void commands.moveToTopOf(task.id, status);
   }
 
+  function renderProjectColour(project: string | null): ReactNode {
+    if (project === null || readOnly) return null;
+    return (
+      <ProjectColourField project={project} onChange={(name, colour) => void commands.setProjectColour(name, colour)} />
+    );
+  }
+
   async function confirmDelete(): Promise<void> {
     setIsConfirmingDelete(false);
     await commands.remove(task.id);
@@ -111,16 +119,6 @@ function TaskDrawerPanel({
               ))}
             </select>
           </div>
-        </div>
-        <div className={styles.pair}>
-          <DrawerField
-            label="Project"
-            kind="project"
-            value={task.project ?? ''}
-            readOnly={readOnly}
-            suggestions={projectSuggestions}
-            onSave={(next) => commands.edit(task.id, { field: 'project', value: next === '' ? null : next })}
-          />
           <DrawerField
             label="Due date"
             kind="date"
@@ -129,6 +127,15 @@ function TaskDrawerPanel({
             onSave={(next) => commands.edit(task.id, { field: 'due', value: next === '' ? null : next })}
           />
         </div>
+        <DrawerField
+          label="Project"
+          kind="project"
+          value={task.project ?? ''}
+          readOnly={readOnly}
+          suggestions={projectSuggestions}
+          onSave={(next) => commands.edit(task.id, { field: 'project', value: next === '' ? null : next })}
+          renderBelow={(displayed) => renderProjectColour(normaliseProject(displayed))}
+        />
         <DrawerField
           label="Description"
           kind="textarea"

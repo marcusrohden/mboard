@@ -1,0 +1,124 @@
+.label[data-colour='red'] {
+  color: var(--project-red);
+}
+
+.label[data-colour='orange'] {
+  color: var(--project-orange);
+}
+
+.label[data-colour='amber'] {
+  color: var(--project-amber);
+}
+
+.label[data-colour='green'] {
+  color: var(--project-green);
+}
+
+.label[data-colour='teal'] {
+  color: var(--project-teal);
+}
+
+.label[data-colour='blue'] {
+  color: var(--project-blue);
+}
+
+.label[data-colour='indigo'] {
+  color: var(--project-indigo);
+}
+
+.label[data-colour='purple'] {
+  color: var(--project-purple);
+}
+
+.label[data-colour='pink'] {
+  color: var(--project-pink);
+}
+
+.label[data-colour='brown'] {
+  color: var(--project-brown);
+}
+
+.label[data-colour] {
+  font-weight: 600;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.option {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+}
+
+.option:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.swatch[data-colour='none'] {
+  background: linear-gradient(
+    135deg,
+    transparent 45%,
+    var(--color-text-muted) 45%,
+    var(--color-text-muted) 55%,
+    transparent 55%
+  );
+}
+
+.swatch[data-colour='red'] {
+  background: var(--project-red);
+}
+
+.swatch[data-colour='orange'] {
+  background: var(--project-orange);
+}
+
+.swatch[data-colour='amber'] {
+  background: var(--project-amber);
+}
+
+.swatch[data-colour='green'] {
+  background: var(--project-green);
+}
+
+.swatch[data-colour='teal'] {
+  background: var(--project-teal);
+}
+
+.swatch[data-colour='blue'] {
+  background: var(--project-blue);
+}
+
+.swatch[data-colour='indigo'] {
+  background: var(--project-indigo);
+}
+
+.swatch[data-colour='purple'] {
+  background: var(--project-purple);
+}
+
+.swatch[data-colour='pink'] {
+  background: var(--project-pink);
+}
+
+.swatch[data-colour='brown'] {
+  background: var(--project-brown);
+}
+
+.option input:checked + .swatch {
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px var(--color-text);
+}

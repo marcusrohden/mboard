@@ -10,6 +10,7 @@ import {
 } from '../../domain';
 import { useAgeThresholds } from '../state/age-thresholds';
 import { AgeChip } from '../ui/AgeChip';
+import { ProjectLabel } from '../ui/ProjectLabel';
 import { useSortableTask } from './board-dnd';
 import styles from './TaskCard.module.css';
 
@@ -23,7 +24,7 @@ interface TaskCardProps {
 }
 
 /**
- * One task on the board: title, project, then the due, created and updated dates on lines of their own.
+ * One task on the board: title, project in its colour, then the due, created and updated dates on lines of their own.
  * A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
  * staleness tier also colours the left edge. The whole card is the drag handle. Clicking it, or pressing
  * Enter on it, opens the detail drawer.
@@ -53,7 +54,11 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
       onKeyDown={handleKeyDown}
     >
       <p className={styles.title}>{task.title}</p>
-      {task.project !== null && <p className={styles.project}>{task.project}</p>}
+      {task.project !== null && (
+        <p className={styles.project}>
+          <ProjectLabel project={task.project} />
+        </p>
+      )}
       <div className={styles.dates}>
         {task.due !== null && (
           <div className={styles.dateLine}>

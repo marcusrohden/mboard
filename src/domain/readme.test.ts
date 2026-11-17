@@ -8,6 +8,12 @@ describe('buildBoardReadme', () => {
     expect(readme.startsWith('# Work board\n')).toBe(true);
     expect(readme).toContain('tasks/');
     expect(readme).toContain('archive/');
+    expect(readme).toContain('projects.md');
+  });
+
+  it('explains project colours in projects.md', () => {
+    expect(readme).toContain('## Project colours');
+    expect(readme).toContain('red, orange, amber, green, teal, blue, indigo, purple, pink or brown');
   });
 
   it('documents every frontmatter property, and no responsibility', () => {

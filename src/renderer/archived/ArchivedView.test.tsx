@@ -84,6 +84,14 @@ describe('Archived view', () => {
     expect(screen.getByText('No archived tasks match.')).toBeTruthy();
   });
 
+  it('shows each project in its colour', async () => {
+    const { user } = await renderBoard({ tasks: TASKS(), projectColours: { acme: 'brown' } });
+    await user.click(screen.getByRole('button', { name: 'Archived' }));
+    const table = screen.getByRole('table', { name: 'Archived tasks' });
+    expect(within(table).getByText('Acme').getAttribute('data-colour')).toBe('brown');
+    expect(within(table).getByText('Other').hasAttribute('data-colour')).toBe(false);
+  });
+
   it('says so when nothing is archived', async () => {
     const { user } = await renderBoard({ tasks: [buildTask({ title: 'Live' })] });
     await user.click(screen.getByRole('button', { name: 'Archived' }));

@@ -59,6 +59,17 @@
   --shadow-popover: 0 6px 24px rgba(0, 0, 0, 0.2);
   --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.12);
 
+  --project-red: #c62828;
+  --project-orange: #a14a07;
+  --project-amber: #8a6100;
+  --project-green: #2a7030;
+  --project-teal: #006b5f;
+  --project-blue: #1565c0;
+  --project-indigo: #3f51b5;
+  --project-purple: #7b1fa2;
+  --project-pink: #c2185b;
+  --project-brown: #795548;
+
   --drawer-width: 400px;
   --column-min-width: 160px;
 }
@@ -106,5 +117,16 @@
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-popover: 0 6px 24px rgba(0, 0, 0, 0.6);
     --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.5);
+
+    --project-red: #ff8a80;
+    --project-orange: #ffab70;
+    --project-amber: #f5c451;
+    --project-green: #81c784;
+    --project-teal: #4dd0c4;
+    --project-blue: #82b1ff;
+    --project-indigo: #9fa8ff;
+    --project-purple: #ce93d8;
+    --project-pink: #f48fb1;
+    --project-brown: #c8a593;
   }
 }

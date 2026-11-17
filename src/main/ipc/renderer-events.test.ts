@@ -38,6 +38,7 @@ describe('bridgeRendererEvents', () => {
     const snapshotAt = (): BoardSnapshot => ({
       tasks: [],
       unreadable: [],
+      projectColours: {},
       now: `minute ${minute}`,
       today: '2026-11-16',
     });

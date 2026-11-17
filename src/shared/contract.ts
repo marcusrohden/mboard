@@ -3,6 +3,8 @@ import type {
   LocalDate,
   LocalDateTime,
   NewTaskInput,
+  ProjectColour,
+  ProjectColours,
   ReminderBannerItem,
   RevertExpectation,
   Status,
@@ -21,6 +23,8 @@ export type {
   LocalDate,
   LocalDateTime,
   NewTaskInput,
+  ProjectColour,
+  ProjectColours,
   ReminderBannerItem,
   RevertExpectation,
   Status,
@@ -30,19 +34,23 @@ export type {
   TaskId,
 } from '../domain';
 
-/** A task file that couldn't be read as a task, with a plain-words reason. It is never written. */
+/**
+ * A file that couldn't be read, with a plain-words reason. It is never written. Usually a task file, or
+ * the board's `projects.md`.
+ */
 export interface UnreadableFile {
   id: TaskId;
   reason: string;
 }
 
 /**
- * Everything the renderer needs to draw the board. It carries the main process's clock: the renderer
- * never computes "now" or "today" itself.
+ * Everything the renderer needs to draw the board, including each coloured project's colour from
+ * `projects.md`. It carries the main process's clock: the renderer never computes "now" or "today" itself.
  */
 export interface BoardSnapshot {
   tasks: Task[];
   unreadable: UnreadableFile[];
+  projectColours: ProjectColours;
   now: LocalDateTime;
   today: LocalDate;
 }
@@ -106,6 +114,8 @@ export interface MboardInvokeApi {
   revertTask(id: TaskId, toEntryIndex: number, expected: RevertExpectation): Promise<Task>;
   deleteTask(id: TaskId): Promise<void>;
   openInObsidian(id: TaskId): Promise<void>;
+  /** Gives a project a colour in `projects.md`, or removes it with `null`. */
+  setProjectColour(project: string, colour: ProjectColour | null): Promise<void>;
 
   getPreferences(): Promise<Preferences>;
   setOpenAtLogin(enabled: boolean): Promise<Preferences>;
@@ -191,6 +201,7 @@ export const IPC = {
     revertTask: 'board:revertTask',
     deleteTask: 'board:deleteTask',
     openInObsidian: 'board:openInObsidian',
+    setProjectColour: 'board:setProjectColour',
     getPreferences: 'platform:getPreferences',
     setOpenAtLogin: 'platform:setOpenAtLogin',
     getReminderBanner: 'platform:getReminderBanner',

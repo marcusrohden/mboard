@@ -1,5 +1,14 @@
 import { useMemo, useRef } from 'react';
-import type { MboardApi, NewTaskInput, RevertExpectation, Status, Task, TaskEdit, TaskId } from '../../shared/contract';
+import type {
+  MboardApi,
+  NewTaskInput,
+  ProjectColour,
+  RevertExpectation,
+  Status,
+  Task,
+  TaskEdit,
+  TaskId,
+} from '../../shared/contract';
 import { topOfColumnBeforeId } from '../lib/board-view';
 import type { TaskSelection } from './use-task-selection';
 import { useRunCommand } from './use-run-command';
@@ -16,6 +25,7 @@ export interface TaskCommands {
   revert: (id: TaskId, toEntryIndex: number, expected: RevertExpectation) => Promise<boolean>;
   remove: (id: TaskId) => Promise<boolean>;
   openInObsidian: (id: TaskId) => Promise<boolean>;
+  setProjectColour: (project: string, colour: ProjectColour | null) => Promise<boolean>;
 }
 
 /**
@@ -65,6 +75,7 @@ export function useTaskCommands(tasks: readonly Task[], selection: TaskSelection
         return result.ok;
       },
       openInObsidian: (id) => simple((api) => api.openInObsidian(id)),
+      setProjectColour: (project, colour) => simple((api) => api.setProjectColour(project, colour)),
     };
   }, [run]);
 }
