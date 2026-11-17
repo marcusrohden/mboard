@@ -1,36 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { BoardSnapshot, Preferences, ReminderBannerItem } from '../../shared/contract';
 import { getMboardApi } from '../mboard-api';
+import { useLoadedAndPushed } from './use-loaded-and-pushed';
 
 export interface BoardData {
   snapshot: BoardSnapshot | null;
   banner: readonly ReminderBannerItem[];
   preferences: Preferences | null;
   dismissBanner: () => void;
-}
-
-function useLoadedAndPushed<T>(load: () => Promise<T>, subscribe: (listener: (value: T) => void) => () => void): T | null {
-  const [value, setValue] = useState<T | null>(null);
-
-  useEffect(() => {
-    let hasPushed = false;
-    let isMounted = true;
-    const unsubscribe = subscribe((pushed) => {
-      hasPushed = true;
-      setValue(pushed);
-    });
-    load()
-      .then((loaded) => {
-        if (isMounted && !hasPushed) setValue(loaded);
-      })
-      .catch(() => undefined);
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, [load, subscribe]);
-
-  return value;
 }
 
 /**

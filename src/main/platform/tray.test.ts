@@ -6,7 +6,7 @@ import { renderTrayIconPng, renderTrayIconRgba, TRAY_ICON_SIZES } from './tray-i
 import { buildTrayMenu } from './tray-menu';
 
 function actions() {
-  return { openWindow: vi.fn(), chooseFolder: vi.fn(), toggleOpenAtLogin: vi.fn(), quit: vi.fn() };
+  return { openWindow: vi.fn(), openSettings: vi.fn(), chooseFolder: vi.fn(), toggleOpenAtLogin: vi.fn(), quit: vi.fn() };
 }
 
 describe('buildTrayMenu', () => {
@@ -14,6 +14,7 @@ describe('buildTrayMenu', () => {
     const menu = buildTrayMenu({ openAtLogin: true, notificationsAvailable: null }, actions());
     expect(menu.map((item) => item.label ?? item.type)).toEqual([
       'Open mboard',
+      'Settings…',
       'Change board folder…',
       'separator',
       'Open at login',
@@ -50,13 +51,14 @@ describe('buildTrayMenu', () => {
     }
   });
 
-  it('wires Open mboard, Change board folder and Quit to their actions', () => {
+  it('wires Open mboard, Settings, Change board folder and Quit to their actions', () => {
     const handlers = actions();
     const menu = buildTrayMenu({ openAtLogin: true, notificationsAvailable: null }, handlers);
-    for (const label of ['Open mboard', 'Change board folder…', 'Quit']) {
+    for (const label of ['Open mboard', 'Settings…', 'Change board folder…', 'Quit']) {
       menu.find((item) => item.label === label)?.click?.();
     }
     expect(handlers.openWindow).toHaveBeenCalledOnce();
+    expect(handlers.openSettings).toHaveBeenCalledOnce();
     expect(handlers.chooseFolder).toHaveBeenCalledOnce();
     expect(handlers.quit).toHaveBeenCalledOnce();
   });

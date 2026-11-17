@@ -2,6 +2,8 @@ import { vi, type Mock } from 'vitest';
 import { columnTasks, formatLogTimestamp } from '../../domain';
 import type {
   AppState,
+  AppUpdateStage,
+  AppUpdateStatus,
   BoardSnapshot,
   MboardApi,
   Preferences,
@@ -24,6 +26,9 @@ export interface FakeMboardOptions {
   unreadable?: UnreadableFile[];
   banner?: ReminderBannerItem[];
   preferences?: Preferences;
+  appUpdateStatus?: AppUpdateStatus;
+  /** Whether the menu asked to open Settings before the app mounted. */
+  pendingSettingsRequest?: boolean;
   now?: string;
   today?: string;
 }
@@ -38,6 +43,9 @@ export interface FakeMboard {
   pushOpenTask(id: TaskId): void;
   pushBanner(items: ReminderBannerItem[]): void;
   pushPreferences(preferences: Preferences): void;
+  pushAppUpdateStage(stage: AppUpdateStage): void;
+  /** Does what the app menu's Settings… does: leaves a request pending and pushes `openSettings`. */
+  requestSettings(): void;
 }
 
 const READY_STATE: AppState = { kind: 'ready', boardPath: '/vault/Board', boardName: 'Board' };
@@ -68,6 +76,8 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   let unreadable = [...(options.unreadable ?? [])];
   let banner = [...(options.banner ?? [])];
   let preferences = options.preferences ?? { openAtLogin: true, notificationsAvailable: true };
+  let appUpdateStatus = options.appUpdateStatus ?? { currentVersion: '0.1.0', stage: { kind: 'idle' } };
+  let isSettingsRequested = options.pendingSettingsRequest ?? false;
   const now = options.now ?? TEST_NOW;
   const today = options.today ?? TEST_TODAY;
 
@@ -76,10 +86,18 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   const openTaskListeners: Listeners<TaskId> = new Set();
   const bannerListeners: Listeners<ReminderBannerItem[]> = new Set();
   const preferencesListeners: Listeners<Preferences> = new Set();
+  const appUpdateListeners: Listeners<AppUpdateStatus> = new Set();
+  const openSettingsListeners: Listeners<void> = new Set();
 
   const snapshot = (): BoardSnapshot => ({ tasks: structuredClone(tasks), unreadable: [...unreadable], now, today });
   const publish = (): void => emitAll(snapshotListeners, snapshot());
   const logStamp = formatLogTimestamp(new Date(now));
+
+  function setAppUpdateStage(stage: AppUpdateStage): AppUpdateStatus {
+    appUpdateStatus = { ...appUpdateStatus, stage };
+    emitAll(appUpdateListeners, appUpdateStatus);
+    return appUpdateStatus;
+  }
 
   function find(id: TaskId): Task {
     const task = tasks.find((candidate) => candidate.id === id);
@@ -231,6 +249,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     getPreferences: vi.fn(async () => preferences),
     setOpenAtLogin: vi.fn(async (enabled) => {
       preferences = { ...preferences, openAtLogin: enabled };
+      emitAll(preferencesListeners, preferences);
       return preferences;
     }),
     getReminderBanner: vi.fn(async () => banner),
@@ -239,11 +258,27 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       emitAll(bannerListeners, banner);
     }),
 
+    getAppUpdateStatus: vi.fn(async () => appUpdateStatus),
+    checkForAppUpdate: vi.fn(async () => setAppUpdateStage({ kind: 'upToDate', checkedAt: now })),
+    installAppUpdate: vi.fn(async () => {
+      const { stage } = appUpdateStatus;
+      if (stage.kind !== 'available') throw new Error("There's no new version to install. Check for updates first.");
+      setAppUpdateStage({ kind: 'downloading', version: stage.version });
+    }),
+    openAppUpdateReleasePage: vi.fn(async () => undefined),
+    takeOpenSettingsRequest: vi.fn(async () => {
+      const wasRequested = isSettingsRequested;
+      isSettingsRequested = false;
+      return wasRequested;
+    }),
+
     onSnapshot: vi.fn((listener) => subscribe(snapshotListeners, listener)),
     onAppState: vi.fn((listener) => subscribe(appStateListeners, listener)),
     onOpenTask: vi.fn((listener) => subscribe(openTaskListeners, listener)),
     onReminderBanner: vi.fn((listener) => subscribe(bannerListeners, listener)),
     onPreferences: vi.fn((listener) => subscribe(preferencesListeners, listener)),
+    onAppUpdateStatus: vi.fn((listener) => subscribe(appUpdateListeners, listener)),
+    onOpenSettings: vi.fn((listener) => subscribe(openSettingsListeners, listener)),
   };
 
   return {
@@ -272,6 +307,11 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     pushPreferences(next) {
       preferences = next;
       emitAll(preferencesListeners, preferences);
+    },
+    pushAppUpdateStage: (stage) => void setAppUpdateStage(stage),
+    requestSettings() {
+      isSettingsRequested = true;
+      emitAll(openSettingsListeners, undefined);
     },
   };
 }

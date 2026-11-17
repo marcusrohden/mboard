@@ -1,6 +1,6 @@
 import type { FolderChoice, InvokeMethod, MboardInvokeApi } from '../../shared/contract';
 import { isFileSystemError } from '../fs/fs-errors';
-import type { BoardService, BoardSetupService, Platform } from '../ports';
+import type { AppUpdates, BoardService, BoardSetupService, Platform } from '../ports';
 import { userFacingMessage } from '../user-facing-error';
 import {
   expectArguments,
@@ -19,6 +19,9 @@ export interface InvokeHandlerDependencies {
   setup: BoardSetupService;
   board: BoardService;
   platform: Pick<Platform, 'preferences' | 'setOpenAtLogin' | 'reminderBanner' | 'dismissReminderBanner'>;
+  appUpdates: AppUpdates;
+  /** Claims a pending request from the menu to open Settings. */
+  settingsRequests: { take(): boolean };
   /** Shows the native folder picker and resolves with the chosen folder, or `null` when cancelled. */
   pickBoardFolder(): Promise<string | null>;
   openInObsidian(absolutePath: string): Promise<void>;
@@ -99,6 +102,16 @@ function platformHandlers({ platform }: InvokeHandlerDependencies) {
   };
 }
 
+function appHandlers({ appUpdates, settingsRequests }: InvokeHandlerDependencies) {
+  return {
+    getAppUpdateStatus: withoutArguments(() => appUpdates.status()),
+    checkForAppUpdate: withoutArguments(() => appUpdates.check()),
+    installAppUpdate: withoutArguments(() => appUpdates.install()),
+    openAppUpdateReleasePage: withoutArguments(() => appUpdates.openReleasePage()),
+    takeOpenSettingsRequest: withoutArguments(() => settingsRequests.take()),
+  };
+}
+
 /**
  * Builds a handler for every invoke method in the contract. Every argument from the renderer is checked
  * against the contract's shapes before it reaches a service, and every failure rejects with a
@@ -109,6 +122,7 @@ export function createInvokeHandlers(dependencies: InvokeHandlerDependencies): I
     ...setupHandlers(dependencies),
     ...boardHandlers(dependencies),
     ...platformHandlers(dependencies),
+    ...appHandlers(dependencies),
   };
   return allPresentable(handlers);
 }

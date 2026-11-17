@@ -186,6 +186,7 @@ export interface PlatformHarness {
   dependencies: PlatformDependencies;
   shown: Array<string | undefined>;
   chooseFolderCalls: number;
+  openSettingsCalls: number;
   quitCalls: number;
 }
 
@@ -201,7 +202,12 @@ export function createHarness(dateTime: string, settings: Partial<Settings> = {}
   const powerMonitor = new FakePowerMonitor();
   const loginItem = new FakeLoginItem();
   const errors: unknown[] = [];
-  const harness = { shown: [] as Array<string | undefined>, chooseFolderCalls: 0, quitCalls: 0 } as PlatformHarness;
+  const harness = {
+    shown: [] as Array<string | undefined>,
+    chooseFolderCalls: 0,
+    openSettingsCalls: 0,
+    quitCalls: 0,
+  } as PlatformHarness;
   Object.assign(harness, {
     clock,
     board,
@@ -229,6 +235,9 @@ export function createHarness(dateTime: string, settings: Partial<Settings> = {}
       showWindow: (taskId?: string) => harness.shown.push(taskId),
       chooseFolder: () => {
         harness.chooseFolderCalls++;
+      },
+      openSettings: () => {
+        harness.openSettingsCalls++;
       },
       quit: () => {
         harness.quitCalls++;

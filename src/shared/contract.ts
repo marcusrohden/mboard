@@ -59,6 +59,26 @@ export interface Preferences {
 }
 
 /**
+ * How far checking for and installing a new version of mboard has got. `installBlocker` says why this copy
+ * can't install the new version itself (it can still be downloaded from GitHub), or is `null` when it can.
+ * A failure carries the version it was installing, or `null` when the check itself failed.
+ */
+export type AppUpdateStage =
+  | { kind: 'idle' }
+  | { kind: 'checking' }
+  | { kind: 'upToDate'; checkedAt: LocalDateTime }
+  | { kind: 'available'; version: string; installBlocker: string | null }
+  | { kind: 'downloading'; version: string }
+  | { kind: 'installing'; version: string }
+  | { kind: 'failed'; message: string; version: string | null };
+
+/** The running version of mboard, and where an app update has got to. */
+export interface AppUpdateStatus {
+  currentVersion: string;
+  stage: AppUpdateStage;
+}
+
+/**
  * The commands the renderer can invoke. A rejected command (an unknown id, a missing file, an edit to an
  * archived task, invalid input) throws an `Error` whose message is user-presentable.
  */
@@ -83,6 +103,15 @@ export interface MboardInvokeApi {
   setOpenAtLogin(enabled: boolean): Promise<Preferences>;
   getReminderBanner(): Promise<ReminderBannerItem[]>;
   dismissReminderBanner(): Promise<void>;
+
+  getAppUpdateStatus(): Promise<AppUpdateStatus>;
+  checkForAppUpdate(): Promise<AppUpdateStatus>;
+  /** Downloads and installs the available new version, then restarts mboard. Progress arrives as status pushes. */
+  installAppUpdate(): Promise<void>;
+  /** Opens the new version's GitHub release page in the browser, or the latest release when none is known. */
+  openAppUpdateReleasePage(): Promise<void>;
+  /** Whether the app or tray menu asked to open Settings since the last call. Answers `true` once per request. */
+  takeOpenSettingsRequest(): Promise<boolean>;
 }
 
 /** Each subscription returns a function that unsubscribes. */
@@ -92,6 +121,9 @@ export interface MboardEventApi {
   onOpenTask(listener: (id: TaskId) => void): () => void;
   onReminderBanner(listener: (items: ReminderBannerItem[]) => void): () => void;
   onPreferences(listener: (preferences: Preferences) => void): () => void;
+  onAppUpdateStatus(listener: (status: AppUpdateStatus) => void): () => void;
+  /** Signals that the menu asked to open Settings; claim the request with `takeOpenSettingsRequest`. */
+  onOpenSettings(listener: () => void): () => void;
 }
 
 /** The whole bridge, exposed to the renderer as `window.mboard`. */
@@ -106,6 +138,8 @@ export interface MboardEventPayloads {
   openTask: TaskId;
   reminderBanner: ReminderBannerItem[];
   preferences: Preferences;
+  appUpdateStatus: AppUpdateStatus;
+  openSettings: void;
 }
 
 export type EventName = keyof MboardEventPayloads;
@@ -117,6 +151,8 @@ export const EVENT_SUBSCRIBERS = {
   openTask: 'onOpenTask',
   reminderBanner: 'onReminderBanner',
   preferences: 'onPreferences',
+  appUpdateStatus: 'onAppUpdateStatus',
+  openSettings: 'onOpenSettings',
 } as const satisfies Record<EventName, keyof MboardEventApi>;
 
 /**
@@ -143,6 +179,11 @@ export const IPC = {
     setOpenAtLogin: 'platform:setOpenAtLogin',
     getReminderBanner: 'platform:getReminderBanner',
     dismissReminderBanner: 'platform:dismissReminderBanner',
+    getAppUpdateStatus: 'app:getAppUpdateStatus',
+    checkForAppUpdate: 'app:checkForAppUpdate',
+    installAppUpdate: 'app:installAppUpdate',
+    openAppUpdateReleasePage: 'app:openAppUpdateReleasePage',
+    takeOpenSettingsRequest: 'app:takeOpenSettingsRequest',
   },
   events: {
     snapshot: 'board:snapshot',
@@ -150,6 +191,8 @@ export const IPC = {
     openTask: 'app:openTask',
     reminderBanner: 'platform:reminderBanner',
     preferences: 'platform:preferences',
+    appUpdateStatus: 'app:appUpdateStatus',
+    openSettings: 'app:openSettings',
   },
 } as const satisfies {
   invoke: Record<InvokeMethod, string>;

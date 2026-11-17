@@ -12,6 +12,7 @@ export const LaunchEnvVariable = {
   notifierFail: 'MBOARD_NOTIFIER_FAIL',
   trashDir: 'MBOARD_TRASH_DIR',
   disableLoginItem: 'MBOARD_DISABLE_LOGIN_ITEM',
+  disableAppUpdateCheck: 'MBOARD_DISABLE_APP_UPDATE_CHECK',
 } as const;
 
 /**
@@ -26,6 +27,7 @@ export interface LaunchConfig {
   readonly notifierFails: boolean;
   readonly trashDirectory: string | undefined;
   readonly loginItemDisabled: boolean;
+  readonly appUpdateCheckDisabled: boolean;
 }
 
 type LaunchEnvironment = Readonly<Record<string, string | undefined>>;
@@ -57,6 +59,7 @@ export function readLaunchConfig(env: LaunchEnvironment): LaunchConfig {
     notifierFails: readFlag(env, LaunchEnvVariable.notifierFail),
     trashDirectory: readAbsolutePath(env, LaunchEnvVariable.trashDir),
     loginItemDisabled: readFlag(env, LaunchEnvVariable.disableLoginItem),
+    appUpdateCheckDisabled: readFlag(env, LaunchEnvVariable.disableAppUpdateCheck),
   };
 }
 

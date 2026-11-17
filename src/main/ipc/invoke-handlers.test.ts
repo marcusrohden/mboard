@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { BoardSnapshot, NewTaskInput, Task } from '../../shared/contract';
+import type { AppUpdateStatus, BoardSnapshot, NewTaskInput, Task } from '../../shared/contract';
 import { IPC } from '../../shared/contract';
 import type { BoardService, BoardSetupService } from '../ports';
 import { createInvokeHandlers, type InvokeHandlerDependencies } from './invoke-handlers';
 
 const SNAPSHOT: BoardSnapshot = { tasks: [], unreadable: [], now: '2026-11-16T09:30:00', today: '2026-11-16' };
 const TASK = { id: 'tasks/A.md', title: 'A' } as Task;
+const UPDATE_STATUS: AppUpdateStatus = {
+  currentVersion: '0.1.0',
+  stage: { kind: 'available', version: '0.2.0', installBlocker: null },
+};
 const NEW_TASK: NewTaskInput = {
   title: 'A',
   status: 'To do',
@@ -40,15 +44,25 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     reminderBanner: vi.fn(() => []),
     dismissReminderBanner: vi.fn(() => undefined),
   };
+  const appUpdates = {
+    status: vi.fn(() => UPDATE_STATUS),
+    onChange: vi.fn(() => () => undefined),
+    check: vi.fn(async () => UPDATE_STATUS),
+    install: vi.fn(async () => undefined),
+    openReleasePage: vi.fn(async () => undefined),
+  };
+  const settingsRequests = { take: vi.fn(() => true) };
   const dependencies: InvokeHandlerDependencies = {
     board: board as unknown as BoardService,
     setup: setup as unknown as BoardSetupService,
     platform,
+    appUpdates,
+    settingsRequests,
     pickBoardFolder: vi.fn(async () => '/Vault/Board'),
     openInObsidian: vi.fn(async () => undefined),
     ...overrides,
   };
-  return { dependencies, board, setup, platform };
+  return { dependencies, board, setup, platform, appUpdates, settingsRequests };
 }
 
 describe('createInvokeHandlers', () => {
@@ -83,14 +97,17 @@ describe('createInvokeHandlers', () => {
     ['deleteTask with an object id', 'deleteTask', [{ id: 'tasks/A.md' }]],
     ['setOpenAtLogin with text', 'setOpenAtLogin', ['yes']],
     ['getSnapshot with an argument', 'getSnapshot', [1]],
+    ['installAppUpdate with a version', 'installAppUpdate', ['0.2.0']],
+    ['openAppUpdateReleasePage with a URL', 'openAppUpdateReleasePage', ['https://example.com']],
+    ['checkForAppUpdate with an argument', 'checkForAppUpdate', [true]],
   ] as const)('rejects %s before it reaches a service', async (_description, method, args) => {
-    const { dependencies, board, platform } = fakeDependencies();
+    const { dependencies, board, platform, appUpdates } = fakeDependencies();
     const handlers = createInvokeHandlers(dependencies);
 
     await expect((handlers[method] as (...values: unknown[]) => Promise<unknown>)(...args)).rejects.toThrow(
       /^That request wasn't valid: /,
     );
-    for (const spy of [...Object.values(board), ...Object.values(platform)]) {
+    for (const spy of [...Object.values(board), ...Object.values(platform), ...Object.values(appUpdates)]) {
       if (spy !== board.snapshot) expect(spy).not.toHaveBeenCalled();
     }
   });
@@ -113,6 +130,31 @@ describe('createInvokeHandlers', () => {
 
     await expect(createInvokeHandlers(dependencies).chooseBoardFolder()).resolves.toEqual({ kind: 'cancelled' });
     expect(setup.choose).not.toHaveBeenCalled();
+  });
+
+  it('passes app update commands and the Settings request through', async () => {
+    const { dependencies, appUpdates, settingsRequests } = fakeDependencies();
+    const handlers = createInvokeHandlers(dependencies);
+
+    await expect(handlers.getAppUpdateStatus()).resolves.toBe(UPDATE_STATUS);
+    await expect(handlers.checkForAppUpdate()).resolves.toBe(UPDATE_STATUS);
+    await handlers.installAppUpdate();
+    await handlers.openAppUpdateReleasePage();
+    await expect(handlers.takeOpenSettingsRequest()).resolves.toBe(true);
+
+    expect(appUpdates.check).toHaveBeenCalledOnce();
+    expect(appUpdates.install).toHaveBeenCalledOnce();
+    expect(appUpdates.openReleasePage).toHaveBeenCalledOnce();
+    expect(settingsRequests.take).toHaveBeenCalledOnce();
+  });
+
+  it('rejects an install that cannot run with its own message', async () => {
+    const { dependencies, appUpdates } = fakeDependencies();
+    appUpdates.install.mockRejectedValueOnce(new Error("There's no new version to install. Check for updates first."));
+
+    await expect(createInvokeHandlers(dependencies).installAppUpdate()).rejects.toThrow(
+      "There's no new version to install. Check for updates first.",
+    );
   });
 
   it('opens the task file in Obsidian by its absolute path', async () => {

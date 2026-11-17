@@ -77,6 +77,7 @@ export function createMenuBarPlatform(options: MenuBarPlatformOptions): Platform
     running.tray.setMenu(
       buildTrayMenu(state.preferences(), {
         openWindow: () => dependencies.showWindow(),
+        openSettings: () => dependencies.openSettings(),
         chooseFolder: () => dependencies.chooseFolder(),
         toggleOpenAtLogin: (enabled) => {
           setOpenAtLogin(enabled).catch((error: unknown) => {
