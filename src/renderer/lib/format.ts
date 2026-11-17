@@ -1,4 +1,13 @@
-import { formatShortDate, localDateOf, localTimeOf, type LocalDate, type LocalDateTime } from '../../domain';
+import {
+  formatCompactDateTime,
+  formatShortDate,
+  localDateOf,
+  localTimeOf,
+  stalenessOf,
+  type LocalDate,
+  type LocalDateTime,
+  type Task,
+} from '../../domain';
 
 /** A date with its year, for example `20 Nov 2026`. */
 export function formatDate(date: LocalDate): string {
@@ -15,4 +24,16 @@ export function formatLogTime(logTimestamp: string): string {
   if (logTimestamp === '') return '';
   const [date = '', time = ''] = logTimestamp.split(' ');
   return `${formatDate(date)}, ${time}`;
+}
+
+/**
+ * The full text behind a task's age chip, for example
+ * `Created 12 Nov 08:00 · Updated 14 Nov 09:12 — 3 working days, Needs a nudge`.
+ */
+export function describeAge(task: Pick<Task, 'created' | 'updated' | 'status' | 'isArchived'>, today: LocalDate): string {
+  const { days, tier } = stalenessOf(task, today);
+  const count = `${days} working ${days === 1 ? 'day' : 'days'}`;
+  const created = formatCompactDateTime(task.created, today);
+  const updated = formatCompactDateTime(task.updated, today);
+  return `Created ${created} · Updated ${updated} — ${count}, ${tier}`;
 }

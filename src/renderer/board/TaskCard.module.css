@@ -5,7 +5,7 @@
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
-  border-left: 4px solid var(--stale-none);
+  border-left: 4px solid var(--age-green-edge);
   border-radius: var(--radius-small);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
@@ -13,11 +13,19 @@
 }
 
 .card[data-staleness='amber'] {
-  border-left-color: var(--stale-amber);
+  border-left-color: var(--age-amber-edge);
+}
+
+.card[data-staleness='orange'] {
+  border-left-color: var(--age-orange-edge);
 }
 
 .card[data-staleness='red'] {
-  border-left-color: var(--stale-red);
+  border-left-color: var(--age-red-edge);
+}
+
+.card[data-staleness='grey'] {
+  border-left-color: var(--age-grey-edge);
 }
 
 .card[data-dragging] {
@@ -48,8 +56,7 @@
 }
 
 .badge,
-.chip,
-.stale {
+.chip {
   padding: 0 6px;
   border-radius: 999px;
   font-weight: 600;
@@ -85,16 +92,20 @@
   color: var(--tone-red-fg);
 }
 
-.stale {
-  margin-left: auto;
+.age {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
 }
 
-.stale[data-staleness='amber'] {
-  color: var(--tone-amber-fg);
-}
-
-.stale[data-staleness='red'] {
-  color: var(--tone-red-fg);
+.dates {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .archive {

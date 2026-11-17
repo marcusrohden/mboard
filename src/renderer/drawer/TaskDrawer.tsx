@@ -1,7 +1,8 @@
 import { useId, useState } from 'react';
-import { COLUMNS, type Status, type Task } from '../../domain';
+import { COLUMNS, type LocalDate, type Status, type Task } from '../../domain';
 import { formatDateTime } from '../lib/format';
 import type { TaskCommands } from '../state/use-task-commands';
+import { AgeChip } from '../ui/AgeChip';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ResponsibilityField } from '../ui/ResponsibilityField';
@@ -14,6 +15,7 @@ import styles from './Drawer.module.css';
 
 interface TaskDrawerProps {
   task: Task;
+  today: LocalDate;
   projectSuggestions: readonly string[];
   commands: TaskCommands;
   onClose: () => void;
@@ -33,7 +35,7 @@ export function TaskDrawer(props: TaskDrawerProps) {
   );
 }
 
-function TaskDrawerPanel({ task, projectSuggestions, commands, onClose, pendingSaves }: TaskDrawerProps & { pendingSaves: PendingFieldSaves }) {
+function TaskDrawerPanel({ task, today, projectSuggestions, commands, onClose, pendingSaves }: TaskDrawerProps & { pendingSaves: PendingFieldSaves }) {
   const statusId = useId();
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const readOnly = task.isArchived;
@@ -119,7 +121,10 @@ function TaskDrawerPanel({ task, projectSuggestions, commands, onClose, pendingS
           <dt>Created</dt>
           <dd>{formatDateTime(task.created)}</dd>
           <dt>Updated</dt>
-          <dd>{formatDateTime(task.updated)}</dd>
+          <dd className={styles.updated}>
+            <time dateTime={task.updated}>{formatDateTime(task.updated)}</time>
+            <AgeChip task={task} today={today} />
+          </dd>
           {task.archivedAt !== null && (
             <>
               <dt>Archived</dt>

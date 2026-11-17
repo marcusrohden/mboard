@@ -46,6 +46,7 @@ describe('Task detail drawer fields', () => {
     expect(input(drawer, 'Description').value).toBe('Staging fails');
     expect(within(drawer).getByText('10 Nov 2026, 09:00')).toBeTruthy();
     expect(within(drawer).getByText('16 Nov 2026, 10:00')).toBeTruthy();
+    expect(within(drawer).getByTitle('Created 10 Nov 09:00 · Updated 16 Nov 10:00 — 0 working days, On track').textContent).toContain('0d');
   });
 
   it('saves the title on blur and follows the renamed task', async () => {

@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react';
-import { dueChip, staleLabel, stalenessOf, type LocalDate, type Status, type Task } from '../../domain';
+import { dueChip, formatCompactDate, localDateOf, stalenessOf, type LocalDate, type Status, type Task } from '../../domain';
+import { AgeChip } from '../ui/AgeChip';
 import { useSortableTask } from './board-dnd';
 import styles from './TaskCard.module.css';
 
@@ -13,13 +14,13 @@ interface TaskCardProps {
 }
 
 /**
- * One task on the board: title, project, responsibility, due chip and staleness. The whole card is the
- * drag handle. Clicking it, or pressing Enter on it, opens the detail drawer.
+ * One task on the board: title, project, responsibility, due chip, the created and updated dates, and the
+ * age chip, whose staleness tier also colours the left edge. The whole card is the drag handle. Clicking
+ * it, or pressing Enter on it, opens the detail drawer.
  */
 export function TaskCard({ task, index, status, today, onOpen, onArchive }: TaskCardProps) {
   const { ref, isDragging } = useSortableTask(task.id, index, status);
   const staleness = stalenessOf(task, today);
-  const staleText = staleLabel(staleness);
   const chip = dueChip(task, today);
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>): void {
@@ -52,11 +53,13 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
             {chip.text}
           </span>
         )}
-        {staleText !== null && (
-          <span className={styles.stale} data-staleness={staleness.level}>
-            {staleText}
-          </span>
-        )}
+      </div>
+      <div className={styles.age}>
+        <span className={styles.dates}>
+          Created {formatCompactDate(localDateOf(task.created), today)} · Updated{' '}
+          {formatCompactDate(localDateOf(task.updated), today)}
+        </span>
+        <AgeChip task={task} today={today} />
       </div>
       {task.status === 'Done' && (
         <button

@@ -118,7 +118,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
           )}
         </main>
         {selection.selectedTask !== null && (
-          <TaskDrawer task={selection.selectedTask} projectSuggestions={suggestions} commands={commands} onClose={selection.close} />
+          <TaskDrawer task={selection.selectedTask} today={snapshot.today} projectSuggestions={suggestions} commands={commands} onClose={selection.close} />
         )}
       </div>
       {isNewTaskOpen && (

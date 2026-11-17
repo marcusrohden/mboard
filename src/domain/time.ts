@@ -116,6 +116,29 @@ export function calendarDaysBetween(from: LocalDate, to: LocalDate): number {
   return Math.round((utcMillisecondsOf(to) - utcMillisecondsOf(from)) / MILLISECONDS_PER_DAY);
 }
 
+const DAYS_PER_WEEK = 7;
+const WORKING_DAYS_PER_WEEK = 5;
+
+function isWorkingWeekday(weekday: number): boolean {
+  return weekday >= 1 && weekday <= 5;
+}
+
+/**
+ * Counts the Monday to Friday dates after `from`, up to and including `to`. Zero when `to` isn't later.
+ * Calendar arithmetic only, so daylight saving changes don't affect it. Public holidays aren't known.
+ */
+export function workingDaysBetween(from: LocalDate, to: LocalDate): number {
+  const days = calendarDaysBetween(from, to);
+  if (days <= 0) return 0;
+  const fullWeeks = Math.floor(days / DAYS_PER_WEEK);
+  const fromWeekday = new Date(utcMillisecondsOf(from)).getUTCDay();
+  let count = fullWeeks * WORKING_DAYS_PER_WEEK;
+  for (let offset = 1; offset <= days % DAYS_PER_WEEK; offset += 1) {
+    if (isWorkingWeekday((fromWeekday + offset) % DAYS_PER_WEEK)) count += 1;
+  }
+  return count;
+}
+
 /** Adds whole calendar days to a date. */
 export function addDays(date: LocalDate, days: number): LocalDate {
   const shifted = new Date(utcMillisecondsOf(date) + days * MILLISECONDS_PER_DAY);
@@ -132,4 +155,18 @@ export function endOfWeek(date: LocalDate): LocalDate {
 export function formatShortDate(date: LocalDate): string {
   const [, month, day] = date.split('-').map(Number) as [number, number, number];
   return `${day} ${MONTH_ABBREVIATIONS[month - 1]}`;
+}
+
+/** Formats a date as `d MMM` when it is in the same year as `today`, otherwise as `d MMM YYYY`. */
+export function formatCompactDate(date: LocalDate, today: LocalDate): string {
+  const year = date.slice(0, 4);
+  return year === today.slice(0, 4) ? formatShortDate(date) : `${formatShortDate(date)} ${year}`;
+}
+
+/**
+ * Formats a local date-time (`YYYY-MM-DDTHH:mm:ss`) or a log timestamp (`YYYY-MM-DD HH:mm`) as
+ * `d MMM HH:mm`, with the year added when it isn't the year of `today`.
+ */
+export function formatCompactDateTime(dateTime: string, today: LocalDate): string {
+  return `${formatCompactDate(localDateOf(dateTime), today)} ${localTimeOf(dateTime)}`;
 }

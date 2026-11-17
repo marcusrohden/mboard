@@ -27,7 +27,8 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 - **Update**: an in-app change that bumps date updated and adds one history entry: creating, editing a field, moving to another column, adding a comment, archiving or restoring. Reordering within a column is not an update.
 - **History log**: the task's append-only list of updates, one line each.
 - **Comment**: a dated note added to a task. Append-only in the app.
-- **Staleness**: how many local calendar days have passed since the task's date updated. Amber from 3 days, red from 7, never shown for complete or archived tasks.
+- **Staleness**: how many working days (Monday to Friday, by local date) have passed since the task's date updated, and the **age tier** that follows from it: On track (green, 0–1), Needs a nudge (amber, 2–3), Stalling (orange, 4–5) and Stale (red, 6 or more). Complete and archived tasks are grey and keep their count.
+- **Age chip**: the `Nd` working-day count on every task, coloured by its age tier.
 
 ## Archive
 
