@@ -84,7 +84,7 @@ Workflows started with `GITHUB_TOKEN` don't trigger other workflows, so `pr.yml`
 
 ### Installing
 
-- **First install:** download the zip from the latest release, unzip it, move `mboard.app` to `/Applications`, then run `xattr -dr com.apple.quarantine /Applications/mboard.app` once before opening it. The build is ad-hoc signed and its top-level signature doesn't verify, so expect macOS to call a quarantined copy damaged rather than offer to open it, and right-click › Open won't help.
+- **First install:** download the zip from the latest release, unzip it, move `mboard.app` to `/Applications`, then run `xattr -dr com.apple.quarantine /Applications/mboard.app` once before opening it. The build is ad-hoc signed (re-signed after packaging, so `codesign --verify --deep --strict` passes) but not notarised, so macOS refuses a quarantined copy as from an unidentified developer until the quarantine flag is removed, or until you allow it under System Settings › Privacy & Security › Open Anyway.
 - **Later versions:** **Install and restart** in the new version notice or in Settings downloads, checks and installs the release, then reopens mboard. mboard needs to be able to write to the folder it's in, and mustn't be running from a translocated copy (one opened straight from Downloads while quarantined).
 
 ## Daily use from source
