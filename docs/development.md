@@ -12,7 +12,7 @@ mboard is built with Electron Forge 8 (Vite plugin), Electron 45, React 19 and T
 | `src/preload/`       | `contextBridge` exposing `window.mboard`                                                                                | shared, `electron`                      |
 | `src/renderer/`      | React UI                                                                                                                | domain, shared (never node or electron) |
 | `tests/e2e/`         | Playwright Electron tests against the built app                                                                         | anything                                |
-| `.github/workflows/` | `pr.yml` checks pull requests; `release.yml` runs release-please and attaches the macOS zip                             |                                         |
+| `.github/workflows/` | `pr.yml` checks pull requests; `release.yml` releases every feature or fix merged into `main` (`scripts/release/`)      |                                         |
 
 Unit tests sit beside the code as `*.test.ts` and run in node (see `vitest.config.mts`).
 
@@ -66,20 +66,30 @@ The packaged and dev apps share `~/Library/Application Support/mboard/settings.j
 
 ## Releasing
 
-Releases are cut by [release-please](https://github.com/googleapis/release-please) from what lands on `main` (ADR 0004).
+Every feature or fix merged into `main` is released by itself: one pull request, one merge (ADR 0008).
 
 1. Open a pull request into `main`. Its title must be a [conventional commit](https://www.conventionalcommits.org/) such as `feat: add settings and app updates` or `fix: keep the drawer open after a rename`. `pr.yml` checks the title, and runs typecheck, oxlint, the oxfmt check and the tests on `macos-latest`.
-2. Squash-merge it. The squash commit takes the PR title, which is what release-please reads. Before 1.0, `feat` bumps the minor version and `fix` the patch version, so the first release is v0.2.0.
-3. `release.yml` opens or updates the release PR, `chore(main): release X.Y.Z`, which bumps `package.json` and `.release-please-manifest.json` and adds to `CHANGELOG.md`.
-4. Merge the release PR when you want to release. release-please tags `vX.Y.Z` and creates the GitHub release. A macOS job then checks out the tag, runs typecheck and the tests, runs `pnpm run make` and attaches `mboard-darwin-arm64-X.Y.Z.zip` to the release.
-5. Copies of mboard find the new version within 6 hours, or straight away with **Check for updates** in Settings. Until the zip is attached, the release doesn't count.
+2. Squash-merge it. The squash commit takes the PR title, and that decides the release:
+   - `fix` releases a patch version and `feat` a minor one. A breaking change (`feat!:`, or a `BREAKING CHANGE:` footer) releases a major version, or a minor one before 1.0.
+   - Anything else, such as `chore`, `docs`, `ci` or `refactor`, releases nothing. It goes out with the next feature or fix.
+3. `release.yml` runs `scripts/release/release.mts plan`, which counts every commit since the last `vX.Y.Z` tag and writes the release notes.
+4. On `macos-latest` it installs, runs typecheck, oxlint, the oxfmt check and the tests, sets the version in `package.json`, runs `pnpm run make`, and checks the app was built as that version.
+5. It publishes the GitHub release, tagging the merged commit `vX.Y.Z`, with `mboard-darwin-arm64-X.Y.Z.zip` attached.
+6. Last, it commits the version and the new `CHANGELOG.md` entry to `main` as `chore(release): X.Y.Z`. Pushes made with the workflow's own token don't start workflows, so this doesn't release again.
+7. Copies of mboard find the new version within 6 hours, or straight away with **Check for updates** in Settings. Until the zip is attached, the release doesn't count.
 
-Workflows started with `GITHUB_TOKEN` don't trigger other workflows, so `pr.yml` doesn't run on the release PR. That's fine: it only changes the version and the changelog.
+Merges are released one at a time, in order. A merge made while an earlier one is still releasing waits, and goes out with any merge after it.
+
+**When a run fails:**
+
+- **Before publishing:** nothing was tagged. Fix the cause and re-run the workflow, or merge the fix: the next run counts every commit since the last tag.
+- **While publishing:** if a release or a `vX.Y.Z` tag was left behind without its zip, delete them (`gh release delete vX.Y.Z --cleanup-tag`), then re-run the workflow.
+- **Only the push to `main` failed:** the release stands. Bring `main` in line by hand: `node scripts/release/release.mts apply X.Y.Z --notes-file <the notes from the release>`, then commit `chore(release): X.Y.Z`.
 
 ### One-off repository settings
 
 - Make the repository public, so the app can read releases without a token.
-- **Settings › Actions › General › Workflow permissions:** tick **Allow GitHub Actions to create and approve pull requests**, so release-please can open its PR.
+- Leave `main` without branch protection that blocks pushes, or let GitHub Actions bypass it, so the release workflow can commit the version back.
 - **Settings › General › Pull Requests:** allow only **squash merging**, and set the default commit message to **Pull request title**.
 
 ### Installing

@@ -11,34 +11,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release-please:
-    name: Release PR and GitHub release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.version }}
-    steps:
-      - id: release
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-  build-macos:
-    name: Build and attach the macOS zip
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+  release:
+    name: Release what was merged into main
     runs-on: macos-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
@@ -46,16 +27,80 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run typecheck
-      - run: pnpm test
-      - run: pnpm run make
-      - name: Upload the zip to the release
+
+      - name: Work out the release from the commits since the last tag
+        id: plan
+        run: node scripts/release/release.mts plan --notes-file "$RUNNER_TEMP/release-notes.md"
+
+      - if: steps.plan.outputs.release == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.plan.outputs.release == 'true'
+        run: pnpm run typecheck
+      - name: Lint
+        if: steps.plan.outputs.release == 'true'
+        run: pnpm exec oxlint
+      - name: Check formatting
+        if: steps.plan.outputs.release == 'true'
+        run: pnpm exec oxfmt --check
+      - if: steps.plan.outputs.release == 'true'
+        run: pnpm test
+
+      - name: Set the release version and changelog
+        if: steps.plan.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: node scripts/release/release.mts apply "$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+      - if: steps.plan.outputs.release == 'true'
+        run: pnpm run make
+      - name: Check the app was built as the release version
+        if: steps.plan.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          built=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' out/mboard-darwin-arm64/mboard.app/Contents/Info.plist)
+          if [ "$built" != "$VERSION" ]; then
+            echo "::error::The app was built as $built, not $VERSION."
+            exit 1
+          fi
+          test -f "out/make/zip/darwin/arm64/mboard-darwin-arm64-${VERSION}.zip"
+
+      - name: Publish the GitHub release with the zip
+        if: steps.plan.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-          VERSION: ${{ needs.release-please.outputs.version }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION: ${{ steps.plan.outputs.version }}
         run: |
-          zip="out/make/zip/darwin/arm64/mboard-darwin-arm64-${VERSION}.zip"
-          test -f "$zip"
-          gh release upload "$TAG_NAME" "$zip" --repo "$GITHUB_REPOSITORY"
+          gh release create "$TAG" "out/make/zip/darwin/arm64/mboard-darwin-arm64-${VERSION}.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+
+      - name: Commit the version and changelog for main
+        if: steps.plan.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --quiet origin main
+          git checkout --quiet --force --detach FETCH_HEAD
+          node scripts/release/release.mts apply "$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+          pnpm exec oxfmt package.json
+          git add package.json CHANGELOG.md
+          git commit --quiet -m "chore(release): $VERSION"
+      - name: Push it to main
+        if: steps.plan.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3; do
+            if git push --quiet "$remote" HEAD:main; then exit 0; fi
+            echo "main moved on while releasing; rebasing and trying again ($attempt of 3)."
+            git pull --quiet --rebase "$remote" main
+          done
+          echo "::warning::v$VERSION is released, but main's package.json and CHANGELOG.md weren't updated."
+          exit 1
