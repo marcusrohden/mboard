@@ -11,6 +11,8 @@
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "tests/**/*.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.mts",
     "*.ts",
     "*.mts"
   ]

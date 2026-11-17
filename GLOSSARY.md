@@ -48,6 +48,6 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 
 - **Shortcut**: a Command key chord, sometimes with Shift or Option, that does what a button or control does. Every control shows its shortcut, faded, at its bottom right. _Avoid_: hotkey, accelerator (that's a native menu item's key).
 - **Settings**: the dialog that holds mboard's own settings: the board folder, open at login, notifications and app updates. Opened with the header's gear, **Settings…** in the app and tray menus, or Cmd+,.
-- **Release**: a published version of mboard: a `vX.Y.Z` tag and its GitHub release, with the macOS zip attached. release-please cuts one when its release PR is merged.
+- **Release**: a published version of mboard: a `vX.Y.Z` tag and its GitHub release, with the macOS zip attached. Every feature or fix merged into `main` makes one (ADR 0008).
 - **New version**: a release newer than the running copy of mboard.
 - **App update**: replacing the running copy of mboard with a new version, from inside the app. _Avoid_: update (that's a task update), upgrade.

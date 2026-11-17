@@ -7,7 +7,7 @@
 mboard is ad-hoc signed and not notarised, and signing for distribution is out of v1 (ADR 0003). New versions should still reach the Mac without a manual download each time.
 
 - **Squirrel doesn't fit:** Electron's `autoUpdater` on macOS is Squirrel.Mac, which only installs an update signed with the same Developer ID as the running app. It can't update an ad-hoc-signed app.
-- **Releases:** release-please cuts them from conventional squash-merge titles on `main`. Each GitHub release is tagged `vX.Y.Z` and carries `mboard-darwin-arm64-X.Y.Z.zip`.
+- **Releases:** release-please cut them from conventional squash-merge titles on `main`. Since ADR 0008, every feature or fix merged into `main` is released by itself, without a release PR. Each GitHub release is tagged `vX.Y.Z` and carries `mboard-darwin-arm64-X.Y.Z.zip`.
 - **Network:** the v1 spec ruled out any network access. This decision reopens it for app updates only.
 - **The build's signature:** as packaged, the top-level signature didn't verify. On the 0.1.0 build, `codesign --verify --deep --strict mboard.app` reported `invalid Info.plist (plist or signature have been modified)`, and `codesign -dv` showed `Identifier=com.github.Electron` and `Info.plist=not bound`, because packaging changes the Info.plist after Electron's own ad-hoc signature was made. A `postPackage` hook in `forge.config.mts` now re-signs the bundle ad hoc (`codesign --force --deep --sign -`) and fails the build unless `codesign --verify --deep --strict` passes; the identifier becomes `com.electron.mboard`.
 
