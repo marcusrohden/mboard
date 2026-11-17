@@ -17,6 +17,7 @@ import {
   normaliseProject,
   orderForInsertBefore,
   orderForTopOfColumn,
+  projectFolderName,
   projectSuggestions,
   restoreDocument,
   revertDocument,
@@ -45,8 +46,8 @@ import { BoardMessage, boardError } from './board-messages';
 import { watchBoardFolder, type BoardWatcher, type FolderWatchFactory } from './board-watcher';
 import { ProjectsFile } from './projects-file';
 import { TaskFileIndex, taskAt } from './task-file-index';
-import { TaskFiles, type ReadTaskFile } from './task-files';
-import { ARCHIVE_FOLDER, LIVE_FOLDER, isArchivedLocation, type TaskLocation } from './task-location';
+import { TaskFiles, type ReadTaskFile, type TaskDestination } from './task-files';
+import { ARCHIVE_FOLDER, LIVE_FOLDER, isArchivedLocation, type TaskFolder, type TaskLocation } from './task-location';
 
 /** What the board service needs from the rest of main. `watchFolder` defaults to the debounced recursive watch. */
 export interface BoardServiceOptions {
@@ -72,6 +73,11 @@ function requireStatus(status: Status): Status {
   return status;
 }
 
+/** Where an update puts a task's file: in `folder`, inside the folder of the task's project when it has one. */
+function placementOf(folder: TaskFolder, document: TaskDocument, fileName: string): TaskDestination {
+  return { folder, projectFolder: projectFolderName(document.project), fileName };
+}
+
 function archiveAllStopped(archived: number, total: number, error: unknown): Error {
   return new Error(`Archived ${archived} of ${total} tasks, then stopped: ${userFacingMessage(error)}`);
 }
@@ -79,7 +85,9 @@ function archiveAllStopped(archived: number, total: number, error: unknown): Err
 /**
  * The board backend (spec sections 2 and 3). It loads every task file of the open board folder and its
  * `projects.md`, watches the folder for outside edits, and applies each command as a read-modify-write of
- * the file on disk.
+ * the file on disk. Every update also puts the file in the folder of the task's project (`tasks/<project>/`,
+ * or `archive/<project>/` once archived), or directly in the task folder when it has none. Reordering
+ * neighbours in a column is not an update, so it never moves their files.
  *
  * Commands, scans, `open` and `close` all run one at a time through a single queue. That serialises every
  * write to a path, and it also keeps two commands from choosing the same free file name and a slow scan
@@ -164,7 +172,10 @@ export class FileBoardService implements BoardService {
     return this.mutate(async (board) => {
       const order = orderForTopOfColumn(columnTasks(board.index.tasks(), input.status));
       const document = createTaskDocument(input, { ...this.changeContext(board), order });
-      const location = await board.files.create(LIVE_FOLDER, document);
+      const location = await board.files.create(
+        placementOf(LIVE_FOLDER, document, fileNameForTitle(document.title)),
+        document,
+      );
       return this.recordWrite(board, document, location);
     });
   }
@@ -175,10 +186,8 @@ export class FileBoardService implements BoardService {
       const current = await board.files.read(location);
       const result = applyEdit(current.document, edit, this.changeContext(board));
       if (!result.changed) return taskAt(current.document, location);
-      const destination =
-        edit.field === 'title'
-          ? { folder: location.folder, fileName: fileNameForTitle(result.document.title) }
-          : location;
+      const fileName = edit.field === 'title' ? fileNameForTitle(result.document.title) : location.fileName;
+      const destination = placementOf(location.folder, result.document, fileName);
       const saved = await board.files.save(location, current, result.document, destination);
       return this.recordWrite(board, result.document, saved, location);
     });
@@ -189,8 +198,9 @@ export class FileBoardService implements BoardService {
       const location = this.locateLiveTask(board, id);
       const current = await board.files.read(location);
       const document = appendComment(current.document, text, this.now());
-      await board.files.save(location, current, document);
-      return this.recordWrite(board, document, location);
+      const destination = placementOf(location.folder, document, location.fileName);
+      const saved = await board.files.save(location, current, document, destination);
+      return this.recordWrite(board, document, saved, location);
     });
   }
 
@@ -207,8 +217,9 @@ export class FileBoardService implements BoardService {
           : await this.renumberColumn(board, placement.assignments, location);
       const result = moveToColumn(current.document, target, order, this.now());
       if (!result.changed) return taskAt(current.document, location);
-      await board.files.save(location, current, result.document);
-      return this.recordWrite(board, result.document, location);
+      const destination = placementOf(location.folder, result.document, location.fileName);
+      const saved = await board.files.save(location, current, result.document, destination);
+      return this.recordWrite(board, result.document, saved, location);
     });
   }
 
@@ -246,8 +257,12 @@ export class FileBoardService implements BoardService {
       const current = await board.files.read(location);
       const order = orderForTopOfColumn(columnTasks(board.index.tasks(), 'Done'));
       const document = restoreDocument(current.document, order, this.now());
-      const destination = { folder: LIVE_FOLDER, fileName: location.fileName };
-      const saved = await board.files.save(location, current, document, destination);
+      const saved = await board.files.save(
+        location,
+        current,
+        document,
+        placementOf(LIVE_FOLDER, document, location.fileName),
+      );
       return this.recordWrite(board, document, saved, location);
     });
   }
@@ -263,11 +278,13 @@ export class FileBoardService implements BoardService {
         reverted.status === current.document.status
           ? reverted
           : { ...reverted, order: orderForTopOfColumn(columnTasks(board.index.tasks(), reverted.status)) };
-      const destination =
-        document.title === current.document.title
-          ? location
-          : { folder: location.folder, fileName: fileNameForTitle(document.title) };
-      const saved = await board.files.save(location, current, document, destination);
+      const fileName = document.title === current.document.title ? location.fileName : fileNameForTitle(document.title);
+      const saved = await board.files.save(
+        location,
+        current,
+        document,
+        placementOf(location.folder, document, fileName),
+      );
       return this.recordWrite(board, document, saved, location);
     });
   }
@@ -277,6 +294,7 @@ export class FileBoardService implements BoardService {
       const location = board.files.locate(id);
       await board.files.read(location);
       await this.options.trash.trash(board.files.pathOf(location));
+      await board.files.removeProjectFolderIfEmpty(location);
       await board.index.refresh(location);
     });
   }
@@ -324,7 +342,7 @@ export class FileBoardService implements BoardService {
 
   private async archive(board: OpenBoard, location: TaskLocation, current: ReadTaskFile): Promise<Task> {
     const document = archiveDocument(current.document, this.now());
-    const destination = { folder: ARCHIVE_FOLDER, fileName: location.fileName };
+    const destination = placementOf(ARCHIVE_FOLDER, document, location.fileName);
     const saved = await board.files.save(location, current, document, destination);
     return this.recordWrite(board, document, saved, location);
   }

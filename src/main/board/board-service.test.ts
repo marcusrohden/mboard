@@ -93,13 +93,23 @@ describe('opening a board', () => {
     await seed('tasks/Broken.md', BROKEN_YAML);
     await seed('tasks/.hidden.md', 'hidden');
     await seed('tasks/picture.png', 'not a task');
-    await seed('tasks/nested/Deep.md', 'too deep');
+    await seedTask('tasks/Acme/Grouped.md', { title: '"Grouped"', status: 'To do', project: 'Acme' });
+    await seedTask('archive/Acme/Old.md', { title: '"Old"', status: 'Done', project: 'Acme' });
+    await seed('tasks/Acme/deeper/Too deep.md', 'too deep');
+    await seed('tasks/.drafts/Hidden.md', 'hidden folder');
     await seed('README.md', '# Board');
 
     await openBoard();
     const snapshot = service.snapshot();
 
-    expect(snapshot.tasks.map((task) => task.id)).toEqual(['archive/Beta.md', 'tasks/Alpha.md', 'tasks/Plain note.md']);
+    expect(snapshot.tasks.map((task) => task.id)).toEqual([
+      'archive/Acme/Old.md',
+      'archive/Beta.md',
+      'tasks/Acme/Grouped.md',
+      'tasks/Alpha.md',
+      'tasks/Plain note.md',
+    ]);
+    expect(taskIn(snapshot, 'archive/Acme/Old.md')).toMatchObject({ isArchived: true, project: 'Acme' });
     expect(taskIn(snapshot, 'archive/Beta.md')).toMatchObject({ isArchived: true, archivedAt: '2026-11-10T10:00:00' });
     expect(taskIn(snapshot, 'tasks/Plain note.md')).toMatchObject({ title: 'Plain note', description: 'Just text' });
     expect(snapshot.unreadable).toEqual([
@@ -131,7 +141,7 @@ describe('creating a task', () => {
     const task = await service.createTask(NEW_TASK);
 
     expect(task).toMatchObject({
-      id: 'tasks/Fix login bug.md',
+      id: 'tasks/Acme website/Fix login bug.md',
       title: 'Fix login bug',
       status: 'In progress',
       created: '2026-11-16T09:30:00',
@@ -140,7 +150,7 @@ describe('creating a task', () => {
       isArchived: false,
     });
     expect(task.history).toMatchObject([{ at: '2026-11-16 09:30', text: 'Created in In progress' }]);
-    expect(await read('tasks/Fix login bug.md')).toBe(
+    expect(await read('tasks/Acme website/Fix login bug.md')).toBe(
       [
         '---',
         'title: "Fix login bug"',
@@ -170,15 +180,18 @@ describe('creating a task', () => {
 
     const second = await service.createTask({ ...NEW_TASK, title: 'Second' });
     expect(second.order).toBe(0);
-    expect(columnIds('In progress')).toEqual(['tasks/Second.md', 'tasks/Fix login bug.md']);
+    expect(columnIds('In progress')).toEqual(['tasks/Acme website/Second.md', 'tasks/Acme website/Fix login bug.md']);
   });
 
   it('numbers a clashing file name, ignoring case, even for concurrent creates', async () => {
-    await seed('tasks/fix LOGIN bug.md', 'An outside note\n');
+    await seed('tasks/Acme website/fix LOGIN bug.md', 'An outside note\n');
     await openBoard();
     const created = await Promise.all([service.createTask(NEW_TASK), service.createTask(NEW_TASK)]);
 
-    expect(created.map((task) => task.id).sort()).toEqual(['tasks/Fix login bug 2.md', 'tasks/Fix login bug 3.md']);
+    expect(created.map((task) => task.id).sort()).toEqual([
+      'tasks/Acme website/Fix login bug 2.md',
+      'tasks/Acme website/Fix login bug 3.md',
+    ]);
   });
 
   it('uses the existing spelling of a project, including projects of archived tasks', async () => {
@@ -194,7 +207,7 @@ describe('creating a task', () => {
     await openBoard();
     await service.createTask(NEW_TASK);
 
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Fix login bug.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix login bug.md']);
   });
 
   it('rejects invalid input without writing anything', async () => {
@@ -217,7 +230,7 @@ describe('editing a task', () => {
     [{ field: 'project', value: null }, 'Project changed from Acme website to (none)'],
     [{ field: 'due', value: '2026-12-01' }, 'Due date changed from 2026-11-20 to 2026-12-01'],
   ] as const)('applies %o, bumps updated and adds one history entry', async (edit, historyText) => {
-    const task = await service.editTask('tasks/Fix login bug.md', edit);
+    const task = await service.editTask('tasks/Acme website/Fix login bug.md', edit);
 
     expect(task.updated).toBe('2026-11-16T11:00:00');
     expect(task.history).toHaveLength(2);
@@ -226,48 +239,62 @@ describe('editing a task', () => {
       text: historyText,
       ledger: { at: '2026-11-16T11:00:00' },
     });
-    expect(await read('tasks/Fix login bug.md')).toContain(`- 2026-11-16 11:00 — ${historyText} <!-- mboard-ledger {`);
+    expect(await read(task.id)).toContain(`- 2026-11-16 11:00 — ${historyText} <!-- mboard-ledger {`);
   });
 
   it('renames the file when the title changes', async () => {
-    const task = await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix: sign-in bug?' });
+    const task = await service.editTask('tasks/Acme website/Fix login bug.md', {
+      field: 'title',
+      value: 'Fix: sign-in bug?',
+    });
 
-    expect(task.id).toBe('tasks/Fix sign-in bug.md');
+    expect(task.id).toBe('tasks/Acme website/Fix sign-in bug.md');
     expect(task.history.at(-1)?.text).toBe('Title changed from "Fix login bug" to "Fix: sign-in bug?"');
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Fix sign-in bug.md']);
-    expect(await read('tasks/Fix sign-in bug.md')).toContain('title: "Fix: sign-in bug?"');
-    expect(service.snapshot().tasks.map((snapshotTask) => snapshotTask.id)).toEqual(['tasks/Fix sign-in bug.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix sign-in bug.md']);
+    expect(await read('tasks/Acme website/Fix sign-in bug.md')).toContain('title: "Fix: sign-in bug?"');
+    expect(service.snapshot().tasks.map((snapshotTask) => snapshotTask.id)).toEqual([
+      'tasks/Acme website/Fix sign-in bug.md',
+    ]);
   });
 
   it('renames the file for a change of case only', async () => {
-    const task = await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix Login Bug' });
+    const task = await service.editTask('tasks/Acme website/Fix login bug.md', {
+      field: 'title',
+      value: 'Fix Login Bug',
+    });
 
-    expect(task.id).toBe('tasks/Fix Login Bug.md');
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Fix Login Bug.md']);
+    expect(task.id).toBe('tasks/Acme website/Fix Login Bug.md');
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix Login Bug.md']);
   });
 
   it('numbers the new name when another file already has it', async () => {
-    await seed('tasks/Other.md', 'Someone else\n');
-    const task = await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'other' });
+    await seed('tasks/Acme website/Other.md', 'Someone else\n');
+    const task = await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'title', value: 'other' });
 
-    expect(task.id).toBe('tasks/other 2.md');
+    expect(task.id).toBe('tasks/Acme website/other 2.md');
   });
 
   it('writes nothing for an unchanged value', async () => {
-    const before = await fileState(boardFile('tasks/Fix login bug.md'));
-    const task = await service.editTask('tasks/Fix login bug.md', { field: 'project', value: ' acme WEBSITE ' });
+    const before = await fileState(boardFile('tasks/Acme website/Fix login bug.md'));
+    const task = await service.editTask('tasks/Acme website/Fix login bug.md', {
+      field: 'project',
+      value: ' acme WEBSITE ',
+    });
 
     expect(task.history).toHaveLength(1);
-    expect(await fileState(boardFile('tasks/Fix login bug.md'))).toEqual(before);
+    expect(await fileState(boardFile('tasks/Acme website/Fix login bug.md'))).toEqual(before);
   });
 
   it('rereads the file, so an outside edit is never overwritten with a stale copy', async () => {
-    const original = await read('tasks/Fix login bug.md');
-    await writeFile(boardFile('tasks/Fix login bug.md'), original.replace('The login fails.', 'Edited in Obsidian.'));
+    const original = await read('tasks/Acme website/Fix login bug.md');
+    await writeFile(
+      boardFile('tasks/Acme website/Fix login bug.md'),
+      original.replace('The login fails.', 'Edited in Obsidian.'),
+    );
 
-    await service.editTask('tasks/Fix login bug.md', { field: 'due', value: '2026-12-01' });
+    await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'due', value: '2026-12-01' });
 
-    expect(await read('tasks/Fix login bug.md')).toContain('Edited in Obsidian.');
+    expect(await read('tasks/Acme website/Fix login bug.md')).toContain('Edited in Obsidian.');
   });
 
   it('keeps unknown frontmatter keys, in their original order, through an edit', async () => {
@@ -289,9 +316,10 @@ describe('editing a task', () => {
       ].join('\n'),
     );
     await service.rescan();
-    await service.editTask('tasks/Reserialised.md', { field: 'project', value: 'Acme' });
+    const edited = await service.editTask('tasks/Reserialised.md', { field: 'project', value: 'Acme' });
 
-    const text = await read('tasks/Reserialised.md');
+    expect(edited.id).toBe('tasks/Acme/Reserialised.md');
+    const text = await read('tasks/Acme/Reserialised.md');
     const keys = text
       .split('---')[1]
       ?.split('\n')
@@ -310,7 +338,7 @@ describe('commenting', () => {
     await openBoard();
     await service.createTask(NEW_TASK);
     clock.advanceMinutes(5);
-    const task = await service.addComment('tasks/Fix login bug.md', '  Asked for the credentials.  ');
+    const task = await service.addComment('tasks/Acme website/Fix login bug.md', '  Asked for the credentials.  ');
 
     expect(task.comments).toEqual([{ at: '2026-11-16 09:35', text: 'Asked for the credentials.' }]);
     expect(task.history.at(-1)).toEqual({
@@ -324,7 +352,7 @@ describe('commenting', () => {
         ],
       },
     });
-    expect(await read('tasks/Fix login bug.md')).toContain(
+    expect(await read('tasks/Acme website/Fix login bug.md')).toContain(
       '## Comments\n\n### 2026-11-16 09:35\n\nAsked for the credentials.\n\n## History',
     );
   });
@@ -332,7 +360,9 @@ describe('commenting', () => {
   it('rejects an empty comment', async () => {
     await openBoard();
     await service.createTask(NEW_TASK);
-    await expect(service.addComment('tasks/Fix login bug.md', '   ')).rejects.toThrow("A comment can't be empty.");
+    await expect(service.addComment('tasks/Acme website/Fix login bug.md', '   ')).rejects.toThrow(
+      "A comment can't be empty.",
+    );
   });
 });
 
@@ -518,22 +548,22 @@ describe('reverting', () => {
   }
 
   it('renames the file back, keeps an outside edit to a field no later change touched, and records the revert', async () => {
-    await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix sign in' });
+    await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'title', value: 'Fix sign in' });
     clock.advanceMinutes(5);
-    await service.editTask('tasks/Fix sign in.md', { field: 'due', value: '2026-12-01' });
-    const editedOutside = (await read('tasks/Fix sign in.md')).replace(
+    await service.editTask('tasks/Acme website/Fix sign in.md', { field: 'due', value: '2026-12-01' });
+    const editedOutside = (await read('tasks/Acme website/Fix sign in.md')).replace(
       'project: Acme website',
       'project: Edited in Obsidian',
     );
-    await writeBoardFile(boardPath, 'tasks/Fix sign in.md', editedOutside);
+    await writeBoardFile(boardPath, 'tasks/Acme website/Fix sign in.md', editedOutside);
     await service.rescan();
-    const expected = expectationAt('tasks/Fix sign in.md', 0);
+    const expected = expectationAt('tasks/Acme website/Fix sign in.md', 0);
     clock.advanceMinutes(5);
 
-    const task = await service.revertTask('tasks/Fix sign in.md', 0, expected);
+    const task = await service.revertTask('tasks/Acme website/Fix sign in.md', 0, expected);
 
     expect(task).toMatchObject({
-      id: 'tasks/Fix login bug.md',
+      id: 'tasks/Edited in Obsidian/Fix login bug.md',
       title: 'Fix login bug',
       due: '2026-11-20',
       project: 'Edited in Obsidian',
@@ -543,50 +573,54 @@ describe('reverting', () => {
       'Created in In progress',
       'Reverted to 16 Nov 09:30 — 2 changes discarded',
     ]);
-    expect(existsSync(boardFile('tasks/Fix sign in.md'))).toBe(false);
-    const content = await read('tasks/Fix login bug.md');
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Edited in Obsidian/Fix login bug.md']);
+    const content = await read('tasks/Edited in Obsidian/Fix login bug.md');
     expect(content).toContain(
       '- 2026-11-16 09:50 — Reverted to 16 Nov 09:30 — 2 changes discarded <!-- mboard-ledger {',
     );
     expect(content).toContain('"changes":[{"field":"title","from":"Fix sign in","to":"Fix login bug"},');
-    expect(taskIn(service.snapshot(), 'tasks/Fix login bug.md')?.title).toBe('Fix login bug');
+    expect(taskIn(service.snapshot(), 'tasks/Edited in Obsidian/Fix login bug.md')?.title).toBe('Fix login bug');
   });
 
   it('puts a task whose column changes back at the top of that column, and removes later comments', async () => {
     await service.createTask({ ...NEW_TASK, title: 'Neighbour' });
-    await service.addComment('tasks/Fix login bug.md', 'Waiting on the client');
-    await service.moveTask('tasks/Fix login bug.md', 'Done', null);
-    const expected = expectationAt('tasks/Fix login bug.md', 0);
+    await service.addComment('tasks/Acme website/Fix login bug.md', 'Waiting on the client');
+    await service.moveTask('tasks/Acme website/Fix login bug.md', 'Done', null);
+    const expected = expectationAt('tasks/Acme website/Fix login bug.md', 0);
 
-    const task = await service.revertTask('tasks/Fix login bug.md', 0, expected);
+    const task = await service.revertTask('tasks/Acme website/Fix login bug.md', 0, expected);
 
     expect(task).toMatchObject({ status: 'In progress', comments: [] });
-    expect(columnIds('In progress')).toEqual(['tasks/Fix login bug.md', 'tasks/Neighbour.md']);
-    expect(await read('tasks/Fix login bug.md')).not.toContain('### 2026-11-16');
+    expect(columnIds('In progress')).toEqual([
+      'tasks/Acme website/Fix login bug.md',
+      'tasks/Acme website/Neighbour.md',
+    ]);
+    expect(await read('tasks/Acme website/Fix login bug.md')).not.toContain('### 2026-11-16');
   });
 
   it('rejects a stale view of the history without writing anything', async () => {
-    await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix sign in' });
-    const expected = expectationAt('tasks/Fix sign in.md', 0);
-    await service.editTask('tasks/Fix sign in.md', { field: 'due', value: null });
-    const before = await fileState(boardFile('tasks/Fix sign in.md'));
+    await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'title', value: 'Fix sign in' });
+    const renamed = 'tasks/Acme website/Fix sign in.md';
+    const expected = expectationAt(renamed, 0);
+    await service.editTask(renamed, { field: 'due', value: null });
+    const before = await fileState(boardFile(renamed));
 
-    await expect(service.revertTask('tasks/Fix sign in.md', 0, expected)).rejects.toThrow(BoardMessage.staleRevert);
-    await expect(service.revertTask('tasks/Fix sign in.md', 1, { ...expected, historyLength: 3 })).rejects.toThrow(
+    await expect(service.revertTask(renamed, 0, expected)).rejects.toThrow(BoardMessage.staleRevert);
+    await expect(service.revertTask(renamed, 1, { ...expected, historyLength: 3 })).rejects.toThrow(
       BoardMessage.staleRevert,
     );
-    expect(await fileState(boardFile('tasks/Fix sign in.md'))).toEqual(before);
+    expect(await fileState(boardFile(renamed))).toEqual(before);
   });
 
   it('refuses an entry it may not revert to, and an archived task', async () => {
-    await service.moveTask('tasks/Fix login bug.md', 'Done', null);
-    const latest = expectationAt('tasks/Fix login bug.md', 1);
-    await expect(service.revertTask('tasks/Fix login bug.md', 1, latest)).rejects.toThrow(
+    await service.moveTask('tasks/Acme website/Fix login bug.md', 'Done', null);
+    const latest = expectationAt('tasks/Acme website/Fix login bug.md', 1);
+    await expect(service.revertTask('tasks/Acme website/Fix login bug.md', 1, latest)).rejects.toThrow(
       "That's the latest entry, so there's nothing to revert.",
     );
-    await service.archiveTask('tasks/Fix login bug.md');
-    const archived = expectationAt('archive/Fix login bug.md', 0);
-    await expect(service.revertTask('archive/Fix login bug.md', 0, archived)).rejects.toThrow(
+    await service.archiveTask('tasks/Acme website/Fix login bug.md');
+    const archived = expectationAt('archive/Acme website/Fix login bug.md', 0);
+    await expect(service.revertTask('archive/Acme website/Fix login bug.md', 0, archived)).rejects.toThrow(
       BoardMessage.archivedReadOnly,
     );
   });
@@ -596,7 +630,7 @@ describe('deleting', () => {
   it('moves the file into the trash folder', async () => {
     await openBoard();
     await service.createTask(NEW_TASK);
-    await service.deleteTask('tasks/Fix login bug.md');
+    await service.deleteTask('tasks/Acme website/Fix login bug.md');
 
     expect(await listFilesRecursively(boardPath)).toEqual([]);
     expect(await listFilesRecursively(trashPath)).toEqual(['Fix login bug.md']);
@@ -606,9 +640,9 @@ describe('deleting', () => {
   it('rejects a task whose file is already gone', async () => {
     await openBoard();
     await service.createTask(NEW_TASK);
-    await unlink(boardFile('tasks/Fix login bug.md'));
+    await unlink(boardFile('tasks/Acme website/Fix login bug.md'));
 
-    await expect(service.deleteTask('tasks/Fix login bug.md')).rejects.toThrow(BoardMessage.taskMissing);
+    await expect(service.deleteTask('tasks/Acme website/Fix login bug.md')).rejects.toThrow(BoardMessage.taskMissing);
   });
 });
 
@@ -657,10 +691,10 @@ describe('outside edits', () => {
 
     await service.rescan();
     await service.createTask(NEW_TASK);
-    await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix login bug' });
+    await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'title', value: 'Fix login bug' });
 
     expect(snapshots).toHaveLength(2);
-    expect(snapshots[1]?.tasks.map((task) => task.id)).toEqual(['tasks/Fix login bug.md']);
+    expect(snapshots[1]?.tasks.map((task) => task.id)).toEqual(['tasks/Acme website/Fix login bug.md']);
   });
 });
 
@@ -814,7 +848,7 @@ describe('project colours', () => {
   it('creates projects.md on the first colour, in the spelling the tasks use, without touching any task', async () => {
     await openBoard();
     await service.createTask(NEW_TASK);
-    const task = await fileState(boardFile('tasks/Fix login bug.md'));
+    const task = await fileState(boardFile('tasks/Acme website/Fix login bug.md'));
     const snapshots: BoardSnapshot[] = [];
     service.onChange((snapshot) => snapshots.push(snapshot));
 
@@ -823,7 +857,7 @@ describe('project colours', () => {
     expect(await read('projects.md')).toMatch(/^---\ncolours:\n {2}Acme website: teal\n---\n/);
     expect(service.snapshot().projectColours).toEqual({ 'Acme website': 'teal' });
     expect(snapshots.at(-1)?.projectColours).toEqual({ 'Acme website': 'teal' });
-    expect(await fileState(boardFile('tasks/Fix login bug.md'))).toEqual(task);
+    expect(await fileState(boardFile('tasks/Acme website/Fix login bug.md'))).toEqual(task);
   });
 
   it('changes and removes a colour, keeping the rest of the file', async () => {
@@ -871,12 +905,141 @@ describe('project colours', () => {
   });
 });
 
+describe('project folders', () => {
+  const PROJECT_FOLDER = path.join('tasks', 'Acme website');
+
+  function folderExists(relativePath: string): boolean {
+    return existsSync(path.join(boardPath, relativePath));
+  }
+
+  it('creates a task with a project in its project folder, and one without directly in tasks/', async () => {
+    await openBoard();
+    const grouped = await service.createTask(NEW_TASK);
+    const loose = await service.createTask({ ...NEW_TASK, title: 'Loose', project: null });
+
+    expect(grouped.id).toBe('tasks/Acme website/Fix login bug.md');
+    expect(loose.id).toBe('tasks/Loose.md');
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix login bug.md', 'tasks/Loose.md']);
+  });
+
+  it('names the folder after the project made safe for a file name, and leaves a name with nothing safe in tasks/', async () => {
+    await openBoard();
+    const slashed = await service.createTask({ ...NEW_TASK, project: 'Acme / Beta: v2' });
+    const unsafe = await service.createTask({ ...NEW_TASK, title: 'Unsafe', project: '???' });
+
+    expect(slashed).toMatchObject({ id: 'tasks/Acme Beta v2/Fix login bug.md', project: 'Acme / Beta: v2' });
+    expect(unsafe.id).toBe('tasks/Unsafe.md');
+  });
+
+  it('moves the file when the project changes, and removes the folder it left empty', async () => {
+    await openBoard();
+    await service.createTask(NEW_TASK);
+
+    const moved = await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'project', value: 'Beta' });
+    expect(moved.id).toBe('tasks/Beta/Fix login bug.md');
+    expect(folderExists(PROJECT_FOLDER)).toBe(false);
+
+    const cleared = await service.editTask(moved.id, { field: 'project', value: null });
+    expect(cleared.id).toBe('tasks/Fix login bug.md');
+    expect(folderExists(path.join('tasks', 'Beta'))).toBe(false);
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Fix login bug.md']);
+    expect(service.snapshot().tasks.map((task) => task.id)).toEqual(['tasks/Fix login bug.md']);
+  });
+
+  it('keeps a project folder that still holds anything, even only a hidden file', async () => {
+    await openBoard();
+    await service.createTask(NEW_TASK);
+    await seed('tasks/Acme website/.DS_Store', '');
+
+    await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'project', value: null });
+
+    expect(await listFilesRecursively(path.join(boardPath, 'tasks'))).toEqual([
+      'Acme website/.DS_Store',
+      'Fix login bug.md',
+    ]);
+  });
+
+  it('archives into the project folder inside archive/, and restores into the one inside tasks/', async () => {
+    await openBoard();
+    await service.createTask({ ...NEW_TASK, status: 'Done' });
+
+    const archived = await service.archiveTask('tasks/Acme website/Fix login bug.md');
+    expect(archived.id).toBe('archive/Acme website/Fix login bug.md');
+    expect(folderExists(PROJECT_FOLDER)).toBe(false);
+
+    const restored = await service.restoreTask(archived.id);
+    expect(restored.id).toBe('tasks/Acme website/Fix login bug.md');
+    expect(folderExists(path.join('archive', 'Acme website'))).toBe(false);
+  });
+
+  it('reuses a project folder whose name differs only in case, so a task is listed once', async () => {
+    await seed('tasks/acme WEBSITE/Notes.txt', 'Kept by someone else');
+    await openBoard();
+
+    const task = await service.createTask(NEW_TASK);
+    await service.rescan();
+
+    expect(task.id).toBe('tasks/acme WEBSITE/Fix login bug.md');
+    expect(service.snapshot().tasks.map((snapshotTask) => snapshotTask.id)).toEqual([
+      'tasks/acme WEBSITE/Fix login bug.md',
+    ]);
+  });
+
+  it("leaves a task directly in tasks/ when a file has its project folder's name", async () => {
+    await seed('tasks/Acme website', 'Not a folder');
+    await openBoard();
+
+    expect((await service.createTask(NEW_TASK)).id).toBe('tasks/Fix login bug.md');
+  });
+
+  it('moves a task filed before project folders into its folder on its next update, but never just by opening', async () => {
+    await seedTask('tasks/Legacy.md', { title: 'Legacy', status: 'To do', project: 'Acme website' });
+    const before = await fileState(boardFile('tasks/Legacy.md'));
+    await openBoard();
+    expect(await fileState(boardFile('tasks/Legacy.md'))).toEqual(before);
+
+    const task = await service.addComment('tasks/Legacy.md', 'Filed at last');
+
+    expect(task.id).toBe('tasks/Acme website/Legacy.md');
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Legacy.md']);
+    expect(service.snapshot().tasks.map((snapshotTask) => snapshotTask.id)).toEqual(['tasks/Acme website/Legacy.md']);
+  });
+
+  it('moves a task into its folder when it changes column, but never moves a neighbour that is only renumbered', async () => {
+    await seedTask('tasks/A.md', { title: 'A', status: 'To do', order: 1, project: 'Acme website' });
+    await seedTask('tasks/B.md', { title: 'B', status: 'To do', order: 1.0000001, project: 'Acme website' });
+    await seedTask('tasks/C.md', { title: 'C', status: 'In progress', order: 1, project: 'Beta' });
+    await openBoard();
+
+    const task = await service.moveTask('tasks/C.md', 'To do', 'tasks/B.md');
+
+    expect(task.id).toBe('tasks/Beta/C.md');
+    expect(await read('tasks/B.md')).toContain('order: 3\n');
+    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/A.md', 'tasks/B.md', 'tasks/Beta/C.md']);
+  });
+
+  it('removes a project folder that deleting its last task left empty', async () => {
+    await openBoard();
+    await service.createTask(NEW_TASK);
+
+    await service.deleteTask('tasks/Acme website/Fix login bug.md');
+
+    expect(folderExists(PROJECT_FOLDER)).toBe(false);
+    expect(folderExists('tasks')).toBe(true);
+  });
+});
+
 describe('task ids', () => {
   it.each([
     ['tasks/../../escape.md'],
     ['../escape.md'],
     ['/etc/hosts.md'],
-    ['tasks/nested/Deep.md'],
+    ['tasks/Acme/deeper/Deep.md'],
+    ['tasks/../escape.md'],
+    ['tasks/./Note.md'],
+    ['tasks/.drafts/Note.md'],
+    ['tasks//Note.md'],
+    ['tasks/Acme\\Note.md'],
     ['tasks\\..\\escape.md'],
     ['notes/Note.md'],
     ['tasks/.hidden.md'],
@@ -897,6 +1060,7 @@ describe('task ids', () => {
   it('resolves a valid id to its file inside the board folder', async () => {
     await openBoard();
     expect(service.absolutePath('archive/Old note.md')).toBe(path.join(boardPath, 'archive', 'Old note.md'));
+    expect(service.absolutePath('tasks/Acme/Note.md')).toBe(path.join(boardPath, 'tasks', 'Acme', 'Note.md'));
   });
 });
 
@@ -904,15 +1068,15 @@ describe('safe writes', () => {
   it('leaves no temporary files behind', async () => {
     await openBoard();
     await service.createTask({ ...NEW_TASK, status: 'Done' });
-    await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Renamed' });
-    await service.addComment('tasks/Renamed.md', 'Note');
-    await service.archiveTask('tasks/Renamed.md');
-    await service.restoreTask('archive/Renamed.md');
+    await service.editTask('tasks/Acme website/Fix login bug.md', { field: 'title', value: 'Renamed' });
+    await service.addComment('tasks/Acme website/Renamed.md', 'Note');
+    await service.archiveTask('tasks/Acme website/Renamed.md');
+    await service.restoreTask('archive/Acme website/Renamed.md');
     await service.createTask({ ...NEW_TASK, title: 'Another' });
-    await service.moveTask('tasks/Another.md', 'Done', 'tasks/Renamed.md');
+    await service.moveTask('tasks/Acme website/Another.md', 'Done', 'tasks/Acme website/Renamed.md');
 
     const files = await listFilesRecursively(boardPath);
-    expect(files).toEqual(['tasks/Another.md', 'tasks/Renamed.md']);
+    expect(files).toEqual(['tasks/Acme website/Another.md', 'tasks/Acme website/Renamed.md']);
     expect(files.some((file) => file.includes('mboard-tmp'))).toBe(false);
   });
 });

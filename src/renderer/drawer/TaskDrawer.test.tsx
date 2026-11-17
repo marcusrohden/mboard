@@ -86,7 +86,7 @@ describe('Task detail drawer fields', () => {
     expect(fake.api.editTask).not.toHaveBeenCalled();
   });
 
-  it('saves the project, and clears it when emptied', async () => {
+  it('saves the project, and clears it when emptied, following the file into its project folder and out', async () => {
     const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
     const drawer = await openTask(user, 'Fix login');
     await user.clear(input(drawer, 'Project'));
@@ -94,7 +94,7 @@ describe('Task detail drawer fields', () => {
     expect(fake.api.editTask).toHaveBeenLastCalledWith('tasks/Fix login.md', { field: 'project', value: 'Other' });
     await user.clear(input(drawer, 'Project'));
     await user.tab();
-    expect(fake.api.editTask).toHaveBeenLastCalledWith('tasks/Fix login.md', { field: 'project', value: null });
+    expect(fake.api.editTask).toHaveBeenLastCalledWith('tasks/Other/Fix login.md', { field: 'project', value: null });
   });
 
   it('saves a due date, and removes it with the clear button', async () => {

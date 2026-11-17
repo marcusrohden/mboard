@@ -5,7 +5,7 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 ## Board and folder
 
 - **Board**: the one Kanban board mboard shows. One board folder holds one board.
-- **Board folder**: the folder inside an Obsidian vault that holds the board: `tasks/`, `archive/`, `README.md` and, once a project has a colour, `projects.md`. mboard's only data store.
+- **Board folder**: the folder inside an Obsidian vault that holds the board: `tasks/`, `archive/` (each with its project folders), `README.md` and, once a project has a colour, `projects.md`. mboard's only data store.
 - **Vault**: an Obsidian vault, recognised by a `.obsidian/` config folder at its root.
 - **Outside edit**: any change to a file in the board folder that mboard didn't make itself, for example an edit in Obsidian, an Obsidian Kanban drag or an agent writing a file. Shown as it is; never recorded in the history log.
 
@@ -19,6 +19,7 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 - **Order**: a task's manual position within its column.
 - **Responsibility**: _removed_ (ADR 0006). It was a separate Me, Client or Internal property for who had the next step; the Internal and With client columns replace it. Older files may still carry a `responsibility` key: on a To do or In progress task, Client or Internal reads as With client or Internal, and the key is dropped on the next write. _Avoid_: owner, assignee.
 - **Project**: an optional free-text name grouping tasks. The list of projects is derived from the task files.
+- **Project folder**: the folder inside `tasks/` or `archive/`, named after a project, that holds that project's task files (ADR 0009). Tasks without a project sit directly in `tasks/` or `archive/`. The `project` property decides a task's project; the folder only follows it. _Avoid_: subfolder, project directory.
 - **Project colour**: one of a fixed palette (red, orange, amber, green, teal, blue, indigo, purple, pink, brown) that a project's name is shown in on the board. Kept in the projects file, matched to projects ignoring case. _Avoid_: label colour, tag.
 - **Projects file**: `projects.md` at the root of the board folder, holding board-level project settings such as project colours (ADR 0007).
 - **Due date**: an optional calendar date (no time of day) by which the task should be done.

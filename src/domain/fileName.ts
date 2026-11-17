@@ -16,15 +16,18 @@ function stripEdgeDotsAndSpaces(text: string): string {
   return text.replace(/^[. ]+/, '').replace(/[. ]+$/, '');
 }
 
+function sanitiseName(text: string): string {
+  const cleaned = collapseWhitespace(collapseWhitespace(text.normalize('NFC')).replace(FORBIDDEN_CHARACTERS, ''));
+  return stripEdgeDotsAndSpaces(cutToLength(stripEdgeDotsAndSpaces(cleaned), MAX_STEM_LENGTH));
+}
+
 /**
  * Turns a title into a safe file name stem: NFC-normalised, without control or link-breaking characters,
  * with whitespace collapsed, no leading dots, no trailing dots or spaces, at most 100 characters, and
  * `Untitled` when nothing is left.
  */
 export function sanitiseTitle(title: string): string {
-  const cleaned = collapseWhitespace(collapseWhitespace(title.normalize('NFC')).replace(FORBIDDEN_CHARACTERS, ''));
-  const cut = cutToLength(stripEdgeDotsAndSpaces(cleaned), MAX_STEM_LENGTH);
-  const stem = stripEdgeDotsAndSpaces(cut);
+  const stem = sanitiseName(title);
   return stem === '' ? FALLBACK_STEM : stem;
 }
 
@@ -33,8 +36,24 @@ export function fileNameForTitle(title: string): string {
   return `${sanitiseTitle(title)}${EXTENSION}`;
 }
 
+/**
+ * The name of a project's folder inside `tasks/` and `archive/`, made safe the way a title is, for example
+ * `Acme website`. `null`, meaning directly in the task folder, when the task has no project or nothing of the
+ * name is left.
+ */
+export function projectFolderName(project: string | null): string | null {
+  if (project === null) return null;
+  const name = sanitiseName(project);
+  return name === '' ? null : name;
+}
+
 function comparisonKey(fileName: string): string {
   return fileName.normalize('NFC').toLowerCase();
+}
+
+/** Whether two file or folder names are the same name on a case-insensitive volume such as macOS's. */
+export function isSameFileName(a: string, b: string): boolean {
+  return comparisonKey(a) === comparisonKey(b);
 }
 
 /**

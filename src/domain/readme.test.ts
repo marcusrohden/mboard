@@ -11,6 +11,13 @@ describe('buildBoardReadme', () => {
     expect(readme).toContain('projects.md');
   });
 
+  it('explains that tasks are grouped in one level of project folders, decided by the project property', () => {
+    expect(readme).toContain('│   ├── Acme website/   tasks of the project Acme website');
+    expect(readme).toContain("Put a new task file in its project's folder, or directly in `tasks/` when it has none.");
+    expect(readme).toContain('The `project` property, not the folder, decides the project.');
+    expect(readme).not.toContain('not in a subfolder');
+  });
+
   it('explains project colours in projects.md', () => {
     expect(readme).toContain('## Project colours');
     expect(readme).toContain('red, orange, amber, green, teal, blue, indigo, purple, pink or brown');

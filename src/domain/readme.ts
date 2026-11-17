@@ -21,13 +21,16 @@ ${boardName}/
 ├── README.md     this file
 ├── projects.md   project colours, once a project has one
 ├── tasks/        live tasks, in any column
-└── archive/      archived tasks
+│   ├── Acme website/   tasks of the project Acme website
+│   └── Loose task.md   a task with no project
+└── archive/      archived tasks, in project folders the same way
 \`\`\`
 
 - The column a task is in is its \`status\` property. The folder never encodes the column.
 - The columns, left to right, are To do, In progress, Internal, With client and Done. \`Internal\` means the task is waiting on someone in my organisation, and \`With client\` means it is waiting on the client. A task can move between any of them.
 - Only tasks in Done can be archived. Archiving moves the file from \`tasks/\` to \`archive/\` and adds \`archived\`. Restoring moves it back to the top of Done and removes \`archived\`.
-- Put new task files directly in \`tasks/\`, not in a subfolder.
+- Tasks are grouped by project: a task with a \`project\` lives in a folder named after it inside \`tasks/\` (or \`archive/\`), and a task without one lives directly in \`tasks/\`. Put a new task file in its project's folder, or directly in \`tasks/\` when it has none. Only one level of folders is read.
+- The \`project\` property, not the folder, decides the project. When mboard changes a task, it moves the file into the folder of its project, and removes a project folder it left empty.
 - The file name is the title with characters that are unsafe in file names removed, for example \`Fix login bug.md\`. mboard renames the file when the title changes.
 
 ## A task file
