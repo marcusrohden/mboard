@@ -11,7 +11,7 @@ import { readLaunchConfig, type LaunchConfig } from './launch-config';
 import { obsidianOpenUrl } from './obsidian-link';
 import { createPlatform } from './platform';
 import type { BoardService } from './ports';
-import { resolveRendererSource } from './renderer-source';
+import { resolveRendererSource, type RendererSource } from './renderer-source';
 import { FileSettingsStore } from './settings/settings-store';
 import { FileBoardSetupService } from './setup/board-setup-service';
 import { MenuFolderChange } from './setup/menu-folder-change';
@@ -32,17 +32,18 @@ const RENDERER_BUNDLE_DIRECTORY = path.join(__dirname, '..', 'renderer', MAIN_WI
 function bootstrap(): void {
   try {
     const launchConfig = readLaunchConfig(process.env);
+    const rendererSource = resolveRendererSource(MAIN_WINDOW_VITE_DEV_SERVER_URL, RENDERER_BUNDLE_DIRECTORY);
     applyLaunchConfig(launchConfig);
     if (!app.requestSingleInstanceLock()) {
       app.quit();
       return;
     }
     registerAppSchemeAsPrivileged();
-    app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
+    app.on('web-contents-created', (_event, contents) => hardenWebContents(contents, rendererSource.trustedOrigin));
     app.on('window-all-closed', keepRunningWithoutWindows);
     app
       .whenReady()
-      .then(() => startApp(launchConfig))
+      .then(() => startApp(launchConfig, rendererSource))
       .catch(exitWithStartupError);
   } catch (error) {
     exitWithStartupError(error);
@@ -57,8 +58,7 @@ function applyLaunchConfig(config: LaunchConfig): void {
  * The composition root: builds the clock, settings, board, setup and platform, wires IPC, push events, the
  * app menu and the window, then resolves the launch state before showing the window.
  */
-async function startApp(launchConfig: LaunchConfig): Promise<void> {
-  const rendererSource = resolveRendererSource(MAIN_WINDOW_VITE_DEV_SERVER_URL, RENDERER_BUNDLE_DIRECTORY);
+async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSource): Promise<void> {
   denyPermissionRequests(session.defaultSession);
   if (rendererSource.kind === 'bundle') serveRendererBundle(rendererSource.bundleDirectory);
 
