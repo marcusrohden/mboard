@@ -149,7 +149,6 @@ describe('createMacAppUpdateInstaller', () => {
         'PlistBuddy',
         'PlistBuddy',
         'PlistBuddy',
-        'codesign',
         'xattr',
       ]);
     });
@@ -222,10 +221,6 @@ describe('createMacAppUpdateInstaller', () => {
     it.each([
       ['ditto', "mboard couldn't unpack the new version."],
       [
-        'codesign',
-        "The new version's code signature didn't check out, so mboard didn't install it.",
-      ],
-      [
         'PlistBuddy',
         "mboard couldn't check the new version, so it didn't install it.",
       ],
@@ -261,7 +256,7 @@ describe('createMacAppUpdateInstaller', () => {
           "The download isn't mboard 0.2.0, so mboard didn't install it.",
         );
         expect(await tempEntries()).toEqual([]);
-        expect(tools.calls).not.toContain('codesign');
+        expect(tools.calls).not.toContain('xattr');
       },
     );
 

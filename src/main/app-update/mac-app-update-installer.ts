@@ -47,7 +47,6 @@ export interface MacAppUpdateInstallerOptions {
 }
 
 const DITTO = '/usr/bin/ditto';
-const CODESIGN = '/usr/bin/codesign';
 const XATTR = '/usr/bin/xattr';
 const PLIST_BUDDY = '/usr/libexec/PlistBuddy';
 const UNPACKED_FOLDER = 'unpacked';
@@ -60,8 +59,6 @@ const Message = {
   unpack: "mboard couldn't unpack the new version.",
   noApp:
     "The download didn't contain the mboard app, so mboard didn't install it.",
-  signature:
-    "The new version's code signature didn't check out, so mboard didn't install it.",
   inspect: "mboard couldn't check the new version, so it didn't install it.",
   stopped: 'The download stopped before it finished.',
   launch: "mboard couldn't start installing the new version.",
@@ -89,10 +86,12 @@ async function isWritable(folder: string): Promise<boolean> {
 
 /**
  * Installs new versions of a packaged macOS app bundle without Squirrel, which needs a Developer ID
- * signature: it downloads and checks the release zip, unpacks it with `ditto`, checks the bundle id,
- * version and code signature, then hands the swap to a detached shell helper that runs once mboard quits.
- * Everything it downloads lives in one staging folder under `tempFolder`, which is removed when the process
- * ends, whether it succeeds or fails.
+ * signature: it downloads the release zip and checks its size and the SHA-256 digest GitHub reports,
+ * unpacks it with `ditto`, checks the bundle id and version, then hands the swap to a detached shell helper
+ * that runs once mboard quits. The code signature isn't checked: the ad-hoc build's top-level signature
+ * doesn't verify (ADR 0004), and an ad-hoc signature proves nothing the digest doesn't. Everything it
+ * downloads lives in one staging folder under `tempFolder`, which is removed when the process ends,
+ * whether it succeeds or fails.
  */
 export function createMacAppUpdateInstaller(
   options: MacAppUpdateInstallerOptions,
@@ -198,9 +197,6 @@ export function createMacAppUpdateInstaller(
     );
     if (bundleId !== expectedId || bundleVersion !== version)
       throw new AppUpdateFailure(wrongVersionMessage(version));
-    await step(Message.signature, () =>
-      run(CODESIGN, ['--verify', '--deep', '--strict', bundle]),
-    );
     await run(XATTR, ['-dr', 'com.apple.quarantine', bundle]).catch(
       () => undefined,
     );
