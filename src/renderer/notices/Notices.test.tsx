@@ -56,7 +56,10 @@ describe('Reminder banner', () => {
     { taskId: 'tasks/Pay invoice.md', title: 'Pay invoice', due: '2026-11-10', overdue: true },
     { taskId: 'tasks/Call client.md', title: 'Call client', due: '2026-11-16', overdue: false },
   ];
-  const TASKS = () => [buildTask({ title: 'Pay invoice', due: '2026-11-10' }), buildTask({ title: 'Call client', due: '2026-11-16' })];
+  const TASKS = () => [
+    buildTask({ title: 'Pay invoice', due: '2026-11-10' }),
+    buildTask({ title: 'Call client', due: '2026-11-16' }),
+  ];
 
   it('is absent without reminders', async () => {
     await renderBoard({ tasks: TASKS() });
@@ -85,7 +88,9 @@ describe('Reminder banner', () => {
   it('appears when main pushes reminders, and comes back after a new push', async () => {
     const { user, fake } = await renderBoard({ tasks: TASKS() });
     act(() => fake.pushBanner(BANNER));
-    await user.click(within(await screen.findByRole('region', { name: 'Reminders' })).getByRole('button', { name: 'Dismiss' }));
+    await user.click(
+      within(await screen.findByRole('region', { name: 'Reminders' })).getByRole('button', { name: 'Dismiss' }),
+    );
     expect(screen.queryByRole('region', { name: 'Reminders' })).toBeNull();
     act(() => fake.pushBanner([BANNER[0]!]));
     const again = await screen.findByRole('region', { name: 'Reminders' });
@@ -108,7 +113,9 @@ describe('Toasts for rejected commands', () => {
       tasks: [buildTask({ title: 'Finished', status: 'Done' })],
     });
     fake.api.archiveTask.mockRejectedValueOnce(new Error("Couldn't move the file. It may be open in another app."));
-    await user.click(within(screen.getByRole('article', { name: 'Finished' })).getByRole('button', { name: 'Archive' }));
+    await user.click(
+      within(screen.getByRole('article', { name: 'Finished' })).getByRole('button', { name: 'Archive' }),
+    );
     const toast = await screen.findByText("Couldn't move the file. It may be open in another app.");
     expect(toast.closest('[role="alert"]')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Hide message' }));

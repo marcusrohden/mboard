@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildLedger,
-  encodeLedgerComment,
-  initialLedger,
-  splitLedgerComment,
-} from './ledger';
+import { buildLedger, encodeLedgerComment, initialLedger, splitLedgerComment } from './ledger';
 import type { HistoryLedger, TaskDocument } from './model';
 import { parseTaskFile, serialiseTaskFile } from './taskFile';
 import { FALLBACK, makeDocument } from './testHelpers';
@@ -44,11 +39,7 @@ function ledgerWith(text: string): HistoryLedger {
   };
 }
 
-function withHistory(
-  document: TaskDocument,
-  text: string,
-  ledger: HistoryLedger,
-): TaskDocument {
+function withHistory(document: TaskDocument, text: string, ledger: HistoryLedger): TaskDocument {
   return {
     ...document,
     history: [...document.history, { at: '2026-11-16 14:02', text, ledger }],
@@ -79,19 +70,14 @@ describe('encodeLedgerComment', () => {
       at: '2026-11-16T14:02:37',
       changes: [{ field: 'title', from: 'a --> <b>', to: 'x\u2028y' }],
     });
-    expect(comment).toContain(
-      '"from":"a \\u002d-\\u003e \\u003cb\\u003e","to":"x\\u2028y"',
-    );
+    expect(comment).toContain('"from":"a \\u002d-\\u003e \\u003cb\\u003e","to":"x\\u2028y"');
   });
 
   it.each(HOSTILE_TEXTS.map((text) => [text.slice(0, 40), text]))(
     'keeps %j on one line that can not end the comment early',
     (_label, text) => {
       const comment = encodeLedgerComment(ledgerWith(text));
-      const payload = comment.slice(
-        '<!-- mboard-ledger '.length,
-        -' -->'.length,
-      );
+      const payload = comment.slice('<!-- mboard-ledger '.length, -' -->'.length);
       expect(comment.startsWith('<!-- mboard-ledger {')).toBe(true);
       expect(comment.endsWith('} -->')).toBe(true);
       expect(payload).not.toMatch(/[\n\r\u2028\u2029<>]/);
@@ -101,16 +87,11 @@ describe('encodeLedgerComment', () => {
 });
 
 describe('splitLedgerComment', () => {
-  it.each(HOSTILE_TEXTS.map((text) => [text.slice(0, 40), text]))(
-    'reads back what it wrote for %j',
-    (_label, text) => {
-      const ledger = ledgerWith(text);
-      const visible = 'Title changed from "Plain" to "x"';
-      expect(
-        splitLedgerComment(`${visible} ${encodeLedgerComment(ledger)}`),
-      ).toEqual({ text: visible, ledger });
-    },
-  );
+  it.each(HOSTILE_TEXTS.map((text) => [text.slice(0, 40), text]))('reads back what it wrote for %j', (_label, text) => {
+    const ledger = ledgerWith(text);
+    const visible = 'Title changed from "Plain" to "x"';
+    expect(splitLedgerComment(`${visible} ${encodeLedgerComment(ledger)}`)).toEqual({ text: visible, ledger });
+  });
 
   it('reads a line without the comment as a legacy entry', () => {
     expect(splitLedgerComment('Comment added')).toEqual({
@@ -126,28 +107,15 @@ describe('splitLedgerComment', () => {
       changes: [{ field: 'title', from: 'A', to: 'B' }],
     };
     const visible = 'Title changed from "A" to "<!-- mboard-ledger {} --> B"';
-    expect(
-      splitLedgerComment(`${visible} ${encodeLedgerComment(ledger)}`),
-    ).toEqual({ text: visible, ledger });
-    expect(
-      splitLedgerComment(`${encodeLedgerComment(ledger)} then text`).ledger,
-    ).toBeNull();
+    expect(splitLedgerComment(`${visible} ${encodeLedgerComment(ledger)}`)).toEqual({ text: visible, ledger });
+    expect(splitLedgerComment(`${encodeLedgerComment(ledger)} then text`).ledger).toBeNull();
   });
 
   it.each([
     ['broken JSON', 'Edited <!-- mboard-ledger {"v":1, -->'],
-    [
-      'another version',
-      'Edited <!-- mboard-ledger {"v":2,"at":"2026-11-16T14:02:37","changes":[]} -->',
-    ],
-    [
-      'a bad time',
-      'Edited <!-- mboard-ledger {"v":1,"at":"yesterday","changes":[]} -->',
-    ],
-    [
-      'extra keys',
-      'Edited <!-- mboard-ledger {"v":1,"at":"2026-11-16T14:02:37","changes":[],"x":1} -->',
-    ],
+    ['another version', 'Edited <!-- mboard-ledger {"v":2,"at":"2026-11-16T14:02:37","changes":[]} -->'],
+    ['a bad time', 'Edited <!-- mboard-ledger {"v":1,"at":"yesterday","changes":[]} -->'],
+    ['extra keys', 'Edited <!-- mboard-ledger {"v":1,"at":"2026-11-16T14:02:37","changes":[],"x":1} -->'],
     [
       'a change of an unknown shape',
       'Edited <!-- mboard-ledger {"v":1,"at":"2026-11-16T14:02:37","changes":[{"field":"x","y":1}]} -->',
@@ -175,9 +143,10 @@ describe('splitLedgerComment', () => {
       at: '2026-11-16T14:02:37',
       changes: [{ field: 'priority', from: 'Low', to: 'High' }],
     };
-    expect(
-      splitLedgerComment(`Priority changed ${encodeLedgerComment(ledger)}`),
-    ).toEqual({ text: 'Priority changed', ledger });
+    expect(splitLedgerComment(`Priority changed ${encodeLedgerComment(ledger)}`)).toEqual({
+      text: 'Priority changed',
+      ledger,
+    });
   });
 });
 
@@ -185,15 +154,9 @@ describe('ledger data in a task file', () => {
   it.each(HOSTILE_TEXTS.map((text) => [text.slice(0, 40), text]))(
     'round-trips byte-identical with %j',
     (_label, text) => {
-      const document = withHistory(
-        makeDocument(),
-        'Description edited',
-        ledgerWith(text),
-      );
+      const document = withHistory(makeDocument(), 'Description edited', ledgerWith(text));
       const content = serialiseTaskFile(document);
-      expect(
-        content.split('\n').filter((line) => line.includes('mboard-ledger')),
-      ).toHaveLength(1);
+      expect(content.split('\n').filter((line) => line.includes('mboard-ledger'))).toHaveLength(1);
       const read = parsed(content);
       expect(read.history).toEqual(document.history);
       expect(read.description).toBe(document.description);
@@ -208,11 +171,7 @@ describe('ledger data in a task file', () => {
       at: '2026-11-17T10:00:05',
       changes: [{ field: 'due', from: null, to: '2026-11-20' }],
     };
-    const document = withHistory(
-      makeDocument(),
-      'Reverted to 16 Nov 14:02 — 3 changes discarded',
-      ledger,
-    );
+    const document = withHistory(makeDocument(), 'Reverted to 16 Nov 14:02 — 3 changes discarded', ledger);
     const content = serialiseTaskFile(document);
     expect(content).toContain(
       '- 2026-11-16 14:02 — Reverted to 16 Nov 14:02 — 3 changes discarded <!-- mboard-ledger {',
@@ -230,15 +189,12 @@ describe('ledger data in a task file', () => {
         history: [{ at: '2026-11-16 09:30', text: 'Created in To do' }],
       }),
     );
-    expect(parsed(content).history).toEqual([
-      { at: '2026-11-16 09:30', text: 'Created in To do' },
-    ]);
+    expect(parsed(content).history).toEqual([{ at: '2026-11-16 09:30', text: 'Created in To do' }]);
     expect(parsed(content).history[0]).not.toHaveProperty('ledger');
   });
 
   it('keeps a hand-edited, broken comment as text and writes it back unchanged', () => {
-    const body =
-      '## History\n\n- 2026-11-16 09:30 — Created in To do <!-- mboard-ledger {"v":1 -->\n';
+    const body = '## History\n\n- 2026-11-16 09:30 — Created in To do <!-- mboard-ledger {"v":1 -->\n';
     const content = `---\ntitle: "T"\n---\n\n${body}`;
     const document = parsed(content);
     expect(document.history).toEqual([
@@ -247,9 +203,7 @@ describe('ledger data in a task file', () => {
         text: 'Created in To do <!-- mboard-ledger {"v":1 -->',
       },
     ]);
-    expect(serialiseTaskFile(document)).toContain(
-      body.slice('## History\n\n'.length),
-    );
+    expect(serialiseTaskFile(document)).toContain(body.slice('## History\n\n'.length));
   });
 });
 
@@ -277,15 +231,11 @@ describe('buildLedger', () => {
 
   it('records comments added and removed', () => {
     const comment = { at: '2026-11-16 14:02', text: 'Hello' };
-    const ledger = buildLedger(
-      makeDocument(),
-      makeDocument({ comments: [comment] }),
-      NOW,
-      { added: [comment], removed: [] },
-    );
-    expect(ledger.changes).toEqual([
-      { field: 'comments', added: [comment], removed: [] },
-    ]);
+    const ledger = buildLedger(makeDocument(), makeDocument({ comments: [comment] }), NOW, {
+      added: [comment],
+      removed: [],
+    });
+    expect(ledger.changes).toEqual([{ field: 'comments', added: [comment], removed: [] }]);
   });
 });
 

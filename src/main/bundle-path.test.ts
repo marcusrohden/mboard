@@ -11,9 +11,7 @@ describe('resolveBundleFilePath', () => {
     ['/assets/my%20icon.svg', `${BUNDLE_DIRECTORY}/assets/my icon.svg`],
     ['/..notes.txt', `${BUNDLE_DIRECTORY}/..notes.txt`],
   ])('maps %s inside the bundle', (pathname, expectedFilePath) => {
-    expect(resolveBundleFilePath(BUNDLE_DIRECTORY, pathname)).toBe(
-      expectedFilePath,
-    );
+    expect(resolveBundleFilePath(BUNDLE_DIRECTORY, pathname)).toBe(expectedFilePath);
   });
 
   it.each([

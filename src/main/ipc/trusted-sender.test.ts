@@ -5,9 +5,7 @@ const TRUSTED_ORIGIN = 'app://bundle';
 
 describe('assertTrustedSender', () => {
   it('accepts a frame on the trusted origin', () => {
-    expect(() =>
-      assertTrustedSender('board:getSnapshot', TRUSTED_ORIGIN, TRUSTED_ORIGIN),
-    ).not.toThrow();
+    expect(() => assertTrustedSender('board:getSnapshot', TRUSTED_ORIGIN, TRUSTED_ORIGIN)).not.toThrow();
   });
 
   it.each([
@@ -16,8 +14,6 @@ describe('assertTrustedSender', () => {
     ['a look-alike origin', 'app://bundle.example'],
     ['an opaque origin', 'null'],
   ])('refuses %s', (_description, senderOrigin) => {
-    expect(() =>
-      assertTrustedSender('board:getSnapshot', senderOrigin, TRUSTED_ORIGIN),
-    ).toThrow(UntrustedSenderError);
+    expect(() => assertTrustedSender('board:getSnapshot', senderOrigin, TRUSTED_ORIGIN)).toThrow(UntrustedSenderError);
   });
 });

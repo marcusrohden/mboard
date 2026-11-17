@@ -1,6 +1,15 @@
 import { Document, Scalar, parseDocument } from 'yaml';
 import { encodeLedgerComment, splitLedgerComment } from './ledger';
-import type { HistoryEntry, LocalDateTime, Status, Task, TaskComment, TaskDocument, TaskId, UnknownFrontmatterEntry } from './model';
+import type {
+  HistoryEntry,
+  LocalDateTime,
+  Status,
+  Task,
+  TaskComment,
+  TaskDocument,
+  TaskId,
+  UnknownFrontmatterEntry,
+} from './model';
 import { matchStatus } from './model';
 import { normaliseProject } from './projects';
 import { formatLocalDateTime, normaliseLogTimestamp, normaliseTimestamp, parseLocalDate } from './time';
@@ -12,9 +21,7 @@ export interface FileFallback {
   mtime: Date;
 }
 
-export type ParseResult =
-  | { kind: 'ok'; document: TaskDocument }
-  | { kind: 'unreadable'; reason: string };
+export type ParseResult = { kind: 'ok'; document: TaskDocument } | { kind: 'unreadable'; reason: string };
 
 const FRONTMATTER_FENCE = '---';
 const HISTORY_SEPARATOR = '—';

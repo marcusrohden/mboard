@@ -8,9 +8,7 @@ export interface PendingFieldSaves {
   commitAll: () => Promise<boolean>;
 }
 
-export const PendingFieldSavesContext = createContext<PendingFieldSaves | null>(
-  null,
-);
+export const PendingFieldSavesContext = createContext<PendingFieldSaves | null>(null);
 
 /**
  * Creates the registry the drawer's fields join. `commitAll` commits every field's draft, waits for each
@@ -27,9 +25,7 @@ export function usePendingFieldSaves(): PendingFieldSaves {
         };
       },
       commitAll: async () => {
-        const results = await Promise.all(
-          [...commits.current].map((commit) => commit()),
-        );
+        const results = await Promise.all([...commits.current].map((commit) => commit()));
         return results.every(Boolean);
       },
     }),

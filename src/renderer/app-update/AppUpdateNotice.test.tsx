@@ -17,14 +17,8 @@ describe('New version notice', () => {
   it.each([
     ['idle', { kind: 'idle' as const }],
     ['checking', { kind: 'checking' as const }],
-    [
-      'up to date',
-      { kind: 'upToDate' as const, checkedAt: '2026-11-20T09:30:00' },
-    ],
-    [
-      'a failed check',
-      { kind: 'failed' as const, message: 'Offline.', version: null },
-    ],
+    ['up to date', { kind: 'upToDate' as const, checkedAt: '2026-11-20T09:30:00' }],
+    ['a failed check', { kind: 'failed' as const, message: 'Offline.', version: null }],
   ])('is absent when %s', async (_description, stage) => {
     await renderBoard({ appUpdateStatus: { currentVersion: '0.1.0', stage } });
     expect(screen.queryByRole('region', NOTICE)).toBeNull();
@@ -39,16 +33,10 @@ describe('New version notice', () => {
         installBlocker: null,
       }),
     );
-    expect(within(notice()).getByRole('status').textContent).toBe(
-      'mboard 0.2.0 is available.',
-    );
-    await user.click(
-      within(notice()).getByRole('button', { name: 'Install and restart' }),
-    );
+    expect(within(notice()).getByRole('status').textContent).toBe('mboard 0.2.0 is available.');
+    await user.click(within(notice()).getByRole('button', { name: 'Install and restart' }));
     expect(fake.api.installAppUpdate).toHaveBeenCalledOnce();
-    expect(within(notice()).getByRole('status').textContent).toBe(
-      'Downloading mboard 0.2.0…',
-    );
+    expect(within(notice()).getByRole('status').textContent).toBe('Downloading mboard 0.2.0…');
   });
 
   it('opens the release notes', async () => {
@@ -58,9 +46,7 @@ describe('New version notice', () => {
         stage: { kind: 'available', version: '0.2.0', installBlocker: null },
       },
     });
-    await user.click(
-      within(notice()).getByRole('button', { name: 'Release notes' }),
-    );
+    await user.click(within(notice()).getByRole('button', { name: 'Release notes' }));
     expect(fake.api.openAppUpdateReleasePage).toHaveBeenCalledOnce();
   });
 
@@ -75,12 +61,8 @@ describe('New version notice', () => {
         },
       },
     });
-    expect(
-      within(notice()).queryByRole('button', { name: 'Install and restart' }),
-    ).toBeNull();
-    await user.click(
-      within(notice()).getByRole('button', { name: 'Download from GitHub' }),
-    );
+    expect(within(notice()).queryByRole('button', { name: 'Install and restart' })).toBeNull();
+    await user.click(within(notice()).getByRole('button', { name: 'Download from GitHub' }));
     expect(fake.api.openAppUpdateReleasePage).toHaveBeenCalledOnce();
   });
 
@@ -108,9 +90,7 @@ describe('New version notice', () => {
         installBlocker: null,
       }),
     );
-    expect(within(notice()).getByRole('status').textContent).toBe(
-      'mboard 0.3.0 is available.',
-    );
+    expect(within(notice()).getByRole('status').textContent).toBe('mboard 0.3.0 is available.');
   });
 
   it('shows a failed install with the download page', async () => {
@@ -118,17 +98,14 @@ describe('New version notice', () => {
     act(() =>
       fake.pushAppUpdateStage({
         kind: 'failed',
-        message:
-          "The downloaded file didn't match the release, so mboard didn't install it.",
+        message: "The downloaded file didn't match the release, so mboard didn't install it.",
         version: '0.2.0',
       }),
     );
     expect(within(notice()).getByRole('status').textContent).toBe(
       "The downloaded file didn't match the release, so mboard didn't install it.",
     );
-    await user.click(
-      within(notice()).getByRole('button', { name: 'Download from GitHub' }),
-    );
+    await user.click(within(notice()).getByRole('button', { name: 'Download from GitHub' }));
     expect(fake.api.openAppUpdateReleasePage).toHaveBeenCalledOnce();
   });
 
@@ -143,8 +120,6 @@ describe('New version notice', () => {
     fake.install();
     render(<App />);
     expect(await screen.findByRole('region', NOTICE)).toBeTruthy();
-    expect(
-      screen.getByRole('heading', { name: 'Choose your board folder' }),
-    ).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Choose your board folder' })).toBeTruthy();
   });
 });

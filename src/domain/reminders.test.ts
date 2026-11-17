@@ -165,7 +165,11 @@ describe('bannerItems', () => {
 
 describe('eligibleReminders', () => {
   it('sorts by due date then title', () => {
-    const tasks = [dueOn('2026-11-10', { title: 'B' }), dueOn('2026-11-10', { title: 'A' }), dueOn('2026-11-05', { title: 'Z' })];
+    const tasks = [
+      dueOn('2026-11-10', { title: 'B' }),
+      dueOn('2026-11-10', { title: 'A' }),
+      dueOn('2026-11-05', { title: 'Z' }),
+    ];
     expect(eligibleReminders(tasks, '2026-11-16T10:00:00', NONE).map((task) => task.title)).toEqual(['Z', 'A', 'B']);
   });
 });

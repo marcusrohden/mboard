@@ -5,7 +5,12 @@ import { MenuFolderChange, type FolderChangeDialogs } from './menu-folder-change
 
 const ACCEPTED: FolderChoice = { kind: 'accepted', state: { kind: 'ready', boardPath: '/B', boardName: 'B' } };
 
-function harness(options: { picked?: string | null; choice: FolderChoice; confirmed?: FolderChoice; useAnyway?: boolean }) {
+function harness(options: {
+  picked?: string | null;
+  choice: FolderChoice;
+  confirmed?: FolderChoice;
+  useAnyway?: boolean;
+}) {
   const setup = {
     getAppState: vi.fn(),
     retry: vi.fn(),
@@ -33,7 +38,7 @@ describe('MenuFolderChange', () => {
   });
 
   it('shows a rejection in a native message box', async () => {
-    const { change, dialogs } = harness({ choice: { kind: 'rejected', path: '/B', message: "Not a board." } });
+    const { change, dialogs } = harness({ choice: { kind: 'rejected', path: '/B', message: 'Not a board.' } });
     await change.run();
 
     expect(dialogs.showRejection).toHaveBeenCalledWith('Not a board.');
@@ -61,7 +66,9 @@ describe('MenuFolderChange', () => {
     setup.choose.mockRejectedValueOnce(Object.assign(new Error('EACCES'), { code: 'EACCES' }));
     await change.run();
 
-    expect(dialogs.showError).toHaveBeenCalledWith("mboard doesn't have permission to change files in the board folder.");
+    expect(dialogs.showError).toHaveBeenCalledWith(
+      "mboard doesn't have permission to change files in the board folder.",
+    );
   });
 
   it('ignores a second request while one is open', async () => {

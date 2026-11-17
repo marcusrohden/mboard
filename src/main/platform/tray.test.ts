@@ -6,7 +6,13 @@ import { renderTrayIconPng, renderTrayIconRgba, TRAY_ICON_SIZES } from './tray-i
 import { buildTrayMenu } from './tray-menu';
 
 function actions() {
-  return { openWindow: vi.fn(), openSettings: vi.fn(), chooseFolder: vi.fn(), toggleOpenAtLogin: vi.fn(), quit: vi.fn() };
+  return {
+    openWindow: vi.fn(),
+    openSettings: vi.fn(),
+    chooseFolder: vi.fn(),
+    toggleOpenAtLogin: vi.fn(),
+    quit: vi.fn(),
+  };
 }
 
 describe('buildTrayMenu', () => {

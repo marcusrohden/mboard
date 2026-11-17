@@ -19,9 +19,7 @@ export interface OrderAssignment {
  * neighbours, new orders for the column. A renumbering lists only the tasks whose order changes, and
  * always the moved task.
  */
-export type OrderPlacement =
-  | { kind: 'single'; order: number }
-  | { kind: 'renumber'; assignments: OrderAssignment[] };
+export type OrderPlacement = { kind: 'single'; order: number } | { kind: 'renumber'; assignments: OrderAssignment[] };
 
 /**
  * Column sort comparator: `order` ascending with missing orders last, then `created` descending, then
@@ -42,9 +40,7 @@ export function columnTasks<T extends Orderable & Pick<Task, 'status' | 'isArchi
   tasks: readonly T[],
   status: Status,
 ): T[] {
-  return tasks
-    .filter((task) => !task.isArchived && task.status === status)
-    .sort(compareColumnTasks);
+  return tasks.filter((task) => !task.isArchived && task.status === status).sort(compareColumnTasks);
 }
 
 /** An order that puts a task above everything currently in the column. */

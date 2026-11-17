@@ -21,7 +21,8 @@ export function useGlobalShortcuts(handlers: ShortcutHandlers, isEnabled: boolea
   useEffect(() => {
     if (!isEnabled) return undefined;
     function handleKeyDown(event: KeyboardEvent): void {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target))
+        return;
       if (event.key === '/') {
         event.preventDefault();
         handlersRef.current.onFocusSearch();

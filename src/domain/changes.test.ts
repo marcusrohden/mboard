@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { addComment, applyEdit, archiveDocument, createTaskDocument, moveToColumn, restoreDocument, setOrder } from './changes';
+import {
+  addComment,
+  applyEdit,
+  archiveDocument,
+  createTaskDocument,
+  moveToColumn,
+  restoreDocument,
+  setOrder,
+} from './changes';
 import type { ChangeContext } from './changes';
 import type { NewTaskInput, Status, TaskDocument, TaskEdit } from './model';
 import { parseTaskFile, serialiseTaskFile } from './taskFile';
@@ -44,11 +52,14 @@ describe('createTaskDocument', () => {
     });
   });
 
-  it.each(['In progress', 'Internal', 'With client', 'Done'] as const)('names the column it was created in: %s', (status) => {
-    const document = createTaskDocument({ ...INPUT, status }, { ...CONTEXT, order: 1 });
-    expect(document.status).toBe(status);
-    expect(document.history[0]?.text).toBe(`Created in ${status}`);
-  });
+  it.each(['In progress', 'Internal', 'With client', 'Done'] as const)(
+    'names the column it was created in: %s',
+    (status) => {
+      const document = createTaskDocument({ ...INPUT, status }, { ...CONTEXT, order: 1 });
+      expect(document.status).toBe(status);
+      expect(document.history[0]?.text).toBe(`Created in ${status}`);
+    },
+  );
 
   it('accepts no project and no due date', () => {
     const document = createTaskDocument({ ...INPUT, project: '   ', due: null }, { ...CONTEXT, order: 1 });
@@ -56,7 +67,9 @@ describe('createTaskDocument', () => {
   });
 
   it('rejects an empty title', () => {
-    expect(() => createTaskDocument({ ...INPUT, title: '   ' }, { ...CONTEXT, order: 1 })).toThrow('A task needs a title.');
+    expect(() => createTaskDocument({ ...INPUT, title: '   ' }, { ...CONTEXT, order: 1 })).toThrow(
+      'A task needs a title.',
+    );
   });
 
   it('rejects an invalid due date', () => {
@@ -74,7 +87,9 @@ describe('createTaskDocument', () => {
   });
 
   it('rejects a description that would read back as structure', () => {
-    expect(() => createTaskDocument({ ...INPUT, description: 'a\n## History\nb' }, { ...CONTEXT, order: 1 })).toThrow(/description/);
+    expect(() => createTaskDocument({ ...INPUT, description: 'a\n## History\nb' }, { ...CONTEXT, order: 1 })).toThrow(
+      /description/,
+    );
   });
 
   it('produces a file that parses back to the same document', () => {
@@ -132,7 +147,9 @@ describe('editing each field', () => {
   });
 
   it('due: rejects an invalid date', () => {
-    expect(() => edit(base, { field: 'due', value: 'tomorrow' })).toThrow('The due date must be a real date, written as YYYY-MM-DD.');
+    expect(() => edit(base, { field: 'due', value: 'tomorrow' })).toThrow(
+      'The due date must be a real date, written as YYYY-MM-DD.',
+    );
   });
 });
 
@@ -273,7 +290,9 @@ describe('archiveDocument and restoreDocument', () => {
 describe('unknown frontmatter survives changes', () => {
   it('keeps unknown entries through an edit', () => {
     const document = makeDocument({ unknownFrontmatter: [{ key: 'tags', value: ['a'] }] });
-    expect(edit(document, { field: 'title', value: 'Other' }).document.unknownFrontmatter).toBe(document.unknownFrontmatter);
+    expect(edit(document, { field: 'title', value: 'Other' }).document.unknownFrontmatter).toBe(
+      document.unknownFrontmatter,
+    );
   });
 });
 
@@ -364,13 +383,22 @@ describe('ledger data on every update', () => {
   });
 
   it.each([
-    [{ field: 'title', value: 'New title' }, { field: 'title', from: 'Old title', to: 'New title' }],
+    [
+      { field: 'title', value: 'New title' },
+      { field: 'title', from: 'Old title', to: 'New title' },
+    ],
     [
       { field: 'description', value: 'New text' },
       { field: 'description', from: 'Old text\nwith two lines', to: 'New text' },
     ],
-    [{ field: 'project', value: null }, { field: 'project', from: 'Acme website', to: null }],
-    [{ field: 'due', value: '2026-12-01' }, { field: 'due', from: '2026-11-20', to: '2026-12-01' }],
+    [
+      { field: 'project', value: null },
+      { field: 'project', from: 'Acme website', to: null },
+    ],
+    [
+      { field: 'due', value: '2026-12-01' },
+      { field: 'due', from: '2026-11-20', to: '2026-12-01' },
+    ],
   ] as const)('an edit of %o records its old and new value', (change, recorded) => {
     expect(lastLedger(edit(base, change).document)).toEqual({ v: 1, at: NOW_FIELD, changes: [recorded] });
   });

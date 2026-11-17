@@ -152,7 +152,9 @@ export class FileBoardService implements BoardService {
       const result = applyEdit(current.document, edit, this.changeContext(board));
       if (!result.changed) return taskAt(current.document, location);
       const destination =
-        edit.field === 'title' ? { folder: location.folder, fileName: fileNameForTitle(result.document.title) } : location;
+        edit.field === 'title'
+          ? { folder: location.folder, fileName: fileNameForTitle(result.document.title) }
+          : location;
       const saved = await board.files.save(location, current, result.document, destination);
       return this.recordWrite(board, result.document, saved, location);
     });
@@ -176,7 +178,9 @@ export class FileBoardService implements BoardService {
       const current = await board.files.read(location);
       const placement = orderForInsertBefore(columnTasks(board.index.tasks(), target), location.id, before);
       const order =
-        placement.kind === 'single' ? placement.order : await this.renumberColumn(board, placement.assignments, location);
+        placement.kind === 'single'
+          ? placement.order
+          : await this.renumberColumn(board, placement.assignments, location);
       const result = moveToColumn(current.document, target, order, this.now());
       if (!result.changed) return taskAt(current.document, location);
       await board.files.save(location, current, result.document);
@@ -228,14 +232,17 @@ export class FileBoardService implements BoardService {
     return this.mutate(async (board) => {
       const location = this.locateLiveTask(board, id);
       const current = await board.files.read(location);
-      if (!isSameRevertPoint(current.document.history, toEntryIndex, expected)) throw boardError(BoardMessage.staleRevert);
+      if (!isSameRevertPoint(current.document.history, toEntryIndex, expected))
+        throw boardError(BoardMessage.staleRevert);
       const reverted = revertDocument(current.document, toEntryIndex, this.now());
       const document =
         reverted.status === current.document.status
           ? reverted
           : { ...reverted, order: orderForTopOfColumn(columnTasks(board.index.tasks(), reverted.status)) };
       const destination =
-        document.title === current.document.title ? location : { folder: location.folder, fileName: fileNameForTitle(document.title) };
+        document.title === current.document.title
+          ? location
+          : { folder: location.folder, fileName: fileNameForTitle(document.title) };
       const saved = await board.files.save(location, current, document, destination);
       return this.recordWrite(board, document, saved, location);
     });
@@ -280,7 +287,8 @@ export class FileBoardService implements BoardService {
     moving: TaskLocation,
   ): Promise<number> {
     for (const assignment of assignments) {
-      if (assignment.id !== moving.id) await this.renumberNeighbour(board, board.files.locate(assignment.id), assignment.order);
+      if (assignment.id !== moving.id)
+        await this.renumberNeighbour(board, board.files.locate(assignment.id), assignment.order);
     }
     return assignments.find((assignment) => assignment.id === moving.id)?.order ?? FIRST_ORDER;
   }

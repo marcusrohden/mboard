@@ -30,7 +30,9 @@ async function tickAt(harness: PlatformHarness, dateTime: string): Promise<void>
 
 describe('reminders', () => {
   it('fires the 09:00 reminder once and does not repeat it on the next tick', async () => {
-    const { harness } = await started('2026-11-16T08:59:00', [task('tasks/Write report.md', { title: 'Write report' })]);
+    const { harness } = await started('2026-11-16T08:59:00', [
+      task('tasks/Write report.md', { title: 'Write report' }),
+    ]);
     expect(harness.notifier.requests).toEqual([]);
 
     await tickAt(harness, '2026-11-16T09:00:00');

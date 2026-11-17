@@ -1,15 +1,11 @@
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import type {
-  CommandRunner,
-  DetachedSpawner,
-} from './mac-app-update-installer';
+import type { CommandRunner, DetachedSpawner } from './mac-app-update-installer';
 
 const execFileAsync = promisify(execFile);
 
 /** Runs a command with `execFile`, without a shell, and resolves with its standard output. */
-export const runCommand: CommandRunner = async (command, args) =>
-  (await execFileAsync(command, [...args])).stdout;
+export const runCommand: CommandRunner = async (command, args) => (await execFileAsync(command, [...args])).stdout;
 
 /**
  * Starts a command in its own process group with no inherited input or output, so it keeps running after

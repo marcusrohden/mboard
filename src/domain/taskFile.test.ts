@@ -32,10 +32,10 @@ Asked the client for the staging credentials.
 - 2026-11-16 14:03 — Moved from In progress to With client
 `;
 
-const LEGACY_EXAMPLE = SPEC_EXAMPLE.replace('status: With client\n', 'status: In progress\nresponsibility: Client\n').replace(
-  'Moved from In progress to With client',
-  'Responsibility changed from Me to Client',
-);
+const LEGACY_EXAMPLE = SPEC_EXAMPLE.replace(
+  'status: With client\n',
+  'status: In progress\nresponsibility: Client\n',
+).replace('Moved from In progress to With client', 'Responsibility changed from Me to Client');
 
 function parseOk(content: string): TaskDocument {
   const result: ParseResult = parseTaskFile(content, FALLBACK);
@@ -294,16 +294,22 @@ describe('tolerant reading of values', () => {
 
   it('matches the status ignoring case and surrounding spaces', () => {
     expect(parseOk('---\nstatus: "  DONE "\n---\n')).toMatchObject({ status: 'Done', rawStatus: 'DONE' });
-    expect(parseOk('---\nstatus: " with CLIENT "\n---\n')).toMatchObject({ status: 'With client', rawStatus: 'with CLIENT' });
+    expect(parseOk('---\nstatus: " with CLIENT "\n---\n')).toMatchObject({
+      status: 'With client',
+      rawStatus: 'with CLIENT',
+    });
     expect(parseOk('---\nstatus: internal\n---\n')).toMatchObject({ status: 'Internal', rawStatus: 'internal' });
   });
 
-  it.each(['To do', 'In progress', 'Internal', 'With client', 'Done'])('reads and writes the status %s exactly', (status) => {
-    const text = serialiseTaskFile(parseOk(`---\ntitle: T\nstatus: ${status}\n---\n`));
-    expect(parseOk(text)).toMatchObject({ status, rawStatus: null });
-    expect(text).toContain(`\nstatus: ${status}\n`);
-    expect(serialiseTaskFile(parseOk(text))).toBe(text);
-  });
+  it.each(['To do', 'In progress', 'Internal', 'With client', 'Done'])(
+    'reads and writes the status %s exactly',
+    (status) => {
+      const text = serialiseTaskFile(parseOk(`---\ntitle: T\nstatus: ${status}\n---\n`));
+      expect(parseOk(text)).toMatchObject({ status, rawStatus: null });
+      expect(text).toContain(`\nstatus: ${status}\n`);
+      expect(serialiseTaskFile(parseOk(text))).toBe(text);
+    },
+  );
 
   it.each([
     ['2026-11-16 09:30', '2026-11-16T09:30:00'],
@@ -371,7 +377,9 @@ describe('body sections', () => {
     const document = parseOk(
       '---\ntitle: T\n---\n\n## Comments\n\n### 2026-11-16 10:00\n\nFirst\n\n### Follow-ups\n\nstill the first comment\n',
     );
-    expect(document.comments).toEqual([{ at: '2026-11-16 10:00', text: 'First\n\n### Follow-ups\n\nstill the first comment' }]);
+    expect(document.comments).toEqual([
+      { at: '2026-11-16 10:00', text: 'First\n\n### Follow-ups\n\nstill the first comment' },
+    ]);
   });
 
   it('keeps text before the first comment heading as an undated comment', () => {
@@ -385,7 +393,9 @@ describe('body sections', () => {
   });
 
   it('keeps a history line without a date prefix, with an empty at', () => {
-    const document = parseOk('---\ntitle: T\n---\n\n## History\n\n- something happened\n- 2026-11-16 10:00 — Archived\nnot a list line\n');
+    const document = parseOk(
+      '---\ntitle: T\n---\n\n## History\n\n- something happened\n- 2026-11-16 10:00 — Archived\nnot a list line\n',
+    );
     expect(document.history).toEqual([
       { at: '', text: 'something happened' },
       { at: '2026-11-16 10:00', text: 'Archived' },
@@ -394,7 +404,9 @@ describe('body sections', () => {
   });
 
   it('reads History before Comments', () => {
-    const document = parseOk('---\ntitle: T\n---\n\n## History\n\n- 2026-11-16 10:00 — Archived\n\n## Comments\n\n### 2026-11-16 11:00\n\nHi\n');
+    const document = parseOk(
+      '---\ntitle: T\n---\n\n## History\n\n- 2026-11-16 10:00 — Archived\n\n## Comments\n\n### 2026-11-16 11:00\n\nHi\n',
+    );
     expect(document.history).toHaveLength(1);
     expect(document.comments).toHaveLength(1);
   });
@@ -446,7 +458,10 @@ describe('legacy responsibility', () => {
 
   it('leaves the status as it is for Me, an unknown or an empty responsibility', () => {
     expect(parseOk(legacy('In progress', 'Me')).status).toBe('In progress');
-    expect(parseOk(legacy('in progress', 'Someone'))).toMatchObject({ status: 'In progress', rawStatus: 'in progress' });
+    expect(parseOk(legacy('in progress', 'Someone'))).toMatchObject({
+      status: 'In progress',
+      rawStatus: 'in progress',
+    });
     expect(parseOk(legacy('To do', '')).status).toBe('To do');
     expect(parseOk(legacy('To do', '[Client]')).status).toBe('To do');
   });
@@ -507,7 +522,12 @@ Body text.
 - 2026-11-16 09:30 — Created in To do
 `;
     const document = parseOk(obsidianLegacy);
-    expect(document).toMatchObject({ status: 'With client', rawStatus: null, updated: '2026-11-16T14:03:12', order: 2 });
+    expect(document).toMatchObject({
+      status: 'With client',
+      rawStatus: null,
+      updated: '2026-11-16T14:03:12',
+      order: 2,
+    });
     expect(document.history).toHaveLength(1);
 
     const text = serialiseTaskFile(document);
@@ -520,7 +540,9 @@ Body text.
 
   it('round-trips the fixed file byte for byte', () => {
     const fixed = serialiseTaskFile(parseOk(LEGACY_EXAMPLE));
-    expect(fixed).toBe(SPEC_EXAMPLE.replace('Moved from In progress to With client', 'Responsibility changed from Me to Client'));
+    expect(fixed).toBe(
+      SPEC_EXAMPLE.replace('Moved from In progress to With client', 'Responsibility changed from Me to Client'),
+    );
     expect(serialiseTaskFile(parseOk(fixed))).toBe(fixed);
   });
 });

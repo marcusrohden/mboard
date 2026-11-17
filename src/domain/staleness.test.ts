@@ -76,9 +76,9 @@ describe('stalenessOf', () => {
   });
 
   it('applies to In progress tasks too', () => {
-    expect(stalenessOf({ status: 'In progress', isArchived: false, updated: '2026-11-01T08:00:00' }, MONDAY).level).toBe(
-      'red',
-    );
+    expect(
+      stalenessOf({ status: 'In progress', isArchived: false, updated: '2026-11-01T08:00:00' }, MONDAY).level,
+    ).toBe('red');
   });
 
   it('is grey for tasks in Done and archived tasks, and still counts the days', () => {
@@ -92,7 +92,9 @@ describe('stalenessOf', () => {
       level: 'grey',
       tier: 'Archived',
     });
-    expect(stalenessOf({ status: 'To do', isArchived: true, updated: '2026-01-01T08:00:00' }, MONDAY).level).toBe('grey');
+    expect(stalenessOf({ status: 'To do', isArchived: true, updated: '2026-01-01T08:00:00' }, MONDAY).level).toBe(
+      'grey',
+    );
   });
 });
 

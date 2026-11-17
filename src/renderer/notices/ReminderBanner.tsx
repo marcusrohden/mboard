@@ -20,7 +20,9 @@ export function ReminderBanner({ items, notificationsUnavailable, onOpenTask, on
     <section aria-label="Reminders" className={`${styles.notice} ${styles.reminders}`}>
       <div className={styles.noticeRow}>
         <strong>{items.length === 1 ? '1 task is due' : `${items.length} tasks are due`}</strong>
-        {notificationsUnavailable && <span className={styles.reason}>Notifications are unavailable, so reminders show here.</span>}
+        {notificationsUnavailable && (
+          <span className={styles.reason}>Notifications are unavailable, so reminders show here.</span>
+        )}
         <Button variant="quiet" className={styles.dismiss} onClick={onDismiss}>
           Dismiss
         </Button>

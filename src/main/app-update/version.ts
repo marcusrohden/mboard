@@ -14,11 +14,7 @@ const VERSION_PATTERN = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 export function parseVersion(text: string): AppVersion | null {
   const match = VERSION_PATTERN.exec(text.trim());
   if (match === null) return null;
-  const [major, minor, patch] = match.slice(1).map(Number) as [
-    number,
-    number,
-    number,
-  ];
+  const [major, minor, patch] = match.slice(1).map(Number) as [number, number, number];
   return { major, minor, patch };
 }
 
@@ -33,9 +29,6 @@ export function compareVersions(a: AppVersion, b: AppVersion): number {
 }
 
 /** Whether `candidate` is strictly newer than `current`. */
-export function isNewerVersion(
-  candidate: AppVersion,
-  current: AppVersion,
-): boolean {
+export function isNewerVersion(candidate: AppVersion, current: AppVersion): boolean {
   return compareVersions(candidate, current) > 0;
 }

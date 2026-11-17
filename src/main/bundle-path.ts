@@ -7,10 +7,7 @@ const INDEX_FILE = 'index.html';
  * bundle directory. Returns `undefined` for malformed paths and for anything
  * that would resolve outside the bundle.
  */
-export function resolveBundleFilePath(
-  bundleDirectory: string,
-  urlPathname: string,
-): string | undefined {
+export function resolveBundleFilePath(bundleDirectory: string, urlPathname: string): string | undefined {
   const decodedPathname = decodePathname(urlPathname);
   if (decodedPathname === undefined || decodedPathname.includes('\0')) {
     return undefined;

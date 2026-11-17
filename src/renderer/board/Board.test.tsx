@@ -122,7 +122,12 @@ describe('Task styling driven by the snapshot date', () => {
     await renderBoard({
       tasks: [
         buildTask({ title: 'Nudge', created: '2026-11-10T08:00:00', updated: '2026-11-12T09:12:30' }),
-        buildTask({ title: 'Last year', status: 'Done', created: '2025-12-30T16:45:00', updated: '2026-11-16T09:00:00' }),
+        buildTask({
+          title: 'Last year',
+          status: 'Done',
+          created: '2025-12-30T16:45:00',
+          updated: '2026-11-16T09:00:00',
+        }),
       ],
     });
     const nudge = screen.getByRole('article', { name: 'Nudge' });
@@ -132,7 +137,9 @@ describe('Task styling driven by the snapshot date', () => {
     expect(within(nudge).getByText(tooltip).className).toBe('visually-hidden');
     const lastYear = screen.getByRole('article', { name: 'Last year' });
     expect(within(lastYear).getByText('Created 30 Dec 2025 · Updated 16 Nov')).toBeTruthy();
-    expect(within(lastYear).getByTitle('Created 30 Dec 2025 16:45 · Updated 16 Nov 09:00 — 0 working days, Complete')).toBeTruthy();
+    expect(
+      within(lastYear).getByTitle('Created 30 Dec 2025 16:45 · Updated 16 Nov 09:00 — 0 working days, Complete'),
+    ).toBeTruthy();
   });
 
   it('uses the snapshot date, not the real clock, for staleness', async () => {
@@ -154,7 +161,8 @@ describe('Task styling driven by the snapshot date', () => {
         buildTask({ title: 'Done late', status: 'Done', due: '2026-11-10' }),
       ],
     });
-    const chip = (title: string) => within(screen.getByRole('article', { name: title })).getByText(/^(Today|Overdue|\d+ \w{3})$/);
+    const chip = (title: string) =>
+      within(screen.getByRole('article', { name: title })).getByText(/^(Today|Overdue|\d+ \w{3})$/);
     expect(chip('Due today').textContent).toBe('Today');
     expect(chip('Due today').getAttribute('data-tone')).toBe('amber');
     expect(chip('Late').textContent).toBe('Overdue');
@@ -172,7 +180,9 @@ describe('Done tasks', () => {
       tasks: [buildTask({ title: 'Finished', status: 'Done' }), buildTask({ title: 'Open' })],
     });
     expect(within(screen.getByRole('article', { name: 'Open' })).queryByRole('button', { name: 'Archive' })).toBeNull();
-    await user.click(within(screen.getByRole('article', { name: 'Finished' })).getByRole('button', { name: 'Archive' }));
+    await user.click(
+      within(screen.getByRole('article', { name: 'Finished' })).getByRole('button', { name: 'Archive' }),
+    );
     expect(fake.api.archiveTask).toHaveBeenCalledWith('tasks/Finished.md');
     expect(screen.queryByRole('article', { name: 'Finished' })).toBeNull();
   });
@@ -212,7 +222,10 @@ describe('Done tasks', () => {
 
   it('marks a task in With client complete', async () => {
     const { user, fake } = await renderBoard({
-      tasks: [buildTask({ title: 'Already done', status: 'Done', order: 1 }), buildTask({ title: 'Signed', status: 'With client' })],
+      tasks: [
+        buildTask({ title: 'Already done', status: 'Done', order: 1 }),
+        buildTask({ title: 'Signed', status: 'With client' }),
+      ],
     });
     await user.click(screen.getByRole('article', { name: 'Signed' }));
     await user.click(screen.getByRole('button', { name: 'Mark complete' }));

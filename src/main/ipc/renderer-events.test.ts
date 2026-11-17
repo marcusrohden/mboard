@@ -27,7 +27,12 @@ describe('bridgeRendererEvents', () => {
     const preferences = listenerSlot<Preferences>();
     const appUpdates = listenerSlot<AppUpdateStatus>();
     let minute = 0;
-    const snapshotAt = (): BoardSnapshot => ({ tasks: [], unreadable: [], now: `minute ${minute}`, today: '2026-11-16' });
+    const snapshotAt = (): BoardSnapshot => ({
+      tasks: [],
+      unreadable: [],
+      now: `minute ${minute}`,
+      today: '2026-11-16',
+    });
     const sources: RendererEventSources = {
       board: { onChange: board.subscribe, snapshot: snapshotAt },
       setup: { onStateChange: appState.subscribe },

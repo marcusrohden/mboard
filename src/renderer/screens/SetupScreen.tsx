@@ -14,8 +14,8 @@ export function SetupScreen({ onState }: SetupScreenProps) {
     <main className={styles.screen}>
       <h1 className={styles.heading}>Choose your board folder</h1>
       <p className={styles.explanation}>
-        mboard keeps every task as a markdown file in a folder of your choice. Pick an empty folder, or an existing mboard
-        board, ideally inside your Obsidian vault so that you can read and edit the tasks there too.
+        mboard keeps every task as a markdown file in a folder of your choice. Pick an empty folder, or an existing
+        mboard board, ideally inside your Obsidian vault so that you can read and edit the tasks there too.
       </p>
       <FolderPicker onAccepted={onState} />
     </main>

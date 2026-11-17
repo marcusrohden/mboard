@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AppUpdateStatus } from '../../shared/contract';
-import {
-  FakeClock,
-  FakeTimers,
-  flushPromises,
-} from '../platform/testing/fakes';
+import { FakeClock, FakeTimers, flushPromises } from '../platform/testing/fakes';
 import type {
   AppUpdateInstaller,
   PreparedAppUpdate,
@@ -12,11 +8,7 @@ import type {
   ReleaseDownload,
   ReleaseSource,
 } from './adapters';
-import {
-  AppUpdateService,
-  CHECK_INTERVAL_MS,
-  FIRST_CHECK_DELAY_MS,
-} from './app-update-service';
+import { AppUpdateService, CHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS } from './app-update-service';
 import { RELEASES_PAGE_URL } from './release-urls';
 
 const DOWNLOAD: ReleaseDownload = {
@@ -26,10 +18,7 @@ const DOWNLOAD: ReleaseDownload = {
   sha256: 'a'.repeat(64),
 };
 
-function releaseOf(
-  version: string,
-  download: ReleaseDownload | null = DOWNLOAD,
-): PublishedRelease {
+function releaseOf(version: string, download: ReleaseDownload | null = DOWNLOAD): PublishedRelease {
   const [major = 0, minor = 0, patch = 0] = version.split('.').map(Number);
   return {
     version: { major, minor, patch },
@@ -46,8 +35,7 @@ class FakeReleaseSource implements ReleaseSource {
 
   latest = async (): Promise<PublishedRelease | null> => {
     this.calls++;
-    if (this.holdAnswers)
-      await new Promise<void>((resolve) => this.pending.push(resolve));
+    if (this.holdAnswers) await new Promise<void>((resolve) => this.pending.push(resolve));
     if (this.answer instanceof Error) throw this.answer;
     return this.answer;
   };
@@ -73,14 +61,9 @@ class FakeInstaller implements AppUpdateInstaller {
 
   installBlocker = async (): Promise<string | null> => this.blocker;
 
-  prepare = async (
-    download: ReleaseDownload,
-    version: string,
-    signal: AbortSignal,
-  ): Promise<PreparedAppUpdate> => {
+  prepare = async (download: ReleaseDownload, version: string, signal: AbortSignal): Promise<PreparedAppUpdate> => {
     this.prepared.push({ download, version, signal });
-    if (this.holdPrepare)
-      await new Promise<void>((resolve) => this.pending.push(resolve));
+    if (this.holdPrepare) await new Promise<void>((resolve) => this.pending.push(resolve));
     if (this.prepareFailure !== null) throw this.prepareFailure;
     return {
       version,
@@ -122,9 +105,7 @@ class FakeCountdown {
   }
 }
 
-function build(
-  options: { currentVersion?: string; automaticChecks?: boolean } = {},
-) {
+function build(options: { currentVersion?: string; automaticChecks?: boolean } = {}) {
   const releases = new FakeReleaseSource();
   const installer = new FakeInstaller();
   const timers = new FakeTimers();
@@ -180,10 +161,7 @@ describe('AppUpdateService', () => {
         currentVersion: '0.1.0',
         stage: { kind: 'upToDate', checkedAt: '2026-11-20T09:30:00' },
       });
-      expect(statuses.map((status) => status.stage.kind)).toEqual([
-        'checking',
-        'upToDate',
-      ]);
+      expect(statuses.map((status) => status.stage.kind)).toEqual(['checking', 'upToDate']);
     });
 
     it('is up to date when nothing has been released yet, or only an older version', async () => {
@@ -206,13 +184,11 @@ describe('AppUpdateService', () => {
     it('says why this copy cannot install a newer version itself', async () => {
       const { service, releases, installer } = build();
       releases.answer = releaseOf('0.2.0');
-      installer.blocker =
-        "mboard is running from source, so it can't install new versions itself.";
+      installer.blocker = "mboard is running from source, so it can't install new versions itself.";
       expect((await service.check()).stage).toEqual({
         kind: 'available',
         version: '0.2.0',
-        installBlocker:
-          "mboard is running from source, so it can't install new versions itself.",
+        installBlocker: "mboard is running from source, so it can't install new versions itself.",
       });
     });
 
@@ -221,16 +197,12 @@ describe('AppUpdateService', () => {
       releases.answer = releaseOf('0.2.0', null);
       const { stage } = await service.check();
       expect(stage).toMatchObject({ kind: 'available', version: '0.2.0' });
-      expect(stage.kind === 'available' && stage.installBlocker).toMatch(
-        /download it from GitHub/,
-      );
+      expect(stage.kind === 'available' && stage.installBlocker).toMatch(/download it from GitHub/);
     });
 
     it('shows a failed check with its message', async () => {
       const { service, releases } = build();
-      releases.answer = new Error(
-        'GitHub is limiting update checks right now. Try again later.',
-      );
+      releases.answer = new Error('GitHub is limiting update checks right now. Try again later.');
       expect((await service.check()).stage).toEqual({
         kind: 'failed',
         message: 'GitHub is limiting update checks right now. Try again later.',
@@ -281,8 +253,7 @@ describe('AppUpdateService', () => {
     });
 
     it('run quietly: no checking stage, and a failure leaves the last result in place', async () => {
-      const { service, releases, countdown, timers, statuses, errors } =
-        build();
+      const { service, releases, countdown, timers, statuses, errors } = build();
       releases.answer = releaseOf('0.2.0');
       service.start();
       countdown.fire();
@@ -291,9 +262,7 @@ describe('AppUpdateService', () => {
       timers.fire();
       await flushPromises();
 
-      expect(statuses.map((status) => status.stage.kind)).toEqual([
-        'available',
-      ]);
+      expect(statuses.map((status) => status.stage.kind)).toEqual(['available']);
       expect(service.status().stage).toMatchObject({
         kind: 'available',
         version: '0.2.0',
@@ -325,10 +294,7 @@ describe('AppUpdateService', () => {
       } = {},
     ) {
       const built = build();
-      built.releases.answer = releaseOf(
-        '0.2.0',
-        changes.download === undefined ? DOWNLOAD : changes.download,
-      );
+      built.releases.answer = releaseOf('0.2.0', changes.download === undefined ? DOWNLOAD : changes.download);
       built.installer.blocker = changes.blocker ?? null;
       await built.service.check();
       built.statuses.length = 0;
@@ -339,9 +305,7 @@ describe('AppUpdateService', () => {
       const { service, installer, statuses, quits } = await available();
       await service.install();
 
-      expect(
-        installer.prepared.map(({ download, version }) => [download, version]),
-      ).toEqual([[DOWNLOAD, '0.2.0']]);
+      expect(installer.prepared.map(({ download, version }) => [download, version])).toEqual([[DOWNLOAD, '0.2.0']]);
       expect(installer.launched).toHaveLength(1);
       expect(statuses.map((status) => status.stage)).toEqual([
         { kind: 'downloading', version: '0.2.0' },
@@ -359,8 +323,7 @@ describe('AppUpdateService', () => {
 
       expect(service.status().stage).toEqual({
         kind: 'failed',
-        message:
-          "The downloaded file didn't match the release, so mboard didn't install it.",
+        message: "The downloaded file didn't match the release, so mboard didn't install it.",
         version: '0.2.0',
       });
       expect(installer.launched).toEqual([]);
@@ -369,9 +332,7 @@ describe('AppUpdateService', () => {
 
     it('shows a swap that could not start without quitting', async () => {
       const { service, installer, quits } = await available();
-      installer.launchFailure = new Error(
-        "mboard couldn't start installing the new version.",
-      );
+      installer.launchFailure = new Error("mboard couldn't start installing the new version.");
       await service.install();
 
       expect(service.status().stage).toMatchObject({
@@ -383,10 +344,7 @@ describe('AppUpdateService', () => {
 
     it('never shows a file system error from the board in its place', async () => {
       const { service, installer } = await available();
-      installer.prepareFailure = Object.assign(
-        new Error('ENOSPC: no space left on device'),
-        { code: 'ENOSPC' },
-      );
+      installer.prepareFailure = Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' });
       await service.install();
 
       expect(service.status().stage).toMatchObject({
@@ -397,9 +355,7 @@ describe('AppUpdateService', () => {
 
     it('rejects when no new version is known', async () => {
       const { service, installer } = build();
-      await expect(service.install()).rejects.toThrow(
-        "There's no new version to install. Check for updates first.",
-      );
+      await expect(service.install()).rejects.toThrow("There's no new version to install. Check for updates first.");
       expect(installer.prepared).toEqual([]);
     });
 
@@ -407,9 +363,7 @@ describe('AppUpdateService', () => {
       const { service, installer } = await available({
         blocker: 'macOS is running mboard from a temporary copy.',
       });
-      await expect(service.install()).rejects.toThrow(
-        'macOS is running mboard from a temporary copy.',
-      );
+      await expect(service.install()).rejects.toThrow('macOS is running mboard from a temporary copy.');
       expect(installer.prepared).toEqual([]);
     });
 
@@ -417,9 +371,7 @@ describe('AppUpdateService', () => {
       const { service, installer, releases } = await available();
       installer.holdPrepare = true;
       const first = service.install();
-      await expect(service.install()).rejects.toThrow(
-        /no new version to install/,
-      );
+      await expect(service.install()).rejects.toThrow(/no new version to install/);
       const callsBefore = releases.calls;
       expect((await service.check()).stage).toEqual({
         kind: 'downloading',
@@ -454,9 +406,7 @@ describe('AppUpdateService', () => {
       const running = service.install();
       service.stop();
       expect(installer.prepared[0]?.signal.aborted).toBe(true);
-      installer.prepareFailure = new Error(
-        'The download stopped before it finished.',
-      );
+      installer.prepareFailure = new Error('The download stopped before it finished.');
       installer.finishPrepare();
       await running;
     });
@@ -468,9 +418,7 @@ describe('AppUpdateService', () => {
       releases.answer = releaseOf('0.2.0');
       await service.check();
       await service.openReleasePage();
-      expect(opened).toEqual([
-        'https://github.com/marcusrohden/mboard/releases/tag/v0.2.0',
-      ]);
+      expect(opened).toEqual(['https://github.com/marcusrohden/mboard/releases/tag/v0.2.0']);
     });
 
     it('opens the latest release when no newer one is known', async () => {
@@ -485,8 +433,7 @@ describe('AppUpdateService', () => {
     releases.answer = releaseOf('0.2.0');
     expect((await service.check()).stage).toEqual({
       kind: 'failed',
-      message:
-        "mboard couldn't tell which version it is (dev), so it can't check for a new one.",
+      message: "mboard couldn't tell which version it is (dev), so it can't check for a new one.",
       version: null,
     });
   });

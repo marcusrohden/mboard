@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  compareVersions,
-  formatVersion,
-  isNewerVersion,
-  parseVersion,
-} from './version';
+import { compareVersions, formatVersion, isNewerVersion, parseVersion } from './version';
 
 describe('parseVersion', () => {
   it.each([
@@ -16,20 +11,12 @@ describe('parseVersion', () => {
     expect(parseVersion(text)).toEqual(expected);
   });
 
-  it.each([
-    '',
-    'v',
-    '1.0',
-    '1.0.0.0',
-    '01.0.0',
-    '1.0.0-beta.1',
-    '1.0.0+build',
-    'V1.0.0',
-    'version 1.0.0',
-    'x.y.z',
-  ])('rejects %j', (text) => {
-    expect(parseVersion(text)).toBeNull();
-  });
+  it.each(['', 'v', '1.0', '1.0.0.0', '01.0.0', '1.0.0-beta.1', '1.0.0+build', 'V1.0.0', 'version 1.0.0', 'x.y.z'])(
+    'rejects %j',
+    (text) => {
+      expect(parseVersion(text)).toBeNull();
+    },
+  );
 });
 
 describe('formatVersion', () => {
@@ -46,15 +33,9 @@ describe('compareVersions', () => {
   };
 
   it('compares each part as a number, major first', () => {
-    expect(
-      compareVersions(version('0.10.0'), version('0.9.0')),
-    ).toBeGreaterThan(0);
-    expect(
-      compareVersions(version('1.0.0'), version('0.99.99')),
-    ).toBeGreaterThan(0);
-    expect(compareVersions(version('0.2.1'), version('0.2.10'))).toBeLessThan(
-      0,
-    );
+    expect(compareVersions(version('0.10.0'), version('0.9.0'))).toBeGreaterThan(0);
+    expect(compareVersions(version('1.0.0'), version('0.99.99'))).toBeGreaterThan(0);
+    expect(compareVersions(version('0.2.1'), version('0.2.10'))).toBeLessThan(0);
     expect(compareVersions(version('v0.2.0'), version('0.2.0'))).toBe(0);
   });
 

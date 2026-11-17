@@ -7,10 +7,7 @@ import type { Session, WebContents } from 'electron';
  * and blank, and both the dev server and the error screen reload the page.
  * Applied to every web contents the app creates.
  */
-export function hardenWebContents(
-  contents: WebContents,
-  trustedOrigin: string,
-): void {
+export function hardenWebContents(contents: WebContents, trustedOrigin: string): void {
   contents.on('will-navigate', (event) => {
     if (!isWithinOrigin(event.url, trustedOrigin)) event.preventDefault();
   });
@@ -33,7 +30,5 @@ function isWithinOrigin(url: string, origin: string): boolean {
  * on) raised by web content. Native features run in the main process instead.
  */
 export function denyPermissionRequests(session: Session): void {
-  session.setPermissionRequestHandler((_contents, _permission, respond) =>
-    respond(false),
-  );
+  session.setPermissionRequestHandler((_contents, _permission, respond) => respond(false));
 }

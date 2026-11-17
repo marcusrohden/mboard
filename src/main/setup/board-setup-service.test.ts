@@ -2,7 +2,12 @@ import { existsSync } from 'node:fs';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HIDDEN_FOLDER_MESSAGE, NOT_A_BOARD_MESSAGE, OBSIDIAN_INTERNAL_FOLDER_MESSAGE, VAULT_WARNING_MESSAGE } from '../../domain';
+import {
+  HIDDEN_FOLDER_MESSAGE,
+  NOT_A_BOARD_MESSAGE,
+  OBSIDIAN_INTERNAL_FOLDER_MESSAGE,
+  VAULT_WARNING_MESSAGE,
+} from '../../domain';
 import type { AppState } from '../../shared/contract';
 import { FileBoardService } from '../board/board-service';
 import { FileSettingsStore } from '../settings/settings-store';
@@ -158,10 +163,17 @@ describe('choosing a board folder', () => {
     const chosen = await folder(outside, 'Board');
     const setup = createSetup();
 
-    expect(await setup.choose(chosen)).toEqual({ kind: 'needsConfirmation', path: chosen, message: VAULT_WARNING_MESSAGE });
+    expect(await setup.choose(chosen)).toEqual({
+      kind: 'needsConfirmation',
+      path: chosen,
+      message: VAULT_WARNING_MESSAGE,
+    });
     expect(await listFilesRecursively(chosen)).toEqual([]);
 
-    expect(await setup.confirm(chosen)).toMatchObject({ kind: 'accepted', state: { kind: 'ready', boardPath: chosen } });
+    expect(await setup.confirm(chosen)).toMatchObject({
+      kind: 'accepted',
+      state: { kind: 'ready', boardPath: chosen },
+    });
     expect(await listFilesRecursively(chosen)).toEqual(['README.md']);
   });
 
@@ -171,7 +183,11 @@ describe('choosing a board folder', () => {
     const setup = createSetup();
     await setup.choose(asked);
 
-    expect(await setup.confirm(other)).toEqual({ kind: 'rejected', path: other, message: CONFIRMATION_EXPIRED_MESSAGE });
+    expect(await setup.confirm(other)).toEqual({
+      kind: 'rejected',
+      path: other,
+      message: CONFIRMATION_EXPIRED_MESSAGE,
+    });
     expect(await listFilesRecursively(other)).toEqual([]);
     expect(await createSetup().confirm(asked)).toMatchObject({ kind: 'rejected' });
   });

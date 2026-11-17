@@ -1,11 +1,6 @@
 import { useId, type ReactNode } from 'react';
 import type { AppState, Preferences } from '../../shared/contract';
-import {
-  appUpdateStageText,
-  canInstallItself,
-  isAppUpdateBusy,
-  stageVersion,
-} from '../app-update/app-update-text';
+import { appUpdateStageText, canInstallItself, isAppUpdateBusy, stageVersion } from '../app-update/app-update-text';
 import { useAppUpdate } from '../app-update/AppUpdateProvider';
 import { getMboardApi } from '../mboard-api';
 import { FolderPicker } from '../screens/FolderPicker';
@@ -40,13 +35,7 @@ function notificationsText(available: boolean | null | undefined): string {
   return "mboard hasn't sent a notification yet, so it doesn't know whether they work.";
 }
 
-function SettingsSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className={styles.section}>
@@ -58,10 +47,7 @@ function SettingsSection({
   );
 }
 
-function BoardFolderSection({
-  appState,
-  onAppState,
-}: Pick<SettingsDialogProps, 'appState' | 'onAppState'>) {
+function BoardFolderSection({ appState, onAppState }: Pick<SettingsDialogProps, 'appState' | 'onAppState'>) {
   return (
     <SettingsSection title="Board folder">
       <p className={styles.value}>
@@ -92,16 +78,10 @@ function StartupSection({ preferences }: { preferences: Preferences | null }) {
   );
 }
 
-function NotificationsSection({
-  preferences,
-}: {
-  preferences: Preferences | null;
-}) {
+function NotificationsSection({ preferences }: { preferences: Preferences | null }) {
   return (
     <SettingsSection title="Notifications">
-      <p className={styles.muted}>
-        {notificationsText(preferences?.notificationsAvailable)}
-      </p>
+      <p className={styles.muted}>{notificationsText(preferences?.notificationsAvailable)}</p>
     </SettingsSection>
   );
 }
@@ -112,9 +92,7 @@ function AppUpdatesSection() {
   const { stage } = status;
   const hasRelease = stageVersion(stage) !== null;
   const canInstall = canInstallItself(stage);
-  const offersDownload =
-    (stage.kind === 'available' && !canInstall) ||
-    (stage.kind === 'failed' && hasRelease);
+  const offersDownload = (stage.kind === 'available' && !canInstall) || (stage.kind === 'failed' && hasRelease);
 
   return (
     <SettingsSection title="App updates">
@@ -134,9 +112,7 @@ function AppUpdatesSection() {
             Install and restart
           </Button>
         )}
-        {offersDownload && (
-          <Button onClick={openReleasePage}>Download from GitHub</Button>
-        )}
+        {offersDownload && <Button onClick={openReleasePage}>Download from GitHub</Button>}
         {hasRelease && !offersDownload && (
           <Button variant="quiet" onClick={openReleasePage}>
             Release notes
@@ -151,11 +127,7 @@ function AppUpdatesSection() {
  * The Settings dialog: the board folder (changed with the same checks as setup), open at login, whether
  * notifications work, and app updates with **Check for updates**.
  */
-export function SettingsDialog({
-  appState,
-  onAppState,
-  onClose,
-}: SettingsDialogProps) {
+export function SettingsDialog({ appState, onAppState, onClose }: SettingsDialogProps) {
   const api = getMboardApi();
   const preferences = useLoadedAndPushed(api.getPreferences, api.onPreferences);
 

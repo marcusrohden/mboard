@@ -23,11 +23,7 @@ export function appUpdateStageText(stage: AppUpdateStage): string {
 
 /** Whether a check, download or install is running, so another one can't start. */
 export function isAppUpdateBusy(stage: AppUpdateStage): boolean {
-  return (
-    stage.kind === 'checking' ||
-    stage.kind === 'downloading' ||
-    stage.kind === 'installing'
-  );
+  return stage.kind === 'checking' || stage.kind === 'downloading' || stage.kind === 'installing';
 }
 
 /** The new version the stage is about, or `null` when it isn't about one. */

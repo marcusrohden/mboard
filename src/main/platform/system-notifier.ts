@@ -70,7 +70,9 @@ export function createSystemNotifier(options: SystemNotifierOptions): Notifier {
     result: 'shown' | 'failed',
     detail?: string,
   ): Promise<'shown' | 'failed'> {
-    await log.record(detail === undefined ? { title: request.title, result } : { title: request.title, result, detail });
+    await log.record(
+      detail === undefined ? { title: request.title, result } : { title: request.title, result, detail },
+    );
     return result;
   }
 

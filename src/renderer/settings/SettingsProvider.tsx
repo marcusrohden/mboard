@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AppState } from '../../shared/contract';
 import { getMboardApi } from '../mboard-api';
 import { SettingsDialog } from './SettingsDialog';
@@ -33,11 +25,7 @@ interface SettingsProviderProps {
  * gear and from the app or tray menu: main pushes `openSettings`, and the request is also taken on mount
  * in case the push arrived before this component subscribed.
  */
-export function SettingsProvider({
-  appState,
-  onAppState,
-  children,
-}: SettingsProviderProps) {
+export function SettingsProvider({ appState, onAppState, children }: SettingsProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
@@ -57,20 +45,11 @@ export function SettingsProvider({
     return unsubscribe;
   }, []);
 
-  const controls = useMemo<SettingsDialogControls>(
-    () => ({ isOpen, open, close }),
-    [isOpen, open, close],
-  );
+  const controls = useMemo<SettingsDialogControls>(() => ({ isOpen, open, close }), [isOpen, open, close]);
   return (
     <SettingsContext.Provider value={controls}>
       {children}
-      {isOpen && (
-        <SettingsDialog
-          appState={appState}
-          onAppState={onAppState}
-          onClose={close}
-        />
-      )}
+      {isOpen && <SettingsDialog appState={appState} onAppState={onAppState} onClose={close} />}
     </SettingsContext.Provider>
   );
 }
@@ -82,9 +61,6 @@ export function SettingsProvider({
  */
 export function useSettingsDialog(): SettingsDialogControls {
   const controls = useContext(SettingsContext);
-  if (controls === null)
-    throw new Error(
-      'useSettingsDialog must be used inside a SettingsProvider.',
-    );
+  if (controls === null) throw new Error('useSettingsDialog must be used inside a SettingsProvider.');
   return controls;
 }

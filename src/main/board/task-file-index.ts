@@ -24,7 +24,12 @@ function toEntry(location: TaskLocation, loaded: LoadedTaskFile): IndexEntry | n
     case 'unreadable':
       return { kind: 'unreadable', id: location.id, fingerprint: loaded.fingerprint, reason: loaded.reason };
     case 'task':
-      return { kind: 'task', id: location.id, fingerprint: loaded.fingerprint, task: taskAt(loaded.document, location) };
+      return {
+        kind: 'task',
+        id: location.id,
+        fingerprint: loaded.fingerprint,
+        task: taskAt(loaded.document, location),
+      };
   }
 }
 

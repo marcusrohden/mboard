@@ -12,9 +12,7 @@ const ROOT_ELEMENT_ID = 'root';
 function mountApp(): void {
   const container = document.getElementById(ROOT_ELEMENT_ID);
   if (container === null) {
-    throw new Error(
-      `index.html has no #${ROOT_ELEMENT_ID} element to mount mboard into.`,
-    );
+    throw new Error(`index.html has no #${ROOT_ELEMENT_ID} element to mount mboard into.`);
   }
   createRoot(container).render(
     <StrictMode>

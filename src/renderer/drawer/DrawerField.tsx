@@ -23,7 +23,15 @@ interface DrawerFieldProps {
  * description), Esc abandons the edit, and a date can be removed with its own button. When `readOnly`
  * the value is shown but can't be changed.
  */
-export function DrawerField({ label, kind, value, onSave, readOnly, suggestions = [], isHeading = false }: DrawerFieldProps) {
+export function DrawerField({
+  label,
+  kind,
+  value,
+  onSave,
+  readOnly,
+  suggestions = [],
+  isHeading = false,
+}: DrawerFieldProps) {
   const id = useId();
   const editable = useEditableValue(value, onSave);
   useFieldCommitRegistration(editable.commit);
@@ -35,7 +43,8 @@ export function DrawerField({ label, kind, value, onSave, readOnly, suggestions 
       event.currentTarget.blur();
       return;
     }
-    const isSubmit = kind === 'textarea' ? event.key === 'Enter' && (event.metaKey || event.ctrlKey) : event.key === 'Enter';
+    const isSubmit =
+      kind === 'textarea' ? event.key === 'Enter' && (event.metaKey || event.ctrlKey) : event.key === 'Enter';
     if (isSubmit) {
       event.preventDefault();
       event.currentTarget.blur();
@@ -65,7 +74,9 @@ export function DrawerField({ label, kind, value, onSave, readOnly, suggestions 
           onChange={(event) => editable.change(event.target.value)}
         />
       )}
-      {kind === 'project' && <ProjectInput suggestions={suggestions} {...shared} onChange={(event) => editable.change(event.target.value)} />}
+      {kind === 'project' && (
+        <ProjectInput suggestions={suggestions} {...shared} onChange={(event) => editable.change(event.target.value)} />
+      )}
       {kind === 'date' && (
         <div className={fields.row}>
           <input
@@ -77,7 +88,12 @@ export function DrawerField({ label, kind, value, onSave, readOnly, suggestions 
             }}
           />
           {!readOnly && editable.displayed !== '' && (
-            <Button variant="quiet" aria-label="Remove due date" onMouseDown={(event) => event.preventDefault()} onClick={() => void editable.commit('')}>
+            <Button
+              variant="quiet"
+              aria-label="Remove due date"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => void editable.commit('')}
+            >
               Remove
             </Button>
           )}

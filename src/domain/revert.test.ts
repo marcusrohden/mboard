@@ -1,24 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  addComment,
-  applyEdit,
-  archiveDocument,
-  createTaskDocument,
-  moveToColumn,
-  restoreDocument,
-} from './changes';
-import type {
-  HistoryEntry,
-  NewTaskInput,
-  TaskDocument,
-  TaskEdit,
-} from './model';
-import {
-  isSameRevertPoint,
-  revertBlocker,
-  revertDocument,
-  revertExpectationFor,
-} from './revert';
+import { addComment, applyEdit, archiveDocument, createTaskDocument, moveToColumn, restoreDocument } from './changes';
+import type { HistoryEntry, NewTaskInput, TaskDocument, TaskEdit } from './model';
+import { isSameRevertPoint, revertBlocker, revertDocument, revertExpectationFor } from './revert';
 import { parseTaskFile, serialiseTaskFile } from './taskFile';
 import { FALLBACK } from './testHelpers';
 
@@ -47,18 +30,14 @@ function created(): TaskDocument {
 }
 
 function edited(document: TaskDocument, edit: TaskEdit): TaskDocument {
-  return applyEdit(document, edit, { now: nextMoment(), knownProjects: [] })
-    .document;
+  return applyEdit(document, edit, { now: nextMoment(), knownProjects: [] }).document;
 }
 
 function commented(document: TaskDocument, text: string): TaskDocument {
   return addComment(document, text, nextMoment());
 }
 
-function moved(
-  document: TaskDocument,
-  status: TaskDocument['status'],
-): TaskDocument {
+function moved(document: TaskDocument, status: TaskDocument['status']): TaskDocument {
   return moveToColumn(document, status, 1, nextMoment()).document;
 }
 
@@ -79,10 +58,10 @@ function live(document: TaskDocument) {
 
 describe('revertDocument', () => {
   it('gives the state right after entry k, keeps entries 0..k and adds one revert entry', () => {
-    const document = edited(
-      edited(created(), { field: 'title', value: 'Second title' }),
-      { field: 'title', value: 'Third title' },
-    );
+    const document = edited(edited(created(), { field: 'title', value: 'Second title' }), {
+      field: 'title',
+      value: 'Third title',
+    });
     const result = revert(document, 0);
 
     expect(result.title).toBe('Original title');
@@ -95,9 +74,7 @@ describe('revertDocument', () => {
       ledger: {
         v: 1,
         at: '2026-11-17T10:00:05',
-        changes: [
-          { field: 'title', from: 'Third title', to: 'Original title' },
-        ],
+        changes: [{ field: 'title', from: 'Third title', to: 'Original title' }],
       },
     });
   });
@@ -132,9 +109,7 @@ describe('revertDocument', () => {
     };
     const result = revert(document, 1);
     expect(result).toMatchObject({ status: 'In progress', rawStatus: null });
-    expect(result.history.at(-1)?.ledger?.changes).toEqual([
-      { field: 'status', from: 'Done', to: 'In progress' },
-    ]);
+    expect(result.history.at(-1)?.ledger?.changes).toEqual([{ field: 'status', from: 'Done', to: 'In progress' }]);
   });
 
   it('removes comments added after k, and keeps earlier ones and comments added outside the app', () => {
@@ -142,10 +117,7 @@ describe('revertDocument', () => {
     document = commented(document, 'After one');
     document = {
       ...document,
-      comments: [
-        ...document.comments,
-        { at: '2026-11-16 09:50', text: 'Written in Obsidian' },
-      ],
+      comments: [...document.comments, { at: '2026-11-16 09:50', text: 'Written in Obsidian' }],
     };
     document = commented(document, 'After two');
 
@@ -188,9 +160,7 @@ describe('revertDocument', () => {
 
   it('puts back the value from before a later change, even over an outside edit to that field', () => {
     const document = edited(created(), { field: 'project', value: 'Second' });
-    expect(revert({ ...document, project: 'Edited outside' }, 0).project).toBe(
-      'Acme',
-    );
+    expect(revert({ ...document, project: 'Edited outside' }, 0).project).toBe('Acme');
   });
 
   it('walks back through archive and restore', () => {
@@ -227,9 +197,7 @@ describe('revertDocument', () => {
     const beforeRevert = revertDocument(withNewest, 1, LATER);
     expect(beforeRevert.title).toBe('Second title');
     expect(texts(beforeRevert.comments)).toEqual(['Early', 'Late']);
-    expect(beforeRevert.history.at(-1)?.text).toBe(
-      'Reverted to 16 Nov 09:02 — 2 changes discarded',
-    );
+    expect(beforeRevert.history.at(-1)?.text).toBe('Reverted to 16 Nov 09:02 — 2 changes discarded');
   });
 
   it('ignores a change to a field it does not track, but still counts its entry', () => {
@@ -243,29 +211,19 @@ describe('revertDocument', () => {
         changes: [{ field: 'priority', from: 'Low', to: 'High' }],
       },
     };
-    const result = revert(
-      { ...document, history: [...document.history, unknown] },
-      0,
-    );
+    const result = revert({ ...document, history: [...document.history, unknown] }, 0);
     expect(result.title).toBe('Original title');
-    expect(result.history.at(-1)?.text).toBe(
-      'Reverted to 16 Nov 09:01 — 1 change discarded',
-    );
+    expect(result.history.at(-1)?.text).toBe('Reverted to 16 Nov 09:01 — 1 change discarded');
   });
 
   it('adds the year to the revert text when entry k is from another year', () => {
     const document = edited(created(), { field: 'title', value: 'Later' });
     const result = revertDocument(document, 0, new Date(2027, 0, 4, 9, 0, 0));
-    expect(result.history.at(-1)?.text).toBe(
-      'Reverted to 16 Nov 2026 09:01 — 1 change discarded',
-    );
+    expect(result.history.at(-1)?.text).toBe('Reverted to 16 Nov 2026 09:01 — 1 change discarded');
   });
 
   it('writes a file that reads back to the same document', () => {
-    const document = commented(
-      edited(created(), { field: 'description', value: 'New\n\n--> text' }),
-      'Note',
-    );
+    const document = commented(edited(created(), { field: 'description', value: 'New\n\n--> text' }), 'Note');
     const result = revert(document, 0);
     const parsed = parseTaskFile(serialiseTaskFile(result), FALLBACK);
     expect(parsed).toEqual({ kind: 'ok', document: result });
@@ -273,12 +231,8 @@ describe('revertDocument', () => {
 
   it('refuses an entry it may not revert to, with a user-presentable message', () => {
     const document = edited(created(), { field: 'title', value: 'Later' });
-    expect(() => revert(document, 1)).toThrow(
-      "That's the latest entry, so there's nothing to revert.",
-    );
-    expect(() => revert(document, 5)).toThrow(
-      "That history entry doesn't exist.",
-    );
+    expect(() => revert(document, 1)).toThrow("That's the latest entry, so there's nothing to revert.");
+    expect(() => revert(document, 5)).toThrow("That history entry doesn't exist.");
   });
 });
 
@@ -301,12 +255,9 @@ describe('revertBlocker', () => {
     expect(revertBlocker(live(base), 2)).toBe('latest');
   });
 
-  it.each([-1, 3, 1.5, Number.NaN])(
-    'blocks an index that is not an entry: %s',
-    (index) => {
-      expect(revertBlocker(live(base), index)).toBe('noSuchEntry');
-    },
-  );
+  it.each([-1, 3, 1.5, Number.NaN])('blocks an index that is not an entry: %s', (index) => {
+    expect(revertBlocker(live(base), index)).toBe('noSuchEntry');
+  });
 
   it('blocks entries older than a later entry without ledger data', () => {
     const legacy = { at: '2026-11-16 09:10', text: 'Moved from To do to Done' };

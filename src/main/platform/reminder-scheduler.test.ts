@@ -77,7 +77,10 @@ describe('reminder scheduler with reminders.json', () => {
     await scheduler.tick();
 
     expect(deliveries).toEqual([
-      { result: 'failed', bannerItems: [{ taskId: 'tasks/A.md', title: 'tasks/A.md', due: '2026-11-16', overdue: false }] },
+      {
+        result: 'failed',
+        bannerItems: [{ taskId: 'tasks/A.md', title: 'tasks/A.md', due: '2026-11-16', overdue: false }],
+      },
     ]);
     expect((await readFiredKeysFile()).firedKeys).toEqual([KEY_A]);
   });

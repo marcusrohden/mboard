@@ -24,11 +24,18 @@ export function createNativeDialogs(currentWindow: () => BrowserWindow | null): 
     async pickBoardFolder() {
       const window = currentWindow();
       const result =
-        window === null ? await dialog.showOpenDialog(FOLDER_PICKER) : await dialog.showOpenDialog(window, FOLDER_PICKER);
+        window === null
+          ? await dialog.showOpenDialog(FOLDER_PICKER)
+          : await dialog.showOpenDialog(window, FOLDER_PICKER);
       return result.canceled ? null : (result.filePaths[0] ?? null);
     },
     async showRejection(message) {
-      await showMessageBox({ type: 'warning', message: "mboard can't use this folder", detail: message, buttons: ['OK'] });
+      await showMessageBox({
+        type: 'warning',
+        message: "mboard can't use this folder",
+        detail: message,
+        buttons: ['OK'],
+      });
     },
     async confirmOutsideVault(message) {
       const { response } = await showMessageBox({
@@ -41,7 +48,12 @@ export function createNativeDialogs(currentWindow: () => BrowserWindow | null): 
       return response === USE_ANYWAY;
     },
     async showError(message) {
-      await showMessageBox({ type: 'error', message: "mboard couldn't change the board folder", detail: message, buttons: ['OK'] });
+      await showMessageBox({
+        type: 'error',
+        message: "mboard couldn't change the board folder",
+        detail: message,
+        buttons: ['OK'],
+      });
     },
   };
 }

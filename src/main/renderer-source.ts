@@ -24,10 +24,7 @@ export type RendererSource =
  * Chooses the renderer source. Forge only defines a dev-server URL during
  * `electron-forge start`, so its presence (not `app.isPackaged`) is the switch.
  */
-export function resolveRendererSource(
-  devServerUrl: string | undefined,
-  bundleDirectory: string,
-): RendererSource {
+export function resolveRendererSource(devServerUrl: string | undefined, bundleDirectory: string): RendererSource {
   if (devServerUrl) {
     return {
       kind: 'dev-server',

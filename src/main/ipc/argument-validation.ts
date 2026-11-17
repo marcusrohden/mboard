@@ -38,7 +38,8 @@ function readNullableString(value: unknown, what: string): string | null {
  * @throws Error when there are more or fewer.
  */
 export function expectArguments(args: readonly unknown[], count: number): unknown[] {
-  if (args.length !== count) throw invalidRequest(`expected ${count} argument${count === 1 ? '' : 's'}, got ${args.length}`);
+  if (args.length !== count)
+    throw invalidRequest(`expected ${count} argument${count === 1 ? '' : 's'}, got ${args.length}`);
   return [...args];
 }
 

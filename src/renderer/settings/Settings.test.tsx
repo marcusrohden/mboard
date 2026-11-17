@@ -4,10 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { buildTask } from '../testing/builders';
 import { useDomEnvironment } from '../testing/dom-environment';
-import {
-  createFakeMboard,
-  type FakeMboardOptions,
-} from '../testing/fake-mboard';
+import { createFakeMboard, type FakeMboardOptions } from '../testing/fake-mboard';
 import { renderBoard } from '../testing/render-board';
 
 useDomEnvironment();
@@ -33,26 +30,20 @@ describe('Opening Settings', () => {
     const gear = screen.getByRole('button', { name: 'Settings' });
     expect(gear.getAttribute('title')).toBe('Settings (⌘,)');
     await userEvent.click(gear);
-    expect(
-      await screen.findByRole('dialog', { name: 'Settings' }),
-    ).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy();
   });
 
   it('opens when the menu asks, by taking the request', async () => {
     const { fake } = await renderBoard();
     act(() => fake.requestSettings());
-    expect(
-      await screen.findByRole('dialog', { name: 'Settings' }),
-    ).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy();
     expect(fake.api.takeOpenSettingsRequest).toHaveBeenCalledTimes(2);
   });
 
   it('opens on launch when the menu asked before the window was listening', async () => {
     createFakeMboard({ pendingSettingsRequest: true }).install();
     render(<App />);
-    expect(
-      await screen.findByRole('dialog', { name: 'Settings' }),
-    ).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy();
   });
 
   it('opens from the menu on the setup screen too', async () => {
@@ -61,19 +52,13 @@ describe('Opening Settings', () => {
     render(<App />);
     await screen.findByRole('heading', { name: 'Choose your board folder' });
     act(() => fake.requestSettings());
-    expect(
-      await screen.findByRole('dialog', { name: 'Settings' }),
-    ).toBeTruthy();
-    expect(
-      within(section('Board folder')).getByText('Not chosen'),
-    ).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeTruthy();
+    expect(within(section('Board folder')).getByText('Not chosen')).toBeTruthy();
   });
 
   it('closes with Done and with Esc', async () => {
     const { user } = await openFromGear();
-    await user.click(
-      within(settingsDialog()).getByRole('button', { name: 'Done' }),
-    );
+    await user.click(within(settingsDialog()).getByRole('button', { name: 'Done' }));
     expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Settings' }));
     await user.keyboard('{Escape}');
@@ -95,21 +80,11 @@ describe('Settings sections', () => {
       preferences: { openAtLogin: true, notificationsAvailable: false },
       appUpdateStatus: { currentVersion: '0.1.0', stage: { kind: 'idle' } },
     });
-    expect(
-      within(section('Board folder')).getByText('/vault/Board'),
-    ).toBeTruthy();
-    const openAtLogin = within(section('Open at login')).getByRole(
-      'checkbox',
-    ) as HTMLInputElement;
+    expect(within(section('Board folder')).getByText('/vault/Board')).toBeTruthy();
+    const openAtLogin = within(section('Open at login')).getByRole('checkbox') as HTMLInputElement;
     expect(openAtLogin.checked).toBe(true);
-    expect(
-      within(section('Notifications')).getByText(
-        /System Settings › Notifications/,
-      ),
-    ).toBeTruthy();
-    expect(
-      within(section('App updates')).getByText('mboard 0.1.0'),
-    ).toBeTruthy();
+    expect(within(section('Notifications')).getByText(/System Settings › Notifications/)).toBeTruthy();
+    expect(within(section('App updates')).getByText('mboard 0.1.0')).toBeTruthy();
     expect(within(section('App updates')).getByRole('status').textContent).toBe(
       "mboard hasn't checked for a new version yet.",
     );
@@ -117,9 +92,7 @@ describe('Settings sections', () => {
 
   it('turns open at login off and on', async () => {
     const { user, fake } = await openFromGear();
-    const checkbox = within(section('Open at login')).getByRole(
-      'checkbox',
-    ) as HTMLInputElement;
+    const checkbox = within(section('Open at login')).getByRole('checkbox') as HTMLInputElement;
     await user.click(checkbox);
     expect(fake.api.setOpenAtLogin).toHaveBeenLastCalledWith(false);
     expect(checkbox.checked).toBe(false);
@@ -130,16 +103,10 @@ describe('Settings sections', () => {
 
   it('keeps the checkbox as it was when the change fails', async () => {
     const { user, fake } = await openFromGear();
-    fake.api.setOpenAtLogin.mockRejectedValueOnce(
-      new Error("mboard couldn't change the login item."),
-    );
-    const checkbox = within(section('Open at login')).getByRole(
-      'checkbox',
-    ) as HTMLInputElement;
+    fake.api.setOpenAtLogin.mockRejectedValueOnce(new Error("mboard couldn't change the login item."));
+    const checkbox = within(section('Open at login')).getByRole('checkbox') as HTMLInputElement;
     await user.click(checkbox);
-    expect(
-      await screen.findByText("mboard couldn't change the login item."),
-    ).toBeTruthy();
+    expect(await screen.findByText("mboard couldn't change the login item.")).toBeTruthy();
     expect(checkbox.checked).toBe(true);
   });
 
@@ -154,12 +121,8 @@ describe('Settings sections', () => {
         name: 'Change folder…',
       }),
     );
-    expect(
-      await within(section('Board folder')).findByText('/vault/Work'),
-    ).toBeTruthy();
-    await user.click(
-      within(settingsDialog()).getByRole('button', { name: 'Done' }),
-    );
+    expect(await within(section('Board folder')).findByText('/vault/Work')).toBeTruthy();
+    await user.click(within(settingsDialog()).getByRole('button', { name: 'Done' }));
     expect(screen.getByRole('heading', { name: 'Work' })).toBeTruthy();
   });
 
@@ -175,12 +138,10 @@ describe('Settings sections', () => {
         name: 'Change folder…',
       }),
     );
-    expect(
-      (await within(section('Board folder')).findByRole('alert')).textContent,
-    ).toBe("This folder isn't empty and isn't an mboard board.");
-    expect(
-      within(section('Board folder')).getByText('/vault/Board'),
-    ).toBeTruthy();
+    expect((await within(section('Board folder')).findByRole('alert')).textContent).toBe(
+      "This folder isn't empty and isn't an mboard board.",
+    );
+    expect(within(section('Board folder')).getByText('/vault/Board')).toBeTruthy();
   });
 });
 
@@ -207,9 +168,7 @@ describe('Checking for updates in Settings', () => {
         checkedAt: '2026-11-20T09:30:00',
       }),
     );
-    expect(updatesStatus()).toBe(
-      'mboard is up to date. Last checked 20 Nov 2026, 09:30.',
-    );
+    expect(updatesStatus()).toBe('mboard is up to date. Last checked 20 Nov 2026, 09:30.');
     expect(check.disabled).toBe(false);
   });
 
@@ -222,9 +181,7 @@ describe('Checking for updates in Settings', () => {
         version: null,
       }),
     );
-    expect(updatesStatus()).toBe(
-      'GitHub is limiting update checks right now. Try again later.',
-    );
+    expect(updatesStatus()).toBe('GitHub is limiting update checks right now. Try again later.');
     expect(
       within(section('App updates')).queryByRole('button', {
         name: 'Download from GitHub',
@@ -269,14 +226,11 @@ describe('Checking for updates in Settings', () => {
         stage: {
           kind: 'available',
           version: '0.2.0',
-          installBlocker:
-            "mboard is running from source, so it can't install new versions itself.",
+          installBlocker: "mboard is running from source, so it can't install new versions itself.",
         },
       },
     });
-    expect(
-      within(section('App updates')).getByText(/running from source/),
-    ).toBeTruthy();
+    expect(within(section('App updates')).getByText(/running from source/)).toBeTruthy();
     expect(
       within(section('App updates')).queryByRole('button', {
         name: 'Install and restart',

@@ -20,7 +20,10 @@ describe('classifyFolder', () => {
   });
 
   it('treats a file called tasks as not a board folder', () => {
-    expect(classifyFolder(probe({ entries: [file('tasks')] }))).toEqual({ kind: 'rejected', message: NOT_A_BOARD_MESSAGE });
+    expect(classifyFolder(probe({ entries: [file('tasks')] }))).toEqual({
+      kind: 'rejected',
+      message: NOT_A_BOARD_MESSAGE,
+    });
   });
 
   it('sets up an empty folder as a new board', () => {
@@ -49,12 +52,14 @@ describe('classifyFolder', () => {
     });
   });
 
-  it.each(['/Users/me/Vault/.obsidian', '/Users/me/Vault/.obsidian/plugins', '/Users/me/Vault/.trash', '/Users/me/Vault/.trash/Old/Sub'])(
-    'rejects %s',
-    (path) => {
-      expect(classifyFolder(probe({ path })).kind).toBe('rejected');
-    },
-  );
+  it.each([
+    '/Users/me/Vault/.obsidian',
+    '/Users/me/Vault/.obsidian/plugins',
+    '/Users/me/Vault/.trash',
+    '/Users/me/Vault/.trash/Old/Sub',
+  ])('rejects %s', (path) => {
+    expect(classifyFolder(probe({ path })).kind).toBe('rejected');
+  });
 
   it('explains why a folder inside .obsidian is rejected', () => {
     expect(classifyFolder(probe({ path: '/Users/me/Vault/.obsidian/plugins/x' }))).toEqual({

@@ -37,8 +37,17 @@ describe('dueChip', () => {
   });
 
   it('is always neutral, with the date, in Done and when archived', () => {
-    expect(dueChip({ status: 'Done', isArchived: false, due: '2026-11-16' }, TODAY)).toEqual({ text: '16 Nov', tone: 'neutral' });
-    expect(dueChip({ status: 'Done', isArchived: false, due: '2026-11-01' }, TODAY)).toEqual({ text: '1 Nov', tone: 'neutral' });
-    expect(dueChip({ status: 'Done', isArchived: true, due: '2026-11-01' }, TODAY)).toEqual({ text: '1 Nov', tone: 'neutral' });
+    expect(dueChip({ status: 'Done', isArchived: false, due: '2026-11-16' }, TODAY)).toEqual({
+      text: '16 Nov',
+      tone: 'neutral',
+    });
+    expect(dueChip({ status: 'Done', isArchived: false, due: '2026-11-01' }, TODAY)).toEqual({
+      text: '1 Nov',
+      tone: 'neutral',
+    });
+    expect(dueChip({ status: 'Done', isArchived: true, due: '2026-11-01' }, TODAY)).toEqual({
+      text: '1 Nov',
+      tone: 'neutral',
+    });
   });
 });

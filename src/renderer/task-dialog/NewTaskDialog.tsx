@@ -103,7 +103,12 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onClose }: NewTask
             <label htmlFor={ids.project} className={fields.label}>
               Project
             </label>
-            <ProjectInput id={ids.project} suggestions={projectSuggestions} value={project} onChange={(event) => setProject(event.target.value)} />
+            <ProjectInput
+              id={ids.project}
+              suggestions={projectSuggestions}
+              value={project}
+              onChange={(event) => setProject(event.target.value)}
+            />
           </div>
           <div className={fields.field}>
             <label htmlFor={ids.due} className={fields.label}>

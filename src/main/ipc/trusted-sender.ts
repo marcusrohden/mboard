@@ -3,9 +3,7 @@
  */
 export class UntrustedSenderError extends Error {
   constructor(channel: string, senderOrigin: string | undefined) {
-    super(
-      `Refused IPC call on "${channel}" from untrusted origin "${senderOrigin ?? 'unknown'}".`,
-    );
+    super(`Refused IPC call on "${channel}" from untrusted origin "${senderOrigin ?? 'unknown'}".`);
     this.name = 'UntrustedSenderError';
   }
 }
@@ -16,11 +14,7 @@ export class UntrustedSenderError extends Error {
  *
  * @throws {UntrustedSenderError} when the sender is not trusted.
  */
-export function assertTrustedSender(
-  channel: string,
-  senderOrigin: string | undefined,
-  trustedOrigin: string,
-): void {
+export function assertTrustedSender(channel: string, senderOrigin: string | undefined, trustedOrigin: string): void {
   if (senderOrigin !== trustedOrigin) {
     throw new UntrustedSenderError(channel, senderOrigin);
   }

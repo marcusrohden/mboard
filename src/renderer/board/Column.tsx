@@ -35,7 +35,15 @@ export function Column({ view, tasks, isFiltered, today, onOpen, onArchive, onAr
       </header>
       <div ref={ref} className={styles.tasks} data-drop-target={isDropTarget || undefined}>
         {tasks.map((task, index) => (
-          <TaskCard key={task.id} task={task} index={index} status={view.status} today={today} onOpen={onOpen} onArchive={onArchive} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            index={index}
+            status={view.status}
+            today={today}
+            onOpen={onOpen}
+            onArchive={onArchive}
+          />
         ))}
         {tasks.length === 0 && <p className={styles.empty}>{emptyText}</p>}
       </div>

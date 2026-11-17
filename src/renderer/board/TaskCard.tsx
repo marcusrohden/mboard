@@ -1,5 +1,13 @@
 import type { KeyboardEvent } from 'react';
-import { dueChip, formatCompactDate, localDateOf, stalenessOf, type LocalDate, type Status, type Task } from '../../domain';
+import {
+  dueChip,
+  formatCompactDate,
+  localDateOf,
+  stalenessOf,
+  type LocalDate,
+  type Status,
+  type Task,
+} from '../../domain';
 import { AgeChip } from '../ui/AgeChip';
 import { useSortableTask } from './board-dnd';
 import styles from './TaskCard.module.css';

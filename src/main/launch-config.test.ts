@@ -43,7 +43,11 @@ describe('readLaunchConfig', () => {
 
   it('reads flags only when set to 1', () => {
     expect(
-      readLaunchConfig({ MBOARD_NOTIFIER_FAIL: '1', MBOARD_DISABLE_LOGIN_ITEM: '1', MBOARD_DISABLE_APP_UPDATE_CHECK: '1' }),
+      readLaunchConfig({
+        MBOARD_NOTIFIER_FAIL: '1',
+        MBOARD_DISABLE_LOGIN_ITEM: '1',
+        MBOARD_DISABLE_APP_UPDATE_CHECK: '1',
+      }),
     ).toMatchObject({
       notifierFails: true,
       loginItemDisabled: true,

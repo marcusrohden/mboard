@@ -5,9 +5,7 @@ const BUNDLE_DIRECTORY = '/app/.vite/renderer/main_window';
 
 describe('resolveRendererSource', () => {
   it('loads from the dev server and trusts only its origin when Forge provides a URL', () => {
-    expect(
-      resolveRendererSource('http://localhost:5173/', BUNDLE_DIRECTORY),
-    ).toEqual({
+    expect(resolveRendererSource('http://localhost:5173/', BUNDLE_DIRECTORY)).toEqual({
       kind: 'dev-server',
       entryUrl: 'http://localhost:5173/',
       trustedOrigin: 'http://localhost:5173',

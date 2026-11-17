@@ -118,38 +118,85 @@ describe('placing a task', () => {
 
 describe('resolveDrop', () => {
   function arranged(columns: Partial<Record<Status, TaskId[]>>): ColumnArrangement {
-    const arrangement: ColumnArrangement = { 'To do': [], 'In progress': [], Internal: [], 'With client': [], Done: [] };
+    const arrangement: ColumnArrangement = {
+      'To do': [],
+      'In progress': [],
+      Internal: [],
+      'With client': [],
+      Done: [],
+    };
     for (const status of COLUMNS) arrangement[status] = columns[status] ?? [];
     return arrangement;
   }
 
-  const original = arranged({ 'To do': ['a', 'b', 'c'], 'In progress': ['d'], Internal: ['e'], 'With client': ['f', 'g'] });
+  const original = arranged({
+    'To do': ['a', 'b', 'c'],
+    'In progress': ['d'],
+    Internal: ['e'],
+    'With client': ['f', 'g'],
+  });
 
   it('reports the column and the task the dropped one now sits above', () => {
-    const arrangement = arranged({ 'To do': ['a', 'c'], 'In progress': ['d', 'b'], Internal: ['e'], 'With client': ['f', 'g'] });
+    const arrangement = arranged({
+      'To do': ['a', 'c'],
+      'In progress': ['d', 'b'],
+      Internal: ['e'],
+      'With client': ['f', 'g'],
+    });
     expect(resolveDrop(original, arrangement, 'b')).toEqual({ status: 'In progress', beforeId: null });
-    const intoMiddle = arranged({ 'To do': ['a', 'c'], 'In progress': ['b', 'd'], Internal: ['e'], 'With client': ['f', 'g'] });
+    const intoMiddle = arranged({
+      'To do': ['a', 'c'],
+      'In progress': ['b', 'd'],
+      Internal: ['e'],
+      'With client': ['f', 'g'],
+    });
     expect(resolveDrop(original, intoMiddle, 'b')).toEqual({ status: 'In progress', beforeId: 'd' });
   });
 
   it('reports a drop into Internal and into With client', () => {
-    const intoInternal = arranged({ 'To do': ['a', 'c'], 'In progress': ['d'], Internal: ['b', 'e'], 'With client': ['f', 'g'] });
+    const intoInternal = arranged({
+      'To do': ['a', 'c'],
+      'In progress': ['d'],
+      Internal: ['b', 'e'],
+      'With client': ['f', 'g'],
+    });
     expect(resolveDrop(original, intoInternal, 'b')).toEqual({ status: 'Internal', beforeId: 'e' });
     const intoWithClient = arranged({ 'To do': ['a', 'b', 'c'], Internal: ['e'], 'With client': ['f', 'g', 'd'] });
     expect(resolveDrop(original, intoWithClient, 'd')).toEqual({ status: 'With client', beforeId: null });
   });
 
   it('reports a drop from With client to Internal and on to Done', () => {
-    const toInternal = arranged({ 'To do': ['a', 'b', 'c'], 'In progress': ['d'], Internal: ['e', 'g'], 'With client': ['f'] });
+    const toInternal = arranged({
+      'To do': ['a', 'b', 'c'],
+      'In progress': ['d'],
+      Internal: ['e', 'g'],
+      'With client': ['f'],
+    });
     expect(resolveDrop(original, toInternal, 'g')).toEqual({ status: 'Internal', beforeId: null });
-    const toDone = arranged({ 'To do': ['a', 'b', 'c'], 'In progress': ['d'], Internal: [], 'With client': ['f', 'g'], Done: ['e'] });
+    const toDone = arranged({
+      'To do': ['a', 'b', 'c'],
+      'In progress': ['d'],
+      Internal: [],
+      'With client': ['f', 'g'],
+      Done: ['e'],
+    });
     expect(resolveDrop(original, toDone, 'e')).toEqual({ status: 'Done', beforeId: null });
   });
 
   it('reports a reorder within a column', () => {
-    const arrangement = arranged({ 'To do': ['c', 'a', 'b'], 'In progress': ['d'], Internal: ['e'], 'With client': ['f', 'g'] });
+    const arrangement = arranged({
+      'To do': ['c', 'a', 'b'],
+      'In progress': ['d'],
+      Internal: ['e'],
+      'With client': ['f', 'g'],
+    });
     expect(resolveDrop(original, arrangement, 'c')).toEqual({ status: 'To do', beforeId: 'a' });
-    const withinWithClient = arranged({ 'To do': ['a', 'b', 'c'], 'In progress': ['d'], Internal: ['e'], 'With client': ['g', 'f'] });
+    const withinWithClient = arranged({
+      'To do': ['a', 'b', 'c'],
+      'In progress': ['d'],
+      Internal: ['e'],
+      'With client': ['g', 'f'],
+    });
     expect(resolveDrop(original, withinWithClient, 'g')).toEqual({ status: 'With client', beforeId: 'f' });
   });
 
@@ -173,12 +220,17 @@ describe('formatting', () => {
 
   it('describes the age of a task with both timestamps, the working days and the tier', () => {
     const task = buildTask({ created: '2026-11-12T08:00:00', updated: '2026-11-12T09:12:30' });
-    expect(describeAge(task, TEST_TODAY)).toBe('Created 12 Nov 08:00 · Updated 12 Nov 09:12 — 2 working days, Needs a nudge');
+    expect(describeAge(task, TEST_TODAY)).toBe(
+      'Created 12 Nov 08:00 · Updated 12 Nov 09:12 — 2 working days, Needs a nudge',
+    );
     expect(describeAge({ ...task, updated: '2026-11-13T17:00:00' }, TEST_TODAY)).toBe(
       'Created 12 Nov 08:00 · Updated 13 Nov 17:00 — 1 working day, On track',
     );
-    expect(describeAge({ ...task, created: '2025-12-30T08:00:00', status: 'Done', updated: `${TEST_TODAY}T09:00:00` }, TEST_TODAY)).toBe(
-      'Created 30 Dec 2025 08:00 · Updated 16 Nov 09:00 — 0 working days, Complete',
-    );
+    expect(
+      describeAge(
+        { ...task, created: '2025-12-30T08:00:00', status: 'Done', updated: `${TEST_TODAY}T09:00:00` },
+        TEST_TODAY,
+      ),
+    ).toBe('Created 30 Dec 2025 08:00 · Updated 16 Nov 09:00 — 0 working days, Complete');
   });
 });

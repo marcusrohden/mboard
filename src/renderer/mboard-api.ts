@@ -8,9 +8,7 @@ import type { MboardApi } from '../shared/contract';
 export function getMboardApi(): MboardApi {
   const api = window.mboard;
   if (api === undefined) {
-    throw new Error(
-      'window.mboard is missing: the preload script did not run.',
-    );
+    throw new Error('window.mboard is missing: the preload script did not run.');
   }
   return api;
 }

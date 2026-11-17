@@ -4,15 +4,15 @@ mboard is built with Electron Forge 8 (Vite plugin), Electron 45, React 19 and T
 
 ## Layout
 
-| Folder | Holds | May import |
-| --- | --- | --- |
-| `src/domain/` | pure model, file codec and rules | `yaml` only |
-| `src/shared/` | the `window.mboard` contract and IPC channel names | `src/domain` types |
-| `src/main/` | Electron main: composition root (`index.ts`), `ports.ts`, launch config, board backend, IPC, `platform/`, `app-update/` | domain, shared, node, electron |
-| `src/preload/` | `contextBridge` exposing `window.mboard` | shared, `electron` |
-| `src/renderer/` | React UI | domain, shared (never node or electron) |
-| `tests/e2e/` | Playwright Electron tests against the built app | anything |
-| `.github/workflows/` | `pr.yml` checks pull requests; `release.yml` runs release-please and attaches the macOS zip | |
+| Folder               | Holds                                                                                                                   | May import                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `src/domain/`        | pure model, file codec and rules                                                                                        | `yaml` only                             |
+| `src/shared/`        | the `window.mboard` contract and IPC channel names                                                                      | `src/domain` types                      |
+| `src/main/`          | Electron main: composition root (`index.ts`), `ports.ts`, launch config, board backend, IPC, `platform/`, `app-update/` | domain, shared, node, electron          |
+| `src/preload/`       | `contextBridge` exposing `window.mboard`                                                                                | shared, `electron`                      |
+| `src/renderer/`      | React UI                                                                                                                | domain, shared (never node or electron) |
+| `tests/e2e/`         | Playwright Electron tests against the built app                                                                         | anything                                |
+| `.github/workflows/` | `pr.yml` checks pull requests; `release.yml` runs release-please and attaches the macOS zip                             |                                         |
 
 Unit tests sit beside the code as `*.test.ts` and run in node (see `vitest.config.mts`).
 
@@ -53,12 +53,12 @@ Automatic app update checks only run in a packaged build, so `pnpm start` never 
 
 Starting mboard from VS Code runs it from source with `pnpm start`: **F5** (`.vscode/launch.json`) and **Cmd+Shift+B** (the default build task) both run **mboard: dev**. The other tasks are under **Terminal › Run Task…** (`.vscode/tasks.json`).
 
-| Task | Does |
-| --- | --- |
-| mboard: build | `pnpm run package` |
-| mboard: open | quits a running mboard, then opens `out/mboard-darwin-arm64/mboard.app` |
-| mboard: build and open | quits, packages, then opens the new build |
-| mboard: dev | quits, then `pnpm start` with `MBOARD_DISABLE_LOGIN_ITEM=1` so a dev run never registers Electron as the login item |
+| Task                   | Does                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| mboard: build          | `pnpm run package`                                                                                                  |
+| mboard: open           | quits a running mboard, then opens `out/mboard-darwin-arm64/mboard.app`                                             |
+| mboard: build and open | quits, packages, then opens the new build                                                                           |
+| mboard: dev            | quits, then `pnpm start` with `MBOARD_DISABLE_LOGIN_ITEM=1` so a dev run never registers Electron as the login item |
 
 mboard keeps running in the menu bar after its window closes, so `open` on its own would only bring back the old process. `scripts/quit-mboard.sh` quits it first through AppleScript; the first run asks macOS to let VS Code control mboard. Stop a running **mboard: dev** before opening the packaged app, because both share one single-instance lock.
 

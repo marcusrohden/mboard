@@ -21,7 +21,9 @@ function titles(column: string): string[] {
 }
 
 function countOf(column: string): string {
-  const header = within(screen.getByRole('region', { name: column })).getByRole('heading', { name: column }).parentElement;
+  const header = within(screen.getByRole('region', { name: column })).getByRole('heading', {
+    name: column,
+  }).parentElement;
   return header?.querySelector('span')?.textContent ?? '';
 }
 

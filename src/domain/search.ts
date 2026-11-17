@@ -37,7 +37,10 @@ export function searchTerms(query: string): string[] {
 }
 
 /** Whether every term appears, ignoring case, in the title, description, a comment or the project. */
-export function matchesSearch(task: Pick<Task, 'title' | 'description' | 'comments' | 'project'>, terms: readonly string[]): boolean {
+export function matchesSearch(
+  task: Pick<Task, 'title' | 'description' | 'comments' | 'project'>,
+  terms: readonly string[],
+): boolean {
   if (terms.length === 0) return true;
   const haystack = [task.title, task.description, ...task.comments.map((comment) => comment.text), task.project ?? '']
     .join('\n')
@@ -68,11 +71,7 @@ function matchesDueFilter(due: Task['due'], filter: DueFilter, today: LocalDate)
 /** Whether any criterion is set, which is when the board shows its Clear control. */
 export function isFilterActive(criteria: ArchiveFilterCriteria | FilterCriteria): boolean {
   const hasBoardOnlyCriteria = 'due' in criteria && (criteria.due !== 'any' || criteria.staleOnly);
-  return (
-    searchTerms(criteria.query).length > 0 ||
-    criteria.projects.size > 0 ||
-    hasBoardOnlyCriteria
-  );
+  return searchTerms(criteria.query).length > 0 || criteria.projects.size > 0 || hasBoardOnlyCriteria;
 }
 
 /** Tasks that satisfy the board's search and filters. Keeps the input order. */

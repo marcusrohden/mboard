@@ -15,11 +15,7 @@ export function AgeChip({ task, today }: AgeChipProps) {
   const staleness = stalenessOf(task, today);
   const description = describeAge(task, today);
   return (
-    <span
-      className={styles.chip}
-      data-staleness={staleness.level}
-      title={description}
-    >
+    <span className={styles.chip} data-staleness={staleness.level} title={description}>
       <span aria-hidden="true">{ageLabel(staleness)}</span>
       <span className="visually-hidden">{description}</span>
     </span>

@@ -51,7 +51,11 @@ export interface DropTarget {
  * Works out the move a drop asks for: the column the dropped task landed in and the visible task it now
  * sits above. Returns `null` when the task isn't in the arrangement, or when it ended where it began.
  */
-export function resolveDrop(original: ColumnArrangement, arrangement: ColumnArrangement, droppedId: TaskId): DropTarget | null {
+export function resolveDrop(
+  original: ColumnArrangement,
+  arrangement: ColumnArrangement,
+  droppedId: TaskId,
+): DropTarget | null {
   const status = COLUMNS.find((column) => arrangement[column].includes(droppedId));
   if (status === undefined) return null;
   const beforeId = beforeIdAfterDrop(arrangement[status], droppedId);

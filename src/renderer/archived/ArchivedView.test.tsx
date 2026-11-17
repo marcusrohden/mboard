@@ -9,7 +9,14 @@ useDomEnvironment();
 const TASKS = () => [
   buildTask({ title: 'Live task', project: 'Acme' }),
   buildTask({ title: 'Older', status: 'Done', isArchived: true, archivedAt: '2026-11-01T10:00:00', project: 'Acme' }),
-  buildTask({ title: 'Newest', status: 'Done', isArchived: true, archivedAt: '2026-11-14T10:00:00', project: null, description: 'invoice sent' }),
+  buildTask({
+    title: 'Newest',
+    status: 'Done',
+    isArchived: true,
+    archivedAt: '2026-11-14T10:00:00',
+    project: null,
+    description: 'invoice sent',
+  }),
   buildTask({ title: 'Undated', status: 'Done', isArchived: true, archivedAt: null, project: 'Other' }),
 ];
 
@@ -39,9 +46,15 @@ describe('Archived view', () => {
     await user.click(screen.getByRole('button', { name: 'Archived' }));
     expect(rowTitles()).toEqual(['Newest', 'Older', 'Undated']);
     const older = screen.getByRole('button', { name: 'Older' }).closest('tr')!;
-    const cells = within(older).getAllByRole('cell').map((cell) => cell.textContent);
+    const cells = within(older)
+      .getAllByRole('cell')
+      .map((cell) => cell.textContent);
     expect(cells).toEqual(['Older', 'Acme', '1 Nov 2026']);
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Title', 'Project', 'Archived']);
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'Title',
+      'Project',
+      'Archived',
+    ]);
   });
 
   it('applies search and the Project filter but hides Due and Stale only', async () => {
@@ -94,6 +107,9 @@ describe('Archived view', () => {
 
     await user.click(screen.getByRole('button', { name: 'Archived' }));
     const done = within(screen.getByRole('region', { name: 'Done' }));
-    expect(done.getAllByRole('article').map((article) => article.getAttribute('aria-label'))).toEqual(['Newest', 'Already done']);
+    expect(done.getAllByRole('article').map((article) => article.getAttribute('aria-label'))).toEqual([
+      'Newest',
+      'Already done',
+    ]);
   });
 });

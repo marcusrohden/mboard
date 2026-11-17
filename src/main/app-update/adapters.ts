@@ -48,11 +48,7 @@ export interface AppUpdateInstaller {
    * zip and checks the unpacked app. On any failure, or when `signal` aborts, the staging folder is
    * removed before the promise rejects.
    */
-  prepare(
-    download: ReleaseDownload,
-    version: string,
-    signal: AbortSignal,
-  ): Promise<PreparedAppUpdate>;
+  prepare(download: ReleaseDownload, version: string, signal: AbortSignal): Promise<PreparedAppUpdate>;
   /**
    * Starts the helper that waits for mboard to quit, replaces the app bundle, removes the staging folder
    * and opens the new version. If the helper can't start, the staging folder is removed and this rejects.

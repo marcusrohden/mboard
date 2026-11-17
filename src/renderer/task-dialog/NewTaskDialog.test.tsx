@@ -47,17 +47,24 @@ describe('New task dialog', () => {
     });
     expect(screen.queryByRole('dialog')).toBeNull();
     const inProgress = screen.getByRole('region', { name: 'In progress' });
-    expect(within(inProgress).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual([
-      'Write the brief',
-      'Existing',
-    ]);
+    expect(
+      within(inProgress)
+        .getAllByRole('article')
+        .map((a) => a.getAttribute('aria-label')),
+    ).toEqual(['Write the brief', 'Existing']);
   });
 
   it('offers all five columns', async () => {
     const { user } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
     const dialog = await openDialog(user);
     const select = within(dialog).getByLabelText('Column') as HTMLSelectElement;
-    expect([...select.options].map((option) => option.value)).toEqual(['To do', 'In progress', 'Internal', 'With client', 'Done']);
+    expect([...select.options].map((option) => option.value)).toEqual([
+      'To do',
+      'In progress',
+      'Internal',
+      'With client',
+      'Done',
+    ]);
   });
 
   it.each(['Internal', 'With client'] as const)('creates a task straight into %s', async (status) => {
@@ -75,7 +82,11 @@ describe('New task dialog', () => {
       description: '',
     });
     const column = screen.getByRole('region', { name: status });
-    expect(within(column).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual(['Waiting on someone']);
+    expect(
+      within(column)
+        .getAllByRole('article')
+        .map((a) => a.getAttribute('aria-label')),
+    ).toEqual(['Waiting on someone']);
   });
 
   it('creates with Enter in the title', async () => {

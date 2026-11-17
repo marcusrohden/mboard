@@ -2,12 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import {
-  _electron as electron,
-  test as base,
-  type ElectronApplication,
-  type Page,
-} from '@playwright/test';
+import { _electron as electron, test as base, type ElectronApplication, type Page } from '@playwright/test';
 
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const BUILT_MAIN_ENTRY = path.join(PROJECT_ROOT, '.vite', 'build', 'main.cjs');

@@ -9,7 +9,8 @@ import {
 } from './ordering';
 import { makeTask } from './testHelpers';
 
-const ordered = (id: string, order: number | null, extra = {}) => makeTask({ id: `tasks/${id}.md`, title: id, order, ...extra });
+const ordered = (id: string, order: number | null, extra = {}) =>
+  makeTask({ id: `tasks/${id}.md`, title: id, order, ...extra });
 
 describe('compareColumnTasks', () => {
   it('sorts order ascending with missing orders last', () => {
@@ -28,7 +29,10 @@ describe('compareColumnTasks', () => {
   });
 
   it('breaks equal numeric orders by created descending', () => {
-    const tasks = [ordered('old', 1, { created: '2026-11-01T09:00:00' }), ordered('new', 1, { created: '2026-11-02T09:00:00' })];
+    const tasks = [
+      ordered('old', 1, { created: '2026-11-01T09:00:00' }),
+      ordered('new', 1, { created: '2026-11-02T09:00:00' }),
+    ];
     expect(tasks.sort(compareColumnTasks).map((task) => task.title)).toEqual(['new', 'old']);
   });
 });
@@ -102,7 +106,10 @@ describe('orderForInsertBefore', () => {
   });
 
   it('renumbers when equal orders leave no gap', () => {
-    const equal = [ordered('a', 1, { created: '2026-11-02T09:00:00' }), ordered('b', 1, { created: '2026-11-01T09:00:00' })];
+    const equal = [
+      ordered('a', 1, { created: '2026-11-02T09:00:00' }),
+      ordered('b', 1, { created: '2026-11-01T09:00:00' }),
+    ];
     expect(orderForInsertBefore(equal, 'tasks/x.md', 'tasks/b.md').kind).toBe('renumber');
   });
 
@@ -113,7 +120,10 @@ describe('orderForInsertBefore', () => {
   });
 
   it('renumbers everything when the new position follows a task with no order', () => {
-    const unnumbered = [ordered('a', null, { created: '2026-11-03T09:00:00' }), ordered('b', null, { created: '2026-11-02T09:00:00' })];
+    const unnumbered = [
+      ordered('a', null, { created: '2026-11-03T09:00:00' }),
+      ordered('b', null, { created: '2026-11-02T09:00:00' }),
+    ];
     expect(orderForInsertBefore(unnumbered, 'tasks/x.md', null)).toEqual({
       kind: 'renumber',
       assignments: [
@@ -166,7 +176,10 @@ describe('a column merged from legacy columns', () => {
   });
 
   it('drops between different orders with a single write', () => {
-    expect(orderForInsertBefore(merged, 'tasks/x.md', 'tasks/from in progress 2.md')).toEqual({ kind: 'single', order: 1.5 });
+    expect(orderForInsertBefore(merged, 'tasks/x.md', 'tasks/from in progress 2.md')).toEqual({
+      kind: 'single',
+      order: 1.5,
+    });
   });
 });
 

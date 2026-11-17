@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFileNotifier } from './file-notifier';
-import { createNotificationLog, formatLogLine, type NotificationLog, type NotificationLogEntry } from './notification-log';
+import {
+  createNotificationLog,
+  formatLogLine,
+  type NotificationLog,
+  type NotificationLogEntry,
+} from './notification-log';
 import { createSystemNotifier, NOTIFICATION_TIMEOUT_MS, type NotificationHandle } from './system-notifier';
 import { FakeClock } from './testing/fakes';
 

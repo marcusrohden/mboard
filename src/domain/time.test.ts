@@ -44,12 +44,18 @@ describe('tolerant timestamp parsing', () => {
     expect(normaliseTimestamp(raw)).toBe(expected);
   });
 
-  it.each(['', 'yesterday', '2026-13-01', '2026-02-30', '2026-11-16T24:00', '2026-11-16T09:60', '16/11/2026', '2026-11-16Z'])(
-    'rejects %j',
-    (raw) => {
-      expect(parseTimestamp(raw)).toBeNull();
-    },
-  );
+  it.each([
+    '',
+    'yesterday',
+    '2026-13-01',
+    '2026-02-30',
+    '2026-11-16T24:00',
+    '2026-11-16T09:60',
+    '16/11/2026',
+    '2026-11-16Z',
+  ])('rejects %j', (raw) => {
+    expect(parseTimestamp(raw)).toBeNull();
+  });
 
   it('reads an offset as an absolute moment', () => {
     expect(parseTimestamp('2026-11-16T09:30:00Z')?.toISOString()).toBe('2026-11-16T09:30:00.000Z');

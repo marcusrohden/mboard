@@ -44,6 +44,7 @@ export class MenuFolderChange {
   private async settle(choice: FolderChoice): Promise<void> {
     if (choice.kind === 'rejected') return this.dialogs.showRejection(choice.message);
     if (choice.kind !== 'needsConfirmation') return;
-    if (await this.dialogs.confirmOutsideVault(choice.message)) await this.settle(await this.setup.confirm(choice.path));
+    if (await this.dialogs.confirmOutsideVault(choice.message))
+      await this.settle(await this.setup.confirm(choice.path));
   }
 }

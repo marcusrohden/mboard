@@ -17,7 +17,12 @@ export function UnreadableNotice({ files }: { files: readonly UnreadableFile[] }
     <div className={styles.notice}>
       <div className={styles.noticeRow}>
         <span role="status">{summary}</span>
-        <Button variant="quiet" aria-expanded={isExpanded} aria-controls={detailsId} onClick={() => setIsExpanded((open) => !open)}>
+        <Button
+          variant="quiet"
+          aria-expanded={isExpanded}
+          aria-controls={detailsId}
+          onClick={() => setIsExpanded((open) => !open)}
+        >
           {isExpanded ? 'Hide details' : 'Show details'}
         </Button>
       </div>

@@ -15,11 +15,7 @@ function githubUrlUnder(text: string, pathPrefix: string): string | null {
   } catch {
     return null;
   }
-  const isGitHub =
-    url.protocol === 'https:' &&
-    url.host === 'github.com' &&
-    url.username === '' &&
-    url.password === '';
+  const isGitHub = url.protocol === 'https:' && url.host === 'github.com' && url.username === '' && url.password === '';
   return isGitHub && url.pathname.startsWith(pathPrefix) ? url.href : null;
 }
 

@@ -2,11 +2,7 @@ import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { access, mkdir, mkdtemp, open, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
-import type {
-  AppUpdateInstaller,
-  PreparedAppUpdate,
-  ReleaseDownload,
-} from './adapters';
+import type { AppUpdateInstaller, PreparedAppUpdate, ReleaseDownload } from './adapters';
 import type { Fetch } from './github-release-source';
 import {
   appBundlePath,
@@ -17,23 +13,13 @@ import {
   unwritableFolderProblem,
   type RunningCopy,
 } from './install-location';
-import {
-  RELAUNCH_COMMAND,
-  swapCommand,
-  SWAP_WAIT_LIMIT_SECONDS,
-} from './swap-script';
+import { RELAUNCH_COMMAND, swapCommand, SWAP_WAIT_LIMIT_SECONDS } from './swap-script';
 
 /** Runs a command to completion and resolves with its standard output; rejects when it fails. */
-export type CommandRunner = (
-  command: string,
-  args: readonly string[],
-) => Promise<string>;
+export type CommandRunner = (command: string, args: readonly string[]) => Promise<string>;
 
 /** Starts a command that outlives mboard. Resolves once it has started; rejects when it can't. */
-export type DetachedSpawner = (
-  command: string,
-  args: readonly string[],
-) => Promise<void>;
+export type DetachedSpawner = (command: string, args: readonly string[]) => Promise<void>;
 
 export interface MacAppUpdateInstallerOptions {
   fetch: Fetch;
@@ -52,13 +38,10 @@ const PLIST_BUDDY = '/usr/libexec/PlistBuddy';
 const UNPACKED_FOLDER = 'unpacked';
 
 const Message = {
-  download:
-    "mboard couldn't download the new version. Check your internet connection and try again.",
-  mismatch:
-    "The downloaded file didn't match the release, so mboard didn't install it.",
+  download: "mboard couldn't download the new version. Check your internet connection and try again.",
+  mismatch: "The downloaded file didn't match the release, so mboard didn't install it.",
   unpack: "mboard couldn't unpack the new version.",
-  noApp:
-    "The download didn't contain the mboard app, so mboard didn't install it.",
+  noApp: "The download didn't contain the mboard app, so mboard didn't install it.",
   inspect: "mboard couldn't check the new version, so it didn't install it.",
   stopped: 'The download stopped before it finished.',
   launch: "mboard couldn't start installing the new version.",
@@ -93,24 +76,11 @@ async function isWritable(folder: string): Promise<boolean> {
  * downloads lives in one staging folder under `tempFolder`, which is removed when the process ends,
  * whether it succeeds or fails.
  */
-export function createMacAppUpdateInstaller(
-  options: MacAppUpdateInstallerOptions,
-): AppUpdateInstaller {
-  const {
-    fetch,
-    runningCopy,
-    tempFolder,
-    processId,
-    run,
-    spawnDetached,
-    reportError,
-  } = options;
+export function createMacAppUpdateInstaller(options: MacAppUpdateInstallerOptions): AppUpdateInstaller {
+  const { fetch, runningCopy, tempFolder, processId, run, spawnDetached, reportError } = options;
   const currentBundle = appBundlePath(runningCopy.executablePath);
 
-  async function step<T>(
-    failureMessage: string,
-    action: () => Promise<T>,
-  ): Promise<T> {
+  async function step<T>(failureMessage: string, action: () => Promise<T>): Promise<T> {
     try {
       return await action();
     } catch (error) {
@@ -124,28 +94,18 @@ export function createMacAppUpdateInstaller(
     if (signal.aborted) throw new AppUpdateFailure(Message.stopped);
   }
 
-  async function requestDownload(
-    download: ReleaseDownload,
-    signal: AbortSignal,
-  ): Promise<Response> {
+  async function requestDownload(download: ReleaseDownload, signal: AbortSignal): Promise<Response> {
     const response = await step(Message.download, () =>
       fetch(download.url, { headers: { 'User-Agent': 'mboard' }, signal }),
     );
     if (!response.ok || response.body === null) {
-      throw new AppUpdateFailure(
-        `GitHub couldn't send the new version (HTTP ${response.status}). Try again later.`,
-      );
+      throw new AppUpdateFailure(`GitHub couldn't send the new version (HTTP ${response.status}). Try again later.`);
     }
     return response;
   }
 
-  async function downloadInto(
-    zipPath: string,
-    download: ReleaseDownload,
-    signal: AbortSignal,
-  ): Promise<void> {
-    const body = (await requestDownload(download, signal))
-      .body as ReadableStream<Uint8Array>;
+  async function downloadInto(zipPath: string, download: ReleaseDownload, signal: AbortSignal): Promise<void> {
+    const body = (await requestDownload(download, signal)).body as ReadableStream<Uint8Array>;
     const hash = createHash('sha256');
     let received = 0;
     const file = await step(Message.download, () => open(zipPath, 'wx'));
@@ -153,8 +113,7 @@ export function createMacAppUpdateInstaller(
       await step(Message.download, async () => {
         for await (const chunk of body) {
           received += chunk.byteLength;
-          if (received > download.size)
-            throw new AppUpdateFailure(Message.mismatch);
+          if (received > download.size) throw new AppUpdateFailure(Message.mismatch);
           hash.update(chunk);
           await file.write(chunk);
         }
@@ -186,41 +145,26 @@ export function createMacAppUpdateInstaller(
   }
 
   async function checkBundle(bundle: string, version: string): Promise<void> {
-    const [expectedId, bundleId, bundleVersion] = await step(
-      Message.inspect,
-      () =>
-        Promise.all([
-          readBundleValue(currentBundle, 'CFBundleIdentifier'),
-          readBundleValue(bundle, 'CFBundleIdentifier'),
-          readBundleValue(bundle, 'CFBundleShortVersionString'),
-        ]),
+    const [expectedId, bundleId, bundleVersion] = await step(Message.inspect, () =>
+      Promise.all([
+        readBundleValue(currentBundle, 'CFBundleIdentifier'),
+        readBundleValue(bundle, 'CFBundleIdentifier'),
+        readBundleValue(bundle, 'CFBundleShortVersionString'),
+      ]),
     );
-    if (bundleId !== expectedId || bundleVersion !== version)
-      throw new AppUpdateFailure(wrongVersionMessage(version));
-    await run(XATTR, ['-dr', 'com.apple.quarantine', bundle]).catch(
-      () => undefined,
-    );
+    if (bundleId !== expectedId || bundleVersion !== version) throw new AppUpdateFailure(wrongVersionMessage(version));
+    await run(XATTR, ['-dr', 'com.apple.quarantine', bundle]).catch(() => undefined);
   }
 
-  async function prepare(
-    download: ReleaseDownload,
-    version: string,
-    signal: AbortSignal,
-  ): Promise<PreparedAppUpdate> {
+  async function prepare(download: ReleaseDownload, version: string, signal: AbortSignal): Promise<PreparedAppUpdate> {
     stopIfAborted(signal);
     const stagingFolder = await step(Message.download, () =>
       mkdtemp(path.join(tempFolder, `${STAGING_FOLDER_PREFIX}${version}-`)),
     );
     try {
-      const zipPath = path.join(
-        stagingFolder,
-        path.basename(download.fileName),
-      );
+      const zipPath = path.join(stagingFolder, path.basename(download.fileName));
       await downloadInto(zipPath, download, signal);
-      const bundlePath = await unpack(
-        zipPath,
-        path.join(stagingFolder, UNPACKED_FOLDER),
-      );
+      const bundlePath = await unpack(zipPath, path.join(stagingFolder, UNPACKED_FOLDER));
       stopIfAborted(signal);
       await checkBundle(bundlePath, version);
       stopIfAborted(signal);
@@ -234,9 +178,7 @@ export function createMacAppUpdateInstaller(
   async function launchSwap(prepared: PreparedAppUpdate): Promise<void> {
     try {
       if (!isStagingFolder(prepared.stagingFolder, tempFolder)) {
-        throw new Error(
-          `Refusing to swap from outside the temp folder: ${prepared.stagingFolder}`,
-        );
+        throw new Error(`Refusing to swap from outside the temp folder: ${prepared.stagingFolder}`);
       }
       const { command, args } = swapCommand({
         processId,
@@ -263,17 +205,11 @@ export function createMacAppUpdateInstaller(
   }
 
   async function removeLeftovers(): Promise<void> {
-    const entries = await readdir(tempFolder, { withFileTypes: true }).catch(
-      () => [],
-    );
+    const entries = await readdir(tempFolder, { withFileTypes: true }).catch(() => []);
     const leftovers = entries
-      .filter(
-        (entry) =>
-          entry.isDirectory() && entry.name.startsWith(STAGING_FOLDER_PREFIX),
-      )
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith(STAGING_FOLDER_PREFIX))
       .map((entry) => path.join(tempFolder, entry.name));
-    if (bundleLocationProblem(runningCopy) === null)
-      leftovers.push(backupBundlePath(currentBundle));
+    if (bundleLocationProblem(runningCopy) === null) leftovers.push(backupBundlePath(currentBundle));
     await Promise.all(leftovers.map(removeQuietly));
   }
 

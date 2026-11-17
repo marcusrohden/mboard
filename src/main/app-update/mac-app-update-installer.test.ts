@@ -2,11 +2,7 @@ import { createHash } from 'node:crypto';
 import { chmod, mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createTemporaryFolder,
-  listFilesRecursively,
-  removeTemporaryFolder,
-} from '../test-support/temporary-folder';
+import { createTemporaryFolder, listFilesRecursively, removeTemporaryFolder } from '../test-support/temporary-folder';
 import type { ReleaseDownload } from './adapters';
 import type { Fetch } from './github-release-source';
 import {
@@ -79,10 +75,7 @@ describe('createMacAppUpdateInstaller', () => {
     root = await createTemporaryFolder('mboard-installer-');
     tempFolder = path.join(root, 'T');
     await mkdir(tempFolder);
-    await mkdir(
-      path.join(root, 'Applications', 'mboard.app', 'Contents', 'MacOS'),
-      { recursive: true },
-    );
+    await mkdir(path.join(root, 'Applications', 'mboard.app', 'Contents', 'MacOS'), { recursive: true });
     tools = fakeTools();
     tools.plist.set(`Applications|CFBundleIdentifier`, BUNDLE_ID);
     tools.plist.set(`unpacked|CFBundleIdentifier`, BUNDLE_ID);
@@ -103,14 +96,7 @@ describe('createMacAppUpdateInstaller', () => {
       fetch,
       runningCopy: {
         isPackaged: true,
-        executablePath: path.join(
-          root,
-          'Applications',
-          'mboard.app',
-          'Contents',
-          'MacOS',
-          'mboard',
-        ),
+        executablePath: path.join(root, 'Applications', 'mboard.app', 'Contents', 'MacOS', 'mboard'),
       },
       tempFolder,
       processId: 4242,
@@ -129,35 +115,19 @@ describe('createMacAppUpdateInstaller', () => {
 
   describe('prepare', () => {
     it('downloads, checks, unpacks and deletes the zip, keeping only the unpacked app', async () => {
-      const prepared = await installer().prepare(
-        download(),
-        '0.2.0',
-        new AbortController().signal,
-      );
+      const prepared = await installer().prepare(download(), '0.2.0', new AbortController().signal);
 
       expect(prepared.version).toBe('0.2.0');
       expect(path.dirname(prepared.stagingFolder)).toBe(tempFolder);
-      expect(path.basename(prepared.stagingFolder)).toMatch(
-        /^mboard-app-update-0\.2\.0-/,
-      );
-      expect(prepared.bundlePath).toBe(
-        path.join(prepared.stagingFolder, 'unpacked', 'mboard.app'),
-      );
+      expect(path.basename(prepared.stagingFolder)).toMatch(/^mboard-app-update-0\.2\.0-/);
+      expect(prepared.bundlePath).toBe(path.join(prepared.stagingFolder, 'unpacked', 'mboard.app'));
       expect(await readdir(prepared.stagingFolder)).toEqual(['unpacked']);
-      expect(tools.calls).toEqual([
-        'ditto',
-        'PlistBuddy',
-        'PlistBuddy',
-        'PlistBuddy',
-        'xattr',
-      ]);
+      expect(tools.calls).toEqual(['ditto', 'PlistBuddy', 'PlistBuddy', 'PlistBuddy', 'xattr']);
     });
 
     it('still succeeds when the quarantine flag cannot be removed', async () => {
       tools.failing.add('xattr');
-      await expect(
-        installer().prepare(download(), '0.2.0', new AbortController().signal),
-      ).resolves.toBeTruthy();
+      await expect(installer().prepare(download(), '0.2.0', new AbortController().signal)).resolves.toBeTruthy();
     });
 
     it.each([
@@ -176,26 +146,15 @@ describe('createMacAppUpdateInstaller', () => {
         () => download({ size: ZIP_BYTES.byteLength - 1 }),
         /didn't match the release/,
       ],
-    ])(
-      'removes everything and refuses when %s',
-      async (_description, makeDownload, message) => {
-        await expect(
-          installer().prepare(
-            makeDownload(),
-            '0.2.0',
-            new AbortController().signal,
-          ),
-        ).rejects.toThrow(message);
-        expect(await tempEntries()).toEqual([]);
-        expect(tools.calls).toEqual([]);
-      },
-    );
+    ])('removes everything and refuses when %s', async (_description, makeDownload, message) => {
+      await expect(installer().prepare(makeDownload(), '0.2.0', new AbortController().signal)).rejects.toThrow(message);
+      expect(await tempEntries()).toEqual([]);
+      expect(tools.calls).toEqual([]);
+    });
 
     it('removes everything when GitHub answers with an error', async () => {
       fetchBody = () => new Response('Not Found', { status: 404 });
-      await expect(
-        installer().prepare(download(), '0.2.0', new AbortController().signal),
-      ).rejects.toThrow(
+      await expect(installer().prepare(download(), '0.2.0', new AbortController().signal)).rejects.toThrow(
         "GitHub couldn't send the new version (HTTP 404). Try again later.",
       );
       expect(await tempEntries()).toEqual([]);
@@ -205,13 +164,7 @@ describe('createMacAppUpdateInstaller', () => {
       const fetch: Fetch = async () => {
         throw new TypeError('net::ERR_CONNECTION_RESET');
       };
-      await expect(
-        installer({ fetch }).prepare(
-          download(),
-          '0.2.0',
-          new AbortController().signal,
-        ),
-      ).rejects.toThrow(
+      await expect(installer({ fetch }).prepare(download(), '0.2.0', new AbortController().signal)).rejects.toThrow(
         "mboard couldn't download the new version. Check your internet connection and try again.",
       );
       expect(await tempEntries()).toEqual([]);
@@ -220,59 +173,31 @@ describe('createMacAppUpdateInstaller', () => {
 
     it.each([
       ['ditto', "mboard couldn't unpack the new version."],
-      [
-        'PlistBuddy',
-        "mboard couldn't check the new version, so it didn't install it.",
-      ],
-    ])(
-      'removes the zip and everything else when %s fails',
-      async (tool, message) => {
-        tools.failing.add(tool);
-        await expect(
-          installer().prepare(
-            download(),
-            '0.2.0',
-            new AbortController().signal,
-          ),
-        ).rejects.toThrow(message);
-        expect(await tempEntries()).toEqual([]);
-      },
-    );
+      ['PlistBuddy', "mboard couldn't check the new version, so it didn't install it."],
+    ])('removes the zip and everything else when %s fails', async (tool, message) => {
+      tools.failing.add(tool);
+      await expect(installer().prepare(download(), '0.2.0', new AbortController().signal)).rejects.toThrow(message);
+      expect(await tempEntries()).toEqual([]);
+    });
 
     it.each([
       ['another app', 'unpacked|CFBundleIdentifier', 'com.example.other'],
       ['another version', 'unpacked|CFBundleShortVersionString', '0.1.9'],
-    ])(
-      'removes everything and refuses a bundle that is %s',
-      async (_description, key, value) => {
-        tools.plist.set(key, value);
-        await expect(
-          installer().prepare(
-            download(),
-            '0.2.0',
-            new AbortController().signal,
-          ),
-        ).rejects.toThrow(
-          "The download isn't mboard 0.2.0, so mboard didn't install it.",
-        );
-        expect(await tempEntries()).toEqual([]);
-        expect(tools.calls).not.toContain('xattr');
-      },
-    );
+    ])('removes everything and refuses a bundle that is %s', async (_description, key, value) => {
+      tools.plist.set(key, value);
+      await expect(installer().prepare(download(), '0.2.0', new AbortController().signal)).rejects.toThrow(
+        "The download isn't mboard 0.2.0, so mboard didn't install it.",
+      );
+      expect(await tempEntries()).toEqual([]);
+      expect(tools.calls).not.toContain('xattr');
+    });
 
     it('removes everything when the zip holds no app', async () => {
       const run: CommandRunner = async (command, args) => {
-        if (path.basename(command) === 'ditto')
-          await writeFile(path.join(args[3]!, 'README.txt'), 'no app here');
+        if (path.basename(command) === 'ditto') await writeFile(path.join(args[3]!, 'README.txt'), 'no app here');
         return '';
       };
-      await expect(
-        installer({ run }).prepare(
-          download(),
-          '0.2.0',
-          new AbortController().signal,
-        ),
-      ).rejects.toThrow(
+      await expect(installer({ run }).prepare(download(), '0.2.0', new AbortController().signal)).rejects.toThrow(
         "The download didn't contain the mboard app, so mboard didn't install it.",
       );
       expect(await tempEntries()).toEqual([]);
@@ -284,20 +209,16 @@ describe('createMacAppUpdateInstaller', () => {
         controller.abort();
         return tools.run(command, args);
       };
-      await expect(
-        installer({ run }).prepare(download(), '0.2.0', controller.signal),
-      ).rejects.toThrow('The download stopped before it finished.');
+      await expect(installer({ run }).prepare(download(), '0.2.0', controller.signal)).rejects.toThrow(
+        'The download stopped before it finished.',
+      );
       expect(await tempEntries()).toEqual([]);
     });
   });
 
   describe('launchSwap', () => {
     it('starts the swap helper for the running bundle and leaves staging to it', async () => {
-      const prepared = await installer().prepare(
-        download(),
-        '0.2.0',
-        new AbortController().signal,
-      );
+      const prepared = await installer().prepare(download(), '0.2.0', new AbortController().signal);
       await installer().launchSwap(prepared);
 
       const currentBundle = path.join(root, 'Applications', 'mboard.app');
@@ -312,23 +233,17 @@ describe('createMacAppUpdateInstaller', () => {
         '/usr/bin/open',
         '60',
       ]);
-      expect(await tempEntries()).toEqual([
-        path.basename(prepared.stagingFolder),
-      ]);
+      expect(await tempEntries()).toEqual([path.basename(prepared.stagingFolder)]);
     });
 
     it('removes staging when the helper cannot start', async () => {
-      const prepared = await installer().prepare(
-        download(),
-        '0.2.0',
-        new AbortController().signal,
-      );
+      const prepared = await installer().prepare(download(), '0.2.0', new AbortController().signal);
       const failingSpawn = async () => {
         throw new Error('spawn /bin/sh EAGAIN');
       };
-      await expect(
-        installer({ spawnDetached: failingSpawn }).launchSwap(prepared),
-      ).rejects.toThrow("mboard couldn't start installing the new version.");
+      await expect(installer({ spawnDetached: failingSpawn }).launchSwap(prepared)).rejects.toThrow(
+        "mboard couldn't start installing the new version.",
+      );
       expect(await tempEntries()).toEqual([]);
     });
 
@@ -354,12 +269,9 @@ describe('createMacAppUpdateInstaller', () => {
     it('explains a copy running from source', async () => {
       const runningCopy = {
         isPackaged: false,
-        executablePath:
-          '/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron',
+        executablePath: '/repo/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron',
       };
-      await expect(
-        installer({ runningCopy }).installBlocker(),
-      ).resolves.toMatch(/running from source/);
+      await expect(installer({ runningCopy }).installBlocker()).resolves.toMatch(/running from source/);
     });
 
     it('explains a folder it cannot write to', async () => {
@@ -372,53 +284,21 @@ describe('createMacAppUpdateInstaller', () => {
 
   describe('removeLeftovers', () => {
     it('removes staging folders and a backup bundle left by an unfinished run, and nothing else', async () => {
-      await mkdir(
-        path.join(tempFolder, 'mboard-app-update-0.2.0-abc', 'unpacked'),
-        { recursive: true },
-      );
-      await writeFile(
-        path.join(
-          tempFolder,
-          'mboard-app-update-0.2.0-abc',
-          'mboard-darwin-arm64-0.2.0.zip',
-        ),
-        ZIP_BYTES,
-      );
+      await mkdir(path.join(tempFolder, 'mboard-app-update-0.2.0-abc', 'unpacked'), { recursive: true });
+      await writeFile(path.join(tempFolder, 'mboard-app-update-0.2.0-abc', 'mboard-darwin-arm64-0.2.0.zip'), ZIP_BYTES);
       await mkdir(path.join(tempFolder, 'mboard-app-update-0.3.0-def'));
       await mkdir(path.join(tempFolder, 'someone-elses-folder'));
-      await mkdir(
-        path.join(
-          root,
-          'Applications',
-          '.mboard.app.app-update-backup',
-          'Contents',
-        ),
-        { recursive: true },
-      );
-      await writeFile(
-        path.join(
-          root,
-          'Applications',
-          'mboard.app',
-          'Contents',
-          'MacOS',
-          'mboard',
-        ),
-        'running',
-      );
+      await mkdir(path.join(root, 'Applications', '.mboard.app.app-update-backup', 'Contents'), { recursive: true });
+      await writeFile(path.join(root, 'Applications', 'mboard.app', 'Contents', 'MacOS', 'mboard'), 'running');
 
       await installer().removeLeftovers();
 
       expect(await tempEntries()).toEqual(['someone-elses-folder']);
-      expect(
-        await listFilesRecursively(path.join(root, 'Applications')),
-      ).toEqual(['mboard.app/Contents/MacOS/mboard']);
+      expect(await listFilesRecursively(path.join(root, 'Applications'))).toEqual(['mboard.app/Contents/MacOS/mboard']);
     });
 
     it('copes with a temp folder that does not exist', async () => {
-      await expect(
-        installer({ tempFolder: path.join(root, 'missing') }).removeLeftovers(),
-      ).resolves.toBeUndefined();
+      await expect(installer({ tempFolder: path.join(root, 'missing') }).removeLeftovers()).resolves.toBeUndefined();
     });
   });
 });

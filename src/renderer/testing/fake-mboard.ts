@@ -1,5 +1,12 @@
 import { vi, type Mock } from 'vitest';
-import { columnTasks, formatLogTimestamp, isSameRevertPoint, revertDocument, toTask, type TaskDocument } from '../../domain';
+import {
+  columnTasks,
+  formatLogTimestamp,
+  isSameRevertPoint,
+  revertDocument,
+  toTask,
+  type TaskDocument,
+} from '../../domain';
 import type {
   AppState,
   AppUpdateStage,
@@ -137,11 +144,15 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
         return recorded(task, `Title changed from "${task.title}" to "${title}"`, { title, id: `tasks/${title}.md` });
       }
       case 'description':
-        return edit.value === task.description ? task : recorded(task, 'Description edited', { description: edit.value });
+        return edit.value === task.description
+          ? task
+          : recorded(task, 'Description edited', { description: edit.value });
       case 'project': {
         const project = edit.value === null || edit.value.trim() === '' ? null : edit.value.trim();
         if (project === task.project) return task;
-        return recorded(task, `Project changed from ${task.project ?? '(none)'} to ${project ?? '(none)'}`, { project });
+        return recorded(task, `Project changed from ${task.project ?? '(none)'} to ${project ?? '(none)'}`, {
+          project,
+        });
       }
       case 'due':
         if (edit.value === task.due) return task;
@@ -200,7 +211,8 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       const insertAt = beforeId === null ? targetIds.length : targetIds.indexOf(beforeId);
       if (insertAt === -1) throw new Error("That task isn't in the column any more.");
       targetIds.splice(insertAt, 0, id);
-      const moved = status === task.status ? task : recorded(task, `Moved from ${task.status} to ${status}`, { status });
+      const moved =
+        status === task.status ? task : recorded(task, `Moved from ${task.status} to ${status}`, { status });
       tasks = tasks.map((candidate) => (candidate.id === id ? moved : candidate));
       renumberColumn(targetIds);
       publish();
@@ -221,7 +233,12 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       const done = columnTasks(tasks, 'Done');
       tasks = tasks.map((task) =>
         done.some((candidate) => candidate.id === task.id)
-          ? recorded(task, 'Archived', { id: `archive/${nameOf(task.id)}.md`, isArchived: true, archivedAt: now, order: null })
+          ? recorded(task, 'Archived', {
+              id: `archive/${nameOf(task.id)}.md`,
+              isArchived: true,
+              archivedAt: now,
+              order: null,
+            })
           : task,
       );
       publish();

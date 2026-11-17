@@ -59,7 +59,9 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   const views = useMemo(() => buildColumnViews(tasks, criteria, today), [tasks, criteria, today]);
   const suggestions = useMemo(() => projectSuggestions(tasks), [tasks]);
   const projectOptions = useMemo(
-    () => [...new Set([...suggestions, ...[...criteria.projects].filter((project): project is string => project !== null)])],
+    () => [
+      ...new Set([...suggestions, ...[...criteria.projects].filter((project): project is string => project !== null)]),
+    ],
     [suggestions, criteria.projects],
   );
   const archivedTasks = useMemo(() => tasks.filter((task) => task.isArchived), [tasks]);
@@ -80,7 +82,12 @@ export function BoardScreen({ boardName }: { boardName: string }) {
     await commands.archiveAllDone();
   }
 
-  if (snapshot === null) return <p role="status" className={styles.loading}>Loading…</p>;
+  if (snapshot === null)
+    return (
+      <p role="status" className={styles.loading}>
+        Loading…
+      </p>
+    );
 
   return (
     <div className={styles.screen}>
@@ -121,11 +128,21 @@ export function BoardScreen({ boardName }: { boardName: string }) {
           )}
         </main>
         {selection.selectedTask !== null && (
-          <TaskDrawer task={selection.selectedTask} today={snapshot.today} projectSuggestions={suggestions} commands={commands} onClose={selection.close} />
+          <TaskDrawer
+            task={selection.selectedTask}
+            today={snapshot.today}
+            projectSuggestions={suggestions}
+            commands={commands}
+            onClose={selection.close}
+          />
         )}
       </div>
       {isNewTaskOpen && (
-        <NewTaskDialog projectSuggestions={suggestions} onCreate={commands.create} onClose={() => setIsNewTaskOpen(false)} />
+        <NewTaskDialog
+          projectSuggestions={suggestions}
+          onCreate={commands.create}
+          onClose={() => setIsNewTaskOpen(false)}
+        />
       )}
       {isConfirmingArchiveAll && (
         <ConfirmDialog

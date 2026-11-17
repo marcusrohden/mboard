@@ -1,8 +1,4 @@
-import type {
-  PublishedRelease,
-  ReleaseDownload,
-  ReleaseSource,
-} from './adapters';
+import type { PublishedRelease, ReleaseDownload, ReleaseSource } from './adapters';
 import {
   LATEST_RELEASE_API_URL,
   releaseZipName,
@@ -23,12 +19,9 @@ export interface GitHubReleaseSourceOptions {
 type JsonObject = Record<string, unknown>;
 
 const SHA256_DIGEST = /^sha256:([0-9a-f]{64})$/i;
-const NOT_UNDERSTOOD =
-  "GitHub's answer about the latest release wasn't understood.";
-const UNREACHABLE =
-  "mboard couldn't reach GitHub to check for a new version. Check your internet connection.";
-const RATE_LIMITED =
-  'GitHub is limiting update checks right now. Try again later.';
+const NOT_UNDERSTOOD = "GitHub's answer about the latest release wasn't understood.";
+const UNREACHABLE = "mboard couldn't reach GitHub to check for a new version. Check your internet connection.";
+const RATE_LIMITED = 'GitHub is limiting update checks right now. Try again later.';
 
 const REQUEST_HEADERS = {
   Accept: 'application/vnd.github+json',
@@ -42,21 +35,10 @@ function isJsonObject(value: unknown): value is JsonObject {
 
 function readDownload(asset: JsonObject): ReleaseDownload | null {
   const { name, size, digest, browser_download_url: downloadUrl } = asset;
-  const sha256 =
-    typeof digest === 'string' ? SHA256_DIGEST.exec(digest)?.[1] : undefined;
-  const url =
-    typeof downloadUrl === 'string'
-      ? trustedReleaseDownloadUrl(downloadUrl)
-      : null;
-  const hasSize =
-    typeof size === 'number' && Number.isSafeInteger(size) && size > 0;
-  if (
-    typeof name !== 'string' ||
-    sha256 === undefined ||
-    url === null ||
-    !hasSize
-  )
-    return null;
+  const sha256 = typeof digest === 'string' ? SHA256_DIGEST.exec(digest)?.[1] : undefined;
+  const url = typeof downloadUrl === 'string' ? trustedReleaseDownloadUrl(downloadUrl) : null;
+  const hasSize = typeof size === 'number' && Number.isSafeInteger(size) && size > 0;
+  if (typeof name !== 'string' || sha256 === undefined || url === null || !hasSize) return null;
   return { fileName: name, url, size, sha256: sha256.toLowerCase() };
 }
 
@@ -67,27 +49,17 @@ function readDownload(asset: JsonObject): ReleaseDownload | null {
  *
  * @throws Error when the answer doesn't have the shape of a GitHub release.
  */
-export function parseLatestRelease(
-  json: unknown,
-  arch: string,
-): PublishedRelease | null {
-  if (
-    !isJsonObject(json) ||
-    typeof json['tag_name'] !== 'string' ||
-    typeof json['html_url'] !== 'string'
-  ) {
+export function parseLatestRelease(json: unknown, arch: string): PublishedRelease | null {
+  if (!isJsonObject(json) || typeof json['tag_name'] !== 'string' || typeof json['html_url'] !== 'string') {
     throw new Error(NOT_UNDERSTOOD);
   }
   const version = parseVersion(json['tag_name']);
   const releaseUrl = trustedReleasePageUrl(json['html_url']);
   const assets = json['assets'];
-  if (version === null || releaseUrl === null || !Array.isArray(assets))
-    throw new Error(NOT_UNDERSTOOD);
+  if (version === null || releaseUrl === null || !Array.isArray(assets)) throw new Error(NOT_UNDERSTOOD);
 
   const zipName = releaseZipName(arch, formatVersion(version));
-  const zip = assets
-    .filter(isJsonObject)
-    .find((asset) => asset['name'] === zipName);
+  const zip = assets.filter(isJsonObject).find((asset) => asset['name'] === zipName);
   if (zip === undefined || zip['state'] !== 'uploaded') return null;
   return { version, releaseUrl, download: readDownload(zip) };
 }
@@ -112,20 +84,14 @@ async function readJson(response: Response): Promise<unknown> {
  * Looks up mboard's latest release through GitHub's public REST API, without a token. A 404 means
  * nothing has been released yet.
  */
-export function createGitHubReleaseSource({
-  fetch,
-  arch,
-}: GitHubReleaseSourceOptions): ReleaseSource {
+export function createGitHubReleaseSource({ fetch, arch }: GitHubReleaseSourceOptions): ReleaseSource {
   return {
     async latest() {
       const response = await requestLatestRelease(fetch);
       if (response.status === 404) return null;
-      if (response.status === 403 || response.status === 429)
-        throw new Error(RATE_LIMITED);
+      if (response.status === 403 || response.status === 429) throw new Error(RATE_LIMITED);
       if (!response.ok)
-        throw new Error(
-          `GitHub couldn't answer the update check (HTTP ${response.status}). Try again later.`,
-        );
+        throw new Error(`GitHub couldn't answer the update check (HTTP ${response.status}). Try again later.`);
       return parseLatestRelease(await readJson(response), arch);
     },
   };

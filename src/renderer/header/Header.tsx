@@ -49,7 +49,12 @@ export function Header({
           if (event.key === 'Escape') event.currentTarget.blur();
         }}
       />
-      <FilterControls criteria={criteria} projects={projects} showBoardOnlyFilters={!isArchivedView} dispatch={dispatch} />
+      <FilterControls
+        criteria={criteria}
+        projects={projects}
+        showBoardOnlyFilters={!isArchivedView}
+        dispatch={dispatch}
+      />
       {isFilterActive && (
         <Button variant="quiet" onClick={() => dispatch({ type: 'clear' })}>
           Clear

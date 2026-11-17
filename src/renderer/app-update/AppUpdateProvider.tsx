@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { AppUpdateStatus } from '../../shared/contract';
 import { getMboardApi } from '../mboard-api';
 import { useLoadedAndPushed } from '../state/use-loaded-and-pushed';
@@ -30,25 +23,13 @@ const AppUpdateContext = createContext<AppUpdateControls | null>(null);
  */
 export function AppUpdateProvider({ children }: { children: ReactNode }) {
   const api = getMboardApi();
-  const status = useLoadedAndPushed(
-    api.getAppUpdateStatus,
-    api.onAppUpdateStatus,
-  );
+  const status = useLoadedAndPushed(api.getAppUpdateStatus, api.onAppUpdateStatus);
   const run = useRunCommand();
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
 
-  const check = useCallback(
-    () => void run((bridge) => bridge.checkForAppUpdate()),
-    [run],
-  );
-  const install = useCallback(
-    () => void run((bridge) => bridge.installAppUpdate()),
-    [run],
-  );
-  const openReleasePage = useCallback(
-    () => void run((bridge) => bridge.openAppUpdateReleasePage()),
-    [run],
-  );
+  const check = useCallback(() => void run((bridge) => bridge.checkForAppUpdate()), [run]);
+  const install = useCallback(() => void run((bridge) => bridge.installAppUpdate()), [run]);
+  const openReleasePage = useCallback(() => void run((bridge) => bridge.openAppUpdateReleasePage()), [run]);
 
   const controls = useMemo<AppUpdateControls>(
     () => ({
@@ -61,11 +42,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
     }),
     [status, check, install, openReleasePage, dismissedVersion],
   );
-  return (
-    <AppUpdateContext.Provider value={controls}>
-      {children}
-    </AppUpdateContext.Provider>
-  );
+  return <AppUpdateContext.Provider value={controls}>{children}</AppUpdateContext.Provider>;
 }
 
 /**
@@ -75,7 +52,6 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
  */
 export function useAppUpdate(): AppUpdateControls {
   const controls = useContext(AppUpdateContext);
-  if (controls === null)
-    throw new Error('useAppUpdate must be used inside an AppUpdateProvider.');
+  if (controls === null) throw new Error('useAppUpdate must be used inside an AppUpdateProvider.');
   return controls;
 }

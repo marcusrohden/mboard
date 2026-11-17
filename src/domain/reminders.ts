@@ -88,7 +88,11 @@ export function buildNotification(eligible: readonly ReminderSource[], today: Lo
 }
 
 /** Works out what to deliver at `now`, and which keys to record as fired afterwards. */
-export function planReminders(tasks: readonly ReminderSource[], now: LocalDateTime, firedKeys: ReadonlySet<string>): ReminderPlan {
+export function planReminders(
+  tasks: readonly ReminderSource[],
+  now: LocalDateTime,
+  firedKeys: ReadonlySet<string>,
+): ReminderPlan {
   const eligible = eligibleReminders(tasks, now, firedKeys);
   return {
     notification: buildNotification(eligible, localDateOf(now)),
@@ -110,7 +114,10 @@ export function withFiredKeys(firedKeys: ReadonlySet<string>, keys: Iterable<str
 }
 
 /** Keeps only the fired keys whose task still exists, whatever its column or whether it is archived. */
-export function pruneFiredKeys(firedKeys: ReadonlySet<string>, tasks: readonly Pick<Task, 'created' | 'due'>[]): Set<string> {
+export function pruneFiredKeys(
+  firedKeys: ReadonlySet<string>,
+  tasks: readonly Pick<Task, 'created' | 'due'>[],
+): Set<string> {
   const existing = new Set(tasks.filter((task) => task.due !== null).map(reminderKey));
   return new Set([...firedKeys].filter((key) => existing.has(key)));
 }

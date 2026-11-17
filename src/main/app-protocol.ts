@@ -35,20 +35,12 @@ export function registerAppSchemeAsPrivileged(): void {
  * a strict Content Security Policy to every response.
  */
 export function serveRendererBundle(bundleDirectory: string): void {
-  protocol.handle(APP_SCHEME, (request) =>
-    respondWithBundleFile(request.url, bundleDirectory),
-  );
+  protocol.handle(APP_SCHEME, (request) => respondWithBundleFile(request.url, bundleDirectory));
 }
 
-async function respondWithBundleFile(
-  requestUrl: string,
-  bundleDirectory: string,
-): Promise<Response> {
+async function respondWithBundleFile(requestUrl: string, bundleDirectory: string): Promise<Response> {
   const { host, pathname } = new URL(requestUrl);
-  const filePath =
-    host === APP_BUNDLE_HOST
-      ? resolveBundleFilePath(bundleDirectory, pathname)
-      : undefined;
+  const filePath = host === APP_BUNDLE_HOST ? resolveBundleFilePath(bundleDirectory, pathname) : undefined;
   if (filePath === undefined) {
     return notFound();
   }

@@ -1,10 +1,5 @@
 import { useId, useState } from 'react';
-import {
-  formatCompactDateTime,
-  revertBlocker,
-  revertExpectationFor,
-  type RevertBlocker,
-} from '../../domain';
+import { formatCompactDateTime, revertBlocker, revertExpectationFor, type RevertBlocker } from '../../domain';
 import type { LocalDate, RevertExpectation, Task } from '../../shared/contract';
 import { formatLogTime } from '../lib/format';
 import { Button } from '../ui/Button';

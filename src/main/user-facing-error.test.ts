@@ -4,7 +4,9 @@ import { userFacingMessage } from './user-facing-error';
 
 describe('userFacingMessage', () => {
   it('keeps the message of a rule or validation error', () => {
-    expect(userFacingMessage(new Error('Only tasks in Done can be archived.'))).toBe('Only tasks in Done can be archived.');
+    expect(userFacingMessage(new Error('Only tasks in Done can be archived.'))).toBe(
+      'Only tasks in Done can be archived.',
+    );
   });
 
   it('puts file system errors into plain words without the path', () => {

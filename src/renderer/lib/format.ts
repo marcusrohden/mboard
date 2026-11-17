@@ -30,7 +30,10 @@ export function formatLogTime(logTimestamp: string): string {
  * The full text behind a task's age chip, for example
  * `Created 12 Nov 08:00 · Updated 14 Nov 09:12 — 3 working days, Needs a nudge`.
  */
-export function describeAge(task: Pick<Task, 'created' | 'updated' | 'status' | 'isArchived'>, today: LocalDate): string {
+export function describeAge(
+  task: Pick<Task, 'created' | 'updated' | 'status' | 'isArchived'>,
+  today: LocalDate,
+): string {
   const { days, tier } = stalenessOf(task, today);
   const count = `${days} working ${days === 1 ? 'day' : 'days'}`;
   const created = formatCompactDateTime(task.created, today);

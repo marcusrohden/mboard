@@ -30,7 +30,14 @@ export function ArchivedView({ tasks, hasArchivedTasks, onOpen }: ArchivedViewPr
           {sorted.map((task) => (
             <tr key={task.id} className={styles.row} onClick={() => onOpen(task.id)}>
               <td>
-                <button type="button" className={styles.titleButton} onClick={(event) => { event.stopPropagation(); onOpen(task.id); }}>
+                <button
+                  type="button"
+                  className={styles.titleButton}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpen(task.id);
+                  }}
+                >
                   {task.title}
                 </button>
               </td>

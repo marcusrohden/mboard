@@ -34,7 +34,14 @@ export function TaskDrawer(props: TaskDrawerProps) {
   );
 }
 
-function TaskDrawerPanel({ task, today, projectSuggestions, commands, onClose, pendingSaves }: TaskDrawerProps & { pendingSaves: PendingFieldSaves }) {
+function TaskDrawerPanel({
+  task,
+  today,
+  projectSuggestions,
+  commands,
+  onClose,
+  pendingSaves,
+}: TaskDrawerProps & { pendingSaves: PendingFieldSaves }) {
   const statusId = useId();
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const readOnly = task.isArchived;
@@ -129,14 +136,20 @@ function TaskDrawerPanel({ task, today, projectSuggestions, commands, onClose, p
               Mark complete
             </Button>
           )}
-          {!readOnly && task.status === 'Done' && <Button onClick={() => void commands.archive(task.id)}>Archive</Button>}
+          {!readOnly && task.status === 'Done' && (
+            <Button onClick={() => void commands.archive(task.id)}>Archive</Button>
+          )}
           {readOnly && <Button onClick={() => void commands.restore(task.id)}>Restore</Button>}
           <Button onClick={() => void commands.openInObsidian(task.id)}>Open in Obsidian</Button>
           <Button variant="danger" onClick={() => setIsConfirmingDelete(true)}>
             Delete
           </Button>
         </div>
-        <CommentsSection comments={task.comments} readOnly={readOnly} onAdd={(text) => commands.addComment(task.id, text)} />
+        <CommentsSection
+          comments={task.comments}
+          readOnly={readOnly}
+          onAdd={(text) => commands.addComment(task.id, text)}
+        />
         <HistorySection
           task={task}
           today={today}

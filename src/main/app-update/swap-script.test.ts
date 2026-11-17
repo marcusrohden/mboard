@@ -2,15 +2,10 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  createTemporaryFolder,
-  listFilesRecursively,
-  removeTemporaryFolder,
-} from '../test-support/temporary-folder';
+import { createTemporaryFolder, listFilesRecursively, removeTemporaryFolder } from '../test-support/temporary-folder';
 import { swapCommand, type SwapPlan } from './swap-script';
 
-const RELAUNCH_RECORDER =
-  '#!/bin/sh\nprintf "%s" "$1" > "$(dirname "$0")/relaunched.txt"\n';
+const RELAUNCH_RECORDER = '#!/bin/sh\nprintf "%s" "$1" > "$(dirname "$0")/relaunched.txt"\n';
 
 async function makeBundle(bundle: string, marker: string): Promise<void> {
   await mkdir(path.join(bundle, 'Contents', 'MacOS'), { recursive: true });
@@ -20,9 +15,7 @@ async function makeBundle(bundle: string, marker: string): Promise<void> {
 function runSwap(plan: SwapPlan): Promise<number> {
   const { command, args } = swapCommand(plan);
   return new Promise((resolve) => {
-    execFile(command, args, (error) =>
-      resolve(error === null ? 0 : Number(error.code)),
-    );
+    execFile(command, args, (error) => resolve(error === null ? 0 : Number(error.code)));
   });
 }
 
@@ -62,31 +55,19 @@ describe('the swap helper', () => {
   });
 
   async function remainingFiles(): Promise<string[]> {
-    return (await listFilesRecursively(root)).filter(
-      (file) => file !== 'relaunch.sh',
-    );
+    return (await listFilesRecursively(root)).filter((file) => file !== 'relaunch.sh');
   }
 
   async function relaunched(): Promise<string | null> {
-    return readFile(path.join(root, 'relaunched.txt'), 'utf8').catch(
-      () => null,
-    );
+    return readFile(path.join(root, 'relaunched.txt'), 'utf8').catch(() => null);
   }
 
   it('waits for mboard to quit, swaps in the new bundle, removes the backup and staging, then relaunches', async () => {
     expect(await runSwap(plan)).toBe(0);
 
     expect(waitedFor?.exitCode).toBe(0);
-    expect(
-      await readFile(
-        path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'),
-        'utf8',
-      ),
-    ).toBe('new');
-    expect(await remainingFiles()).toEqual([
-      'Applications/mboard.app/Contents/MacOS/mboard',
-      'relaunched.txt',
-    ]);
+    expect(await readFile(path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'), 'utf8')).toBe('new');
+    expect(await remainingFiles()).toEqual(['Applications/mboard.app/Contents/MacOS/mboard', 'relaunched.txt']);
     expect(await relaunched()).toBe(plan.currentBundle);
   });
 
@@ -98,16 +79,8 @@ describe('the swap helper', () => {
       }),
     ).toBe(0);
 
-    expect(
-      await readFile(
-        path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'),
-        'utf8',
-      ),
-    ).toBe('old');
-    expect(await remainingFiles()).toEqual([
-      'Applications/mboard.app/Contents/MacOS/mboard',
-      'relaunched.txt',
-    ]);
+    expect(await readFile(path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'), 'utf8')).toBe('old');
+    expect(await remainingFiles()).toEqual(['Applications/mboard.app/Contents/MacOS/mboard', 'relaunched.txt']);
     expect(await relaunched()).toBe(plan.currentBundle);
   });
 
@@ -116,16 +89,8 @@ describe('the swap helper', () => {
 
     expect(await runSwap(plan)).toBe(0);
 
-    expect(
-      await readFile(
-        path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'),
-        'utf8',
-      ),
-    ).toBe('new');
-    expect(await remainingFiles()).toEqual([
-      'Applications/mboard.app/Contents/MacOS/mboard',
-      'relaunched.txt',
-    ]);
+    expect(await readFile(path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'), 'utf8')).toBe('new');
+    expect(await remainingFiles()).toEqual(['Applications/mboard.app/Contents/MacOS/mboard', 'relaunched.txt']);
   });
 
   it('gives up when mboard never quits, removing staging but leaving the app alone and not relaunching', async () => {
@@ -140,15 +105,8 @@ describe('the swap helper', () => {
       }),
     ).toBe(1);
 
-    expect(
-      await readFile(
-        path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'),
-        'utf8',
-      ),
-    ).toBe('old');
-    expect(await remainingFiles()).toEqual([
-      'Applications/mboard.app/Contents/MacOS/mboard',
-    ]);
+    expect(await readFile(path.join(plan.currentBundle, 'Contents', 'MacOS', 'mboard'), 'utf8')).toBe('old');
+    expect(await remainingFiles()).toEqual(['Applications/mboard.app/Contents/MacOS/mboard']);
     expect(await relaunched()).toBeNull();
   });
 });

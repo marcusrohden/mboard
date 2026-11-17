@@ -36,7 +36,9 @@ export type InvokeHandlers = {
 
 const CANCELLED: FolderChoice = { kind: 'cancelled' };
 
-function presentable<Result>(handler: (...args: unknown[]) => Promise<Result>): (...args: unknown[]) => Promise<Result> {
+function presentable<Result>(
+  handler: (...args: unknown[]) => Promise<Result>,
+): (...args: unknown[]) => Promise<Result> {
   return async (...args) => {
     try {
       return await handler(...args);

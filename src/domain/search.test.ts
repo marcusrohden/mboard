@@ -94,7 +94,10 @@ describe('board filters', () => {
   it('projects: matches named projects, and null means No project', () => {
     expect(board({ projects: new Set(['Acme website']) })).toEqual(['Staging build failing']);
     expect(board({ projects: new Set([null]) })).toEqual(['Chase supplier', 'Old finished job', 'Plan the quarter']);
-    expect(board({ projects: new Set(['Acme website', 'Bookkeeping']) })).toEqual(['Staging build failing', 'Send invoice']);
+    expect(board({ projects: new Set(['Acme website', 'Bookkeeping']) })).toEqual([
+      'Staging build failing',
+      'Send invoice',
+    ]);
   });
 
   it('due overdue: before today', () => {
@@ -129,7 +132,10 @@ describe('board filters', () => {
       makeTask({ title: 'Two working days', updated: '2026-11-16T09:00:00' }),
       makeTask({ title: 'Friday, today Monday', updated: '2026-11-13T09:00:00' }),
     ];
-    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, TODAY))).toEqual(['Two working days', 'Friday, today Monday']);
+    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, TODAY))).toEqual([
+      'Two working days',
+      'Friday, today Monday',
+    ]);
     expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, '2026-11-16'))).toEqual([]);
   });
 
@@ -147,8 +153,12 @@ describe('archived view filters', () => {
   ];
 
   it('applies search and projects', () => {
-    expect(titles(filterArchivedTasks(archived, { ...EMPTY_ARCHIVE_FILTER, query: 'archived website' }))).toEqual(['Archived A']);
-    expect(titles(filterArchivedTasks(archived, { ...EMPTY_ARCHIVE_FILTER, projects: new Set([null]) }))).toEqual(['Archived B']);
+    expect(titles(filterArchivedTasks(archived, { ...EMPTY_ARCHIVE_FILTER, query: 'archived website' }))).toEqual([
+      'Archived A',
+    ]);
+    expect(titles(filterArchivedTasks(archived, { ...EMPTY_ARCHIVE_FILTER, projects: new Set([null]) }))).toEqual([
+      'Archived B',
+    ]);
   });
 
   it('has no responsibility criterion', () => {

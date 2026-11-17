@@ -21,11 +21,11 @@ export type FolderClassification =
   | { kind: 'newBoard'; needsVaultConfirmation: boolean };
 
 export const NOT_A_BOARD_MESSAGE = "This folder isn't empty and isn't an mboard board.";
-export const HIDDEN_FOLDER_MESSAGE = "A hidden folder can't hold a board. Choose a folder whose name doesn't start with a dot.";
+export const HIDDEN_FOLDER_MESSAGE =
+  "A hidden folder can't hold a board. Choose a folder whose name doesn't start with a dot.";
 export const OBSIDIAN_INTERNAL_FOLDER_MESSAGE =
   "This folder is inside Obsidian's settings or trash folder, so it can't hold a board.";
-export const VAULT_WARNING_MESSAGE =
-  "This folder doesn't look like it's inside an Obsidian vault. Use it anyway?";
+export const VAULT_WARNING_MESSAGE = "This folder doesn't look like it's inside an Obsidian vault. Use it anyway?";
 
 const TASKS_FOLDER = 'tasks';
 const ICLOUD_PLACEHOLDER_SUFFIX = '.icloud';

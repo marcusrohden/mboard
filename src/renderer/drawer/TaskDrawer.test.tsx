@@ -45,7 +45,9 @@ describe('Task detail drawer fields', () => {
     expect(input(drawer, 'Description').value).toBe('Staging fails');
     expect(within(drawer).getByText('10 Nov 2026, 09:00')).toBeTruthy();
     expect(within(drawer).getByText('16 Nov 2026, 10:00')).toBeTruthy();
-    expect(within(drawer).getByTitle('Created 10 Nov 09:00 · Updated 16 Nov 10:00 — 0 working days, On track').textContent).toContain('0d');
+    expect(
+      within(drawer).getByTitle('Created 10 Nov 09:00 · Updated 16 Nov 10:00 — 0 working days, On track').textContent,
+    ).toContain('0d');
   });
 
   it('saves the title on blur and follows the renamed task', async () => {
@@ -127,11 +129,17 @@ describe('Task detail drawer fields', () => {
     expect(within(drawer).queryByText('Responsibility')).toBeNull();
   });
 
-  it('lists all five columns in the Column select, showing the task\'s own', async () => {
+  it("lists all five columns in the Column select, showing the task's own", async () => {
     const { user } = await renderBoard({ tasks: [buildTask({ title: 'Waiting', status: 'With client' })] });
     const drawer = await openTask(user, 'Waiting');
     const select = within(drawer).getByLabelText('Column') as HTMLSelectElement;
-    expect([...select.options].map((option) => option.value)).toEqual(['To do', 'In progress', 'Internal', 'With client', 'Done']);
+    expect([...select.options].map((option) => option.value)).toEqual([
+      'To do',
+      'In progress',
+      'Internal',
+      'With client',
+      'Done',
+    ]);
     expect(select.value).toBe('With client');
   });
 
@@ -144,14 +152,29 @@ describe('Task detail drawer fields', () => {
     expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Fix login.md', 'With client', 'tasks/Quote.md');
     const withClient = screen.getByRole('region', { name: 'With client' });
     await waitFor(() =>
-      expect(within(withClient).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual(['Fix login', 'Quote']),
+      expect(
+        within(withClient)
+          .getAllByRole('article')
+          .map((a) => a.getAttribute('aria-label')),
+      ).toEqual(['Fix login', 'Quote']),
     );
 
     await user.selectOptions(within(drawer).getByLabelText('Column'), 'Internal');
     expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Internal', null);
     const internal = screen.getByRole('region', { name: 'Internal' });
-    await waitFor(() => expect(within(internal).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual(['Fix login']));
-    expect(fake.tasks().find((task) => task.title === 'Fix login')?.history.at(-1)?.text).toBe('Moved from With client to Internal');
+    await waitFor(() =>
+      expect(
+        within(internal)
+          .getAllByRole('article')
+          .map((a) => a.getAttribute('aria-label')),
+      ).toEqual(['Fix login']),
+    );
+    expect(
+      fake
+        .tasks()
+        .find((task) => task.title === 'Fix login')
+        ?.history.at(-1)?.text,
+    ).toBe('Moved from With client to Internal');
   });
 
   it('moves the task to the top of another column with the Column field', async () => {
@@ -162,7 +185,11 @@ describe('Task detail drawer fields', () => {
     await user.selectOptions(within(drawer).getByLabelText('Column'), 'In progress');
     expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Fix login.md', 'In progress', 'tasks/Busy.md');
     const inProgress = screen.getByRole('region', { name: 'In progress' });
-    expect(within(inProgress).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual(['Fix login', 'Busy']);
+    expect(
+      within(inProgress)
+        .getAllByRole('article')
+        .map((a) => a.getAttribute('aria-label')),
+    ).toEqual(['Fix login', 'Busy']);
   });
 
   it('refreshes from outside changes except for the field being edited', async () => {
@@ -265,7 +292,9 @@ describe('Task detail drawer comments and history', () => {
     await user.type(within(drawer).getByRole('textbox', { name: 'New comment' }), 'Called the client');
     await user.click(add);
     expect(fake.api.addComment).toHaveBeenCalledWith('tasks/Fix login.md', 'Called the client');
-    await waitFor(() => expect((within(drawer).getByRole('textbox', { name: 'New comment' }) as HTMLTextAreaElement).value).toBe(''));
+    await waitFor(() =>
+      expect((within(drawer).getByRole('textbox', { name: 'New comment' }) as HTMLTextAreaElement).value).toBe(''),
+    );
     expect(within(drawer).getByText('Called the client')).toBeTruthy();
 
     await user.type(within(drawer).getByRole('textbox', { name: 'New comment' }), 'And again{Meta>}{Enter}{/Meta}');
@@ -318,7 +347,9 @@ const LEDGER_TASK = () =>
       ledgerEntry('2026-11-15 09:00', 'Comment added', [
         { field: 'comments', added: [{ at: '2026-11-15 09:00', text: 'Later note' }], removed: [] },
       ]),
-      ledgerEntry('2026-11-16 09:30', 'Due date changed from (none) to 2026-12-01', [{ field: 'due', from: null, to: '2026-12-01' }]),
+      ledgerEntry('2026-11-16 09:30', 'Due date changed from (none) to 2026-12-01', [
+        { field: 'due', from: null, to: '2026-12-01' },
+      ]),
     ],
   });
 
@@ -349,9 +380,11 @@ describe('Task detail drawer revert', () => {
     await user.click(within(historyEntry(drawer, 'Title changed')).getByRole('button', { name: 'Revert to here' }));
 
     const dialog = screen.getByRole('alertdialog', { name: 'Revert task?' });
-    expect(within(dialog).getByText(
-      '“Renamed task” will go back to how it was at 14 Nov 14:02. The 2 changes made after that will be removed from the task and its history.',
-    )).toBeTruthy();
+    expect(
+      within(dialog).getByText(
+        '“Renamed task” will go back to how it was at 14 Nov 14:02. The 2 changes made after that will be removed from the task and its history.',
+      ),
+    ).toBeTruthy();
     expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(within(dialog).getByRole('button', { name: 'Revert' })).toBeTruthy();
 
@@ -366,7 +399,9 @@ describe('Task detail drawer revert', () => {
     const drawer = await openHistory(user, 'Renamed task');
     await user.click(within(historyEntry(drawer, 'Comment added')).getByRole('button', { name: 'Revert to here' }));
     expect(
-      within(screen.getByRole('alertdialog')).getByText(/The 1 change made after that will be removed from the task and its history\.$/),
+      within(screen.getByRole('alertdialog')).getByText(
+        /The 1 change made after that will be removed from the task and its history\.$/,
+      ),
     ).toBeTruthy();
   });
 
@@ -390,11 +425,15 @@ describe('Task detail drawer revert', () => {
 
   it('shows a refused revert as a toast', async () => {
     const { user, fake } = await renderBoard({ tasks: [LEDGER_TASK()] });
-    fake.api.revertTask.mockRejectedValueOnce(new Error('This task changed since you opened its history. Check it and try again.'));
+    fake.api.revertTask.mockRejectedValueOnce(
+      new Error('This task changed since you opened its history. Check it and try again.'),
+    );
     const drawer = await openHistory(user, 'Renamed task');
     await user.click(within(historyEntry(drawer, 'Created in To do')).getByRole('button', { name: 'Revert to here' }));
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Revert' }));
-    expect(await screen.findByText('This task changed since you opened its history. Check it and try again.')).toBeTruthy();
+    expect(
+      await screen.findByText('This task changed since you opened its history. Check it and try again.'),
+    ).toBeTruthy();
     expect(input(drawer, 'Title').value).toBe('Renamed task');
   });
 
@@ -492,7 +531,14 @@ describe('Task detail drawer actions', () => {
 
 describe('Task detail drawer for an archived task', () => {
   it('makes every field read-only and offers Restore', async () => {
-    const archived = buildTask({ title: 'Old', status: 'Done', isArchived: true, project: 'Acme', due: '2026-11-01', description: 'Done long ago' });
+    const archived = buildTask({
+      title: 'Old',
+      status: 'Done',
+      isArchived: true,
+      project: 'Acme',
+      due: '2026-11-01',
+      description: 'Done long ago',
+    });
     const { user, fake } = await renderBoard({ tasks: [archived] });
     await user.click(screen.getByRole('button', { name: 'Archived' }));
     await user.click(screen.getByRole('button', { name: 'Old' }));

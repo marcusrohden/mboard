@@ -106,7 +106,11 @@ describe('createInvokeHandlers', () => {
     ['createTask with an extra field', 'createTask', [{ ...NEW_TASK, order: 1 }]],
     ['createTask with an unknown column', 'createTask', [{ ...NEW_TASK, status: 'Blocked' }]],
     ['createTask with a responsibility', 'createTask', [{ ...NEW_TASK, responsibility: 'Client' }]],
-    ['editTask of the removed responsibility', 'editTask', ['tasks/A.md', { field: 'responsibility', value: 'Client' }]],
+    [
+      'editTask of the removed responsibility',
+      'editTask',
+      ['tasks/A.md', { field: 'responsibility', value: 'Client' }],
+    ],
     ['moveTask to a column in another case', 'moveTask', ['tasks/A.md', 'with client', null]],
     ['editTask with an unknown field', 'editTask', ['tasks/A.md', { field: 'status', value: 'Done' }]],
     ['editTask with a wrongly typed value', 'editTask', ['tasks/A.md', { field: 'title', value: 7 }]],
@@ -124,7 +128,11 @@ describe('createInvokeHandlers', () => {
     ['revertTask with an entry index as text', 'revertTask', ['tasks/A.md', '2', EXPECTED]],
     ['revertTask with an extra expectation key', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, ledger: {} }]],
     ['revertTask with a missing expectation key', 'revertTask', ['tasks/A.md', 2, { historyLength: 4, at: '' }]],
-    ['revertTask with a wrongly typed history length', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, historyLength: '4' }]],
+    [
+      'revertTask with a wrongly typed history length',
+      'revertTask',
+      ['tasks/A.md', 2, { ...EXPECTED, historyLength: '4' }],
+    ],
     ['revertTask with a wrongly typed entry text', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, text: null }]],
   ] as const)('rejects %s before it reaches a service', async (_description, method, args) => {
     const { dependencies, board, platform, appUpdates } = fakeDependencies();

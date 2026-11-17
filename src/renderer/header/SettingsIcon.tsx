@@ -7,13 +7,7 @@ const GEAR_PATH =
 /** A 16 px gear drawn in the current text colour, for the Settings button. Hidden from assistive technology. */
 export function SettingsIcon() {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <path d={GEAR_PATH} fill="currentColor" fillRule="evenodd" />
     </svg>
   );

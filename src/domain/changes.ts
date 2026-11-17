@@ -72,9 +72,7 @@ function validateStatus(status: Status): Status {
 }
 
 function assertSafeBodyText(text: string, subject: string): void {
-  const clashes = text
-    .split('\n')
-    .some((line) => STRUCTURAL_HEADING.test(line) || isDatedCommentHeading(line));
+  const clashes = text.split('\n').some((line) => STRUCTURAL_HEADING.test(line) || isDatedCommentHeading(line));
   if (clashes) {
     throw new Error(
       `The ${subject} can't contain a line that is just "## Comments", "## History" or a dated "### " heading, because the file would read back differently.`,
@@ -121,7 +119,11 @@ export function createTaskDocument(input: NewTaskInput, context: CreateContext):
     history: [],
     unknownFrontmatter: [],
   };
-  const created = { at: formatLogTimestamp(context.now), text: `Created in ${status}`, ledger: initialLedger(document, context.now) };
+  const created = {
+    at: formatLogTimestamp(context.now),
+    text: `Created in ${status}`,
+    ledger: initialLedger(document, context.now),
+  };
   return { ...document, history: [created] };
 }
 
@@ -218,10 +220,6 @@ export function archiveDocument(document: TaskDocument, now: Date): TaskDocument
 
 /** Restores an archived task to Done at `order`, removes `archived` and records `Restored to Done`. */
 export function restoreDocument(document: TaskDocument, order: number | null, now: Date): TaskDocument {
-  return recordUpdate(
-    document,
-    { status: 'Done', rawStatus: null, archivedAt: null, order },
-    'Restored to Done',
-    now,
-  ).document;
+  return recordUpdate(document, { status: 'Done', rawStatus: null, archivedAt: null, order }, 'Restored to Done', now)
+    .document;
 }

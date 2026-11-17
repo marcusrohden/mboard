@@ -51,7 +51,10 @@ function boardFile(relativePath: string): string {
 }
 
 function seedTask(relativePath: string, fields: Record<string, string | number>): Promise<void> {
-  return seed(relativePath, taskFileText({ created: '2026-11-01T09:00:00', updated: '2026-11-01T09:00:00', ...fields }));
+  return seed(
+    relativePath,
+    taskFileText({ created: '2026-11-01T09:00:00', updated: '2026-11-01T09:00:00', ...fields }),
+  );
 }
 
 function taskIn(snapshot: BoardSnapshot, id: string): Task | undefined {
@@ -99,7 +102,9 @@ describe('opening a board', () => {
     expect(snapshot.tasks.map((task) => task.id)).toEqual(['archive/Beta.md', 'tasks/Alpha.md', 'tasks/Plain note.md']);
     expect(taskIn(snapshot, 'archive/Beta.md')).toMatchObject({ isArchived: true, archivedAt: '2026-11-10T10:00:00' });
     expect(taskIn(snapshot, 'tasks/Plain note.md')).toMatchObject({ title: 'Plain note', description: 'Just text' });
-    expect(snapshot.unreadable).toEqual([{ id: 'tasks/Broken.md', reason: expect.stringContaining("isn't valid YAML") }]);
+    expect(snapshot.unreadable).toEqual([
+      { id: 'tasks/Broken.md', reason: expect.stringContaining("isn't valid YAML") },
+    ]);
     expect(snapshot.now).toBe('2026-11-16T09:30:00');
     expect(snapshot.today).toBe('2026-11-16');
   });
@@ -216,7 +221,11 @@ describe('editing a task', () => {
 
     expect(task.updated).toBe('2026-11-16T11:00:00');
     expect(task.history).toHaveLength(2);
-    expect(task.history[1]).toMatchObject({ at: '2026-11-16 11:00', text: historyText, ledger: { at: '2026-11-16T11:00:00' } });
+    expect(task.history[1]).toMatchObject({
+      at: '2026-11-16 11:00',
+      text: historyText,
+      ledger: { at: '2026-11-16T11:00:00' },
+    });
     expect(await read('tasks/Fix login bug.md')).toContain(`- 2026-11-16 11:00 — ${historyText} <!-- mboard-ledger {`);
   });
 
@@ -310,7 +319,9 @@ describe('commenting', () => {
       ledger: {
         v: 1,
         at: '2026-11-16T09:35:00',
-        changes: [{ field: 'comments', added: [{ at: '2026-11-16 09:35', text: 'Asked for the credentials.' }], removed: [] }],
+        changes: [
+          { field: 'comments', added: [{ at: '2026-11-16 09:35', text: 'Asked for the credentials.' }], removed: [] },
+        ],
       },
     });
     expect(await read('tasks/Fix login bug.md')).toContain(
@@ -463,7 +474,13 @@ describe('archiving and restoring', () => {
     clock.advanceMinutes(10);
     const task = await service.restoreTask('archive/Shipped.md');
 
-    expect(task).toMatchObject({ id: 'tasks/Shipped.md', status: 'Done', isArchived: false, archivedAt: null, order: 1 });
+    expect(task).toMatchObject({
+      id: 'tasks/Shipped.md',
+      status: 'Done',
+      isArchived: false,
+      archivedAt: null,
+      order: 1,
+    });
     expect(task.history.slice(-2).map((entry) => entry.text)).toEqual(['Archived', 'Restored to Done']);
     expect(await read('tasks/Shipped.md')).not.toContain('archived:');
     expect(columnIds('Done')).toEqual(['tasks/Shipped.md', 'tasks/Released.md']);
@@ -504,7 +521,10 @@ describe('reverting', () => {
     await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix sign in' });
     clock.advanceMinutes(5);
     await service.editTask('tasks/Fix sign in.md', { field: 'due', value: '2026-12-01' });
-    const editedOutside = (await read('tasks/Fix sign in.md')).replace('project: Acme website', 'project: Edited in Obsidian');
+    const editedOutside = (await read('tasks/Fix sign in.md')).replace(
+      'project: Acme website',
+      'project: Edited in Obsidian',
+    );
     await writeBoardFile(boardPath, 'tasks/Fix sign in.md', editedOutside);
     await service.rescan();
     const expected = expectationAt('tasks/Fix sign in.md', 0);
@@ -525,7 +545,9 @@ describe('reverting', () => {
     ]);
     expect(existsSync(boardFile('tasks/Fix sign in.md'))).toBe(false);
     const content = await read('tasks/Fix login bug.md');
-    expect(content).toContain('- 2026-11-16 09:50 — Reverted to 16 Nov 09:30 — 2 changes discarded <!-- mboard-ledger {');
+    expect(content).toContain(
+      '- 2026-11-16 09:50 — Reverted to 16 Nov 09:30 — 2 changes discarded <!-- mboard-ledger {',
+    );
     expect(content).toContain('"changes":[{"field":"title","from":"Fix sign in","to":"Fix login bug"},');
     expect(taskIn(service.snapshot(), 'tasks/Fix login bug.md')?.title).toBe('Fix login bug');
   });
@@ -564,7 +586,9 @@ describe('reverting', () => {
     );
     await service.archiveTask('tasks/Fix login bug.md');
     const archived = expectationAt('archive/Fix login bug.md', 0);
-    await expect(service.revertTask('archive/Fix login bug.md', 0, archived)).rejects.toThrow(BoardMessage.archivedReadOnly);
+    await expect(service.revertTask('archive/Fix login bug.md', 0, archived)).rejects.toThrow(
+      BoardMessage.archivedReadOnly,
+    );
   });
 });
 
@@ -600,12 +624,18 @@ describe('outside edits', () => {
       try {
         await watchingService.open(boardPath);
         const added = taskFileText({ title: '"From Obsidian"', status: 'In progress' }, '\nWritten elsewhere.\n');
-        const appeared = waitForSnapshot(watchingService, (snapshot) => taskIn(snapshot, 'tasks/From Obsidian.md') !== undefined);
+        const appeared = waitForSnapshot(
+          watchingService,
+          (snapshot) => taskIn(snapshot, 'tasks/From Obsidian.md') !== undefined,
+        );
         await seed('tasks/From Obsidian.md', added);
         expect(taskIn(await appeared, 'tasks/From Obsidian.md')?.status).toBe('In progress');
 
         const edited = added.replace('In progress', 'Done');
-        const changed = waitForSnapshot(watchingService, (snapshot) => taskIn(snapshot, 'tasks/From Obsidian.md')?.status === 'Done');
+        const changed = waitForSnapshot(
+          watchingService,
+          (snapshot) => taskIn(snapshot, 'tasks/From Obsidian.md')?.status === 'Done',
+        );
         await writeFile(boardFile('tasks/From Obsidian.md'), edited);
         await changed;
         expect(await read('tasks/From Obsidian.md')).toBe(edited);
@@ -651,7 +681,13 @@ describe('legacy files with a responsibility', () => {
     await seedLegacy('tasks/Mine.md', 'In progress', 'Me', { order: 1 });
     await seedLegacy('tasks/Finished.md', 'Done', 'Client', { order: 1 });
     await seedLegacy('archive/Old.md', 'In progress', 'Client', { archived: '2026-11-05T09:00:00' });
-    const ids = ['tasks/Waiting on client.md', 'tasks/Waiting on team.md', 'tasks/Mine.md', 'tasks/Finished.md', 'archive/Old.md'];
+    const ids = [
+      'tasks/Waiting on client.md',
+      'tasks/Waiting on team.md',
+      'tasks/Mine.md',
+      'tasks/Finished.md',
+      'archive/Old.md',
+    ];
     const before = await Promise.all(ids.map((id) => fileState(boardFile(id))));
 
     await openBoard();
