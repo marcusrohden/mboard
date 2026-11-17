@@ -1,4 +1,5 @@
 import { useId, type KeyboardEvent, type ReactNode } from 'react';
+import { SHORTCUTS, matchesChord } from '../shortcuts/keymap';
 import { Button } from '../ui/Button';
 import { ProjectInput } from '../ui/ProjectInput';
 import fields from '../ui/fields.module.css';
@@ -21,7 +22,7 @@ interface DrawerFieldProps {
 
 /**
  * One inline-editable field in the detail drawer. It saves on blur or Enter (Cmd+Enter for the
- * description), and a date can be removed with its own button. Esc reaches the drawer, which closes
+ * description), and a date can be removed with its own button or ⌘⌫. Esc reaches the drawer, which closes
  * without saving the edit. When `readOnly` the value is shown but can't be changed. `renderBelow` adds
  * controls under the input that follow the value as shown, draft included.
  */
@@ -40,6 +41,11 @@ export function DrawerField({
   useFieldRegistration(editable);
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>): void {
+    if (kind === 'date' && !readOnly && matchesChord(SHORTCUTS.removeDueDate.chord, event)) {
+      event.preventDefault();
+      void editable.commit('');
+      return;
+    }
     const isSubmit =
       kind === 'textarea' ? event.key === 'Enter' && (event.metaKey || event.ctrlKey) : event.key === 'Enter';
     if (isSubmit) {
@@ -88,6 +94,7 @@ export function DrawerField({
             <Button
               variant="quiet"
               aria-label="Remove due date"
+              shortcutHint="removeDueDate"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => void editable.commit('')}
             >

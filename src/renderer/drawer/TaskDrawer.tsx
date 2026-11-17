@@ -4,6 +4,8 @@ import { formatDateTime } from '../lib/format';
 import type { TaskCommands } from '../state/use-task-commands';
 import { AgeChip } from '../ui/AgeChip';
 import { Button } from '../ui/Button';
+import { COLUMN_SHORTCUTS_ARIA, COLUMN_SHORTCUTS_HINT, columnShortcut } from '../shortcuts/keymap';
+import { ShortcutHint } from '../shortcuts/shortcuts';
 import { CloseIcon } from '../ui/CloseIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import fields from '../ui/fields.module.css';
@@ -91,25 +93,30 @@ function TaskDrawerPanel({
             className={styles.iconButton}
             aria-label="Close without saving"
             title="Close without saving"
+            shortcut="closeTask"
             onMouseDown={(event) => event.preventDefault()}
             onClick={closeWithoutSaving}
           >
             <CloseIcon />
           </Button>
           <DrawerField label="Title" kind="text" isHeading value={task.title} readOnly={readOnly} onSave={saveTitle} />
-          <Button variant="quiet" onClick={() => void saveAndClose()}>
+          <Button variant="quiet" shortcut="saveTask" onClick={() => void saveAndClose()}>
             Save
           </Button>
         </div>
         <div className={styles.pair}>
           <div className={fields.field}>
-            <label htmlFor={statusId} className={fields.label}>
-              Column
-            </label>
+            <span className={fields.labelRow}>
+              <label htmlFor={statusId} className={fields.label}>
+                Column
+              </label>
+              <ShortcutHint text={COLUMN_SHORTCUTS_HINT} />
+            </span>
             <select
               id={statusId}
               value={task.status}
               disabled={readOnly}
+              aria-keyshortcuts={COLUMN_SHORTCUTS_ARIA}
               onChange={(event) => changeStatus(event.target.value as Status)}
             >
               {COLUMNS.map((column) => (
@@ -160,16 +167,28 @@ function TaskDrawerPanel({
         </dl>
         <div className={styles.actions}>
           {!readOnly && task.status !== 'Done' && (
-            <Button variant="primary" onClick={() => void commands.moveToTopOf(task.id, 'Done')}>
+            <Button
+              variant="primary"
+              shortcutHint={columnShortcut(COLUMNS.length)}
+              onClick={() => void commands.moveToTopOf(task.id, 'Done')}
+            >
               Mark complete
             </Button>
           )}
           {!readOnly && task.status === 'Done' && (
-            <Button onClick={() => void commands.archive(task.id)}>Archive</Button>
+            <Button shortcutHint="archiveTask" onClick={() => void commands.archive(task.id)}>
+              Archive
+            </Button>
           )}
-          {readOnly && <Button onClick={() => void commands.restore(task.id)}>Restore</Button>}
-          <Button onClick={() => void commands.openInObsidian(task.id)}>Open in Obsidian</Button>
-          <Button variant="danger" onClick={() => setIsConfirmingDelete(true)}>
+          {readOnly && (
+            <Button shortcutHint="restoreTask" onClick={() => void commands.restore(task.id)}>
+              Restore
+            </Button>
+          )}
+          <Button shortcutHint="openInObsidian" onClick={() => void commands.openInObsidian(task.id)}>
+            Open in Obsidian
+          </Button>
+          <Button variant="danger" shortcut="deleteTask" onClick={() => setIsConfirmingDelete(true)}>
             Delete
           </Button>
         </div>

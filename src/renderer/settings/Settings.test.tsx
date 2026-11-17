@@ -65,12 +65,16 @@ describe('Opening Settings', () => {
     expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull();
   });
 
-  it('turns off the board shortcuts while open', async () => {
+  it('turns off the board shortcuts while open, and closes with ⌘.', async () => {
     const { user } = await openFromGear({
       tasks: [buildTask({ title: 'Existing' })],
     });
-    await user.keyboard('n');
+    await user.keyboard('{Meta>}n{/Meta}');
     expect(screen.queryByRole('dialog', { name: 'New task' })).toBeNull();
+    await user.keyboard('{Meta>}[Period]{/Meta}');
+    expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull();
+    await user.keyboard('{Meta>}n{/Meta}');
+    expect(screen.getByRole('dialog', { name: 'New task' })).toBeTruthy();
   });
 });
 

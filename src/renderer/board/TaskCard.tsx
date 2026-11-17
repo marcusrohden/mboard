@@ -9,6 +9,8 @@ import {
   type Task,
 } from '../../domain';
 import { useAgeThresholds } from '../state/age-thresholds';
+import { ShortcutHint, shortcutAttributes } from '../shortcuts/shortcuts';
+import { TASK_ID_ATTRIBUTE } from '../state/use-task-shortcuts';
 import { AgeChip } from '../ui/AgeChip';
 import { ProjectLabel } from '../ui/ProjectLabel';
 import { useSortableTask } from './board-dnd';
@@ -27,7 +29,7 @@ interface TaskCardProps {
  * One task on the board: title, project in its colour, then the due, created and updated dates on lines of their own.
  * A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
  * staleness tier also colours the left edge. The whole card is the drag handle. Clicking it, or pressing
- * Enter on it, opens the detail drawer.
+ * Enter on it, opens the detail drawer, and the task shortcuts act on it while it has focus.
  */
 export function TaskCard({ task, index, status, today, onOpen, onArchive }: TaskCardProps) {
   const { ref, isDragging } = useSortableTask(task.id, index, status);
@@ -47,6 +49,7 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
       role="article"
       aria-label={task.title}
       tabIndex={0}
+      {...{ [TASK_ID_ATTRIBUTE]: task.id }}
       className={styles.card}
       data-staleness={staleness.level}
       data-dragging={isDragging || undefined}
@@ -82,6 +85,7 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
         <button
           type="button"
           className={styles.archive}
+          {...shortcutAttributes('archiveTask')}
           onClick={(event) => {
             event.stopPropagation();
             onArchive(task.id);
@@ -89,6 +93,7 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
           onKeyDown={(event) => event.stopPropagation()}
         >
           Archive
+          <ShortcutHint id="archiveTask" />
         </button>
       )}
     </article>

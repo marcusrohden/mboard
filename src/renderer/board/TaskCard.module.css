@@ -83,6 +83,8 @@
 
 .archive {
   position: absolute;
+  display: inline-flex;
+  gap: var(--space-1);
   top: var(--space-1);
   right: var(--space-1);
   padding: 0 var(--space-2);

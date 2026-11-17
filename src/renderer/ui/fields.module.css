@@ -4,6 +4,13 @@
   gap: var(--space-1);
 }
 
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  color: var(--color-text-muted);
+}
+
 .label {
   color: var(--color-text-muted);
   font-size: var(--font-size-small);

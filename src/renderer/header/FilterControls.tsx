@@ -1,5 +1,6 @@
 import type { DueFilter, FilterCriteria } from '../../domain';
 import type { FilterAction } from '../lib/filters';
+import { ShortcutHint, shortcutAttributes, useShortcut } from '../shortcuts/shortcuts';
 import { FilterPopover } from './FilterPopover';
 import styles from './Header.module.css';
 
@@ -23,9 +24,20 @@ interface FilterControlsProps {
  * board, so the archived view hides them.
  */
 export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispatch }: FilterControlsProps) {
+  useShortcut(
+    'staleOnly',
+    () => dispatch({ type: 'setStaleOnly', staleOnly: !criteria.staleOnly }),
+    showBoardOnlyFilters,
+  );
+
   return (
     <div role="group" aria-label="Filters" className={styles.filters}>
-      <FilterPopover label="Project" isActive={criteria.projects.size > 0} activeCount={criteria.projects.size}>
+      <FilterPopover
+        label="Project"
+        isActive={criteria.projects.size > 0}
+        activeCount={criteria.projects.size}
+        shortcut="projectFilter"
+      >
         <label>
           <input
             type="checkbox"
@@ -47,7 +59,7 @@ export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispa
       </FilterPopover>
       {showBoardOnlyFilters && (
         <>
-          <FilterPopover label="Due" isActive={criteria.due !== 'any'} closesOnChange>
+          <FilterPopover label="Due" isActive={criteria.due !== 'any'} closesOnChange shortcut="dueFilter">
             {DUE_OPTIONS.map((option) => (
               <label key={option.value}>
                 <input
@@ -65,9 +77,11 @@ export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispa
               type="checkbox"
               role="switch"
               checked={criteria.staleOnly}
+              {...shortcutAttributes('staleOnly')}
               onChange={(event) => dispatch({ type: 'setStaleOnly', staleOnly: event.target.checked })}
             />
             Stale only
+            <ShortcutHint id="staleOnly" />
           </label>
         </>
       )}

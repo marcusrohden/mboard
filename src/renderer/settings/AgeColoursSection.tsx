@@ -144,7 +144,7 @@ export function AgeColoursSection() {
           {problem}
         </p>
       )}
-      <Button disabled={isAtDefaults} onClick={resetToDefaults}>
+      <Button disabled={isAtDefaults} shortcut="resetAgeColours" onClick={resetToDefaults}>
         Reset to defaults
       </Button>
     </SettingsSection>

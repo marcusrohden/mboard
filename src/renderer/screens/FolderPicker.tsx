@@ -63,11 +63,12 @@ export function FolderPicker({ onAccepted, chooseLabel = 'Choose folder…', chi
             <Button
               variant="primary"
               disabled={isBusy}
+              shortcut="confirm"
               onClick={() => resolve((api) => api.confirmBoardFolder(outcome.path))}
             >
               Use anyway
             </Button>
-            <Button disabled={isBusy} onClick={() => setOutcome({ kind: 'idle' })}>
+            <Button disabled={isBusy} shortcut="cancel" onClick={() => setOutcome({ kind: 'idle' })}>
               Cancel
             </Button>
           </div>
@@ -80,7 +81,7 @@ export function FolderPicker({ onAccepted, chooseLabel = 'Choose folder…', chi
             </p>
           )}
           <div className={styles.actions}>
-            <Button variant="primary" disabled={isBusy} onClick={choose}>
+            <Button variant="primary" disabled={isBusy} shortcut="chooseFolder" onClick={choose}>
               {chooseLabel}
             </Button>
             {children}

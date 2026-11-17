@@ -5,6 +5,7 @@ import { getMboardApi } from '../mboard-api';
 import { FolderPicker } from '../screens/FolderPicker';
 import { useLoadedAndPushed } from '../state/use-loaded-and-pushed';
 import { useRunCommand } from '../state/use-run-command';
+import { ShortcutHint, shortcutAttributes, useShortcut } from '../shortcuts/shortcuts';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { AgeColoursSection } from './AgeColoursSection';
@@ -49,6 +50,8 @@ function BoardFolderSection({ appState, onAppState }: Pick<SettingsDialogProps, 
 
 function StartupSection({ preferences }: { preferences: Preferences | null }) {
   const run = useRunCommand();
+  const toggle = (enabled: boolean): void => void run((api) => api.setOpenAtLogin(enabled));
+  useShortcut('toggleOpenAtLogin', () => toggle(!(preferences?.openAtLogin ?? false)), preferences !== null);
   return (
     <SettingsSection title="Open at login">
       <label className={styles.checkbox}>
@@ -56,12 +59,11 @@ function StartupSection({ preferences }: { preferences: Preferences | null }) {
           type="checkbox"
           checked={preferences?.openAtLogin ?? false}
           disabled={preferences === null}
-          onChange={(event) => {
-            const enabled = event.target.checked;
-            void run((api) => api.setOpenAtLogin(enabled));
-          }}
+          {...shortcutAttributes('toggleOpenAtLogin')}
+          onChange={(event) => toggle(event.target.checked)}
         />
         Open mboard when you log in to your Mac
+        <ShortcutHint id="toggleOpenAtLogin" />
       </label>
     </SettingsSection>
   );
@@ -93,17 +95,21 @@ function AppUpdatesSection() {
         <p className={styles.muted}>{stage.installBlocker}</p>
       )}
       <div className={styles.actions}>
-        <Button disabled={isAppUpdateBusy(stage)} onClick={check}>
+        <Button disabled={isAppUpdateBusy(stage)} shortcut="checkForUpdates" onClick={check}>
           Check for updates
         </Button>
         {canInstall && (
-          <Button variant="primary" onClick={install}>
+          <Button variant="primary" shortcut="installUpdate" onClick={install}>
             Install and restart
           </Button>
         )}
-        {offersDownload && <Button onClick={openReleasePage}>Download from GitHub</Button>}
+        {offersDownload && (
+          <Button shortcut="downloadUpdate" onClick={openReleasePage}>
+            Download from GitHub
+          </Button>
+        )}
         {hasRelease && !offersDownload && (
-          <Button variant="quiet" onClick={openReleasePage}>
+          <Button variant="quiet" shortcut="releaseNotes" onClick={openReleasePage}>
             Release notes
           </Button>
         )}
@@ -130,7 +136,7 @@ export function SettingsDialog({ appState, onAppState, onClose }: SettingsDialog
       <NotificationsSection preferences={preferences} />
       <AppUpdatesSection />
       <div className={styles.footer}>
-        <Button variant="primary" onClick={onClose}>
+        <Button variant="primary" shortcut="cancel" onClick={onClose}>
           Done
         </Button>
       </div>

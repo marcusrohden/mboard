@@ -58,7 +58,7 @@ export function CommentsSection({ comments, readOnly, onAdd }: CommentsSectionPr
             }}
           />
           <div>
-            <Button disabled={!canPost} onClick={() => void post()}>
+            <Button disabled={!canPost} shortcutHint="addComment" onClick={() => void post()}>
               Add comment
             </Button>
           </div>

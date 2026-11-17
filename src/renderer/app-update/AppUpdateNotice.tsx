@@ -49,14 +49,22 @@ export function AppUpdateNotice() {
         <strong role="status">{notice.text}</strong>
         <div className={styles.actions}>
           {notice.actions.includes('install') && (
-            <Button variant="primary" onClick={install}>
+            <Button variant="primary" shortcut="installUpdate" onClick={install}>
               Install and restart
             </Button>
           )}
-          {notice.actions.includes('download') && <Button onClick={openReleasePage}>Download from GitHub</Button>}
-          {notice.actions.includes('releaseNotes') && <Button onClick={openReleasePage}>Release notes</Button>}
+          {notice.actions.includes('download') && (
+            <Button shortcut="downloadUpdate" onClick={openReleasePage}>
+              Download from GitHub
+            </Button>
+          )}
+          {notice.actions.includes('releaseNotes') && (
+            <Button shortcut="releaseNotes" onClick={openReleasePage}>
+              Release notes
+            </Button>
+          )}
           {notice.actions.includes('later') && version !== null && (
-            <Button variant="quiet" onClick={() => dismiss(version)}>
+            <Button variant="quiet" shortcut="dismissUpdate" onClick={() => dismiss(version)}>
               Later
             </Button>
           )}

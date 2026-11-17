@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import type { ShortcutId } from '../shortcuts/keymap';
+import { useShortcut } from '../shortcuts/shortcuts';
 import { Button } from '../ui/Button';
 import styles from './FilterPopover.module.css';
 
@@ -7,17 +9,31 @@ interface FilterPopoverProps {
   isActive: boolean;
   activeCount?: number;
   closesOnChange?: boolean;
+  shortcut?: ShortcutId;
   children: ReactNode;
 }
 
 /**
- * A header button that opens a small panel of options beneath it. The panel closes on Esc, on a click
- * outside it, or when focus leaves it. The button keeps the plain name of the filter, and marks an active filter visually.
+ * A header button that opens a small panel of options beneath it, also with its shortcut, which moves focus
+ * to the button so the options are a Tab away. The panel closes on Esc, on a click outside it, or when
+ * focus leaves it. The button keeps the plain name of the filter, and marks an active filter visually.
  */
-export function FilterPopover({ label, isActive, activeCount, closesOnChange = false, children }: FilterPopoverProps) {
+export function FilterPopover({
+  label,
+  isActive,
+  activeCount,
+  closesOnChange = false,
+  shortcut,
+  children,
+}: FilterPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+
+  useShortcut(shortcut, () => {
+    rootRef.current?.querySelector('button')?.focus();
+    setIsOpen((open) => !open);
+  });
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -50,6 +66,7 @@ export function FilterPopover({ label, isActive, activeCount, closesOnChange = f
       <Button
         aria-expanded={isOpen}
         aria-controls={isOpen ? panelId : undefined}
+        shortcutHint={shortcut}
         data-active={isActive || undefined}
         className={styles.trigger}
         onClick={() => setIsOpen((open) => !open)}

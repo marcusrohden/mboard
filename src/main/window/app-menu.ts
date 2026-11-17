@@ -9,9 +9,9 @@ export interface AppMenuActions {
 /**
  * Installs the macOS app menu: the app menu with **Settings…** (Cmd+, in its usual place after About),
  * **Change board folder…** and Quit, and the standard Edit and Window menus so undo, cut, copy, paste and
- * select all work in text fields and Cmd+W closes (hides) the window. Settings is a menu accelerator because
- * the renderer's own shortcuts ignore keys pressed with a modifier. Quit uses the `quit` role, which goes
- * through `app.quit()`.
+ * select all work in text fields and Cmd+W closes (hides) the window. Settings is a menu accelerator, so
+ * Cmd+, works on every screen and over every dialog; the renderer's own Command shortcuts leave it, and
+ * every other menu key, alone. Quit uses the `quit` role, which goes through `app.quit()`.
  */
 export function installAppMenu(actions: AppMenuActions): void {
   const template: MenuItemConstructorOptions[] = [

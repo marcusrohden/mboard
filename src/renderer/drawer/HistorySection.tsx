@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { formatCompactDateTime, revertBlocker, revertExpectationFor, type RevertBlocker } from '../../domain';
 import type { LocalDate, RevertExpectation, Task } from '../../shared/contract';
 import { formatLogTime } from '../lib/format';
+import { useShortcut } from '../shortcuts/shortcuts';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import styles from './Drawer.module.css';
@@ -18,6 +19,12 @@ interface PendingRevert {
 }
 
 const ARCHIVED_NOTE = 'Restore the task to revert it to an earlier entry.';
+const REVERT_ENTRY_ATTRIBUTE = 'data-revert-entry';
+
+function pressFocusedRevertButton(): void {
+  const focused = document.activeElement;
+  if (focused instanceof HTMLButtonElement && focused.hasAttribute(REVERT_ENTRY_ATTRIBUTE)) focused.click();
+}
 
 const ENTRY_NOTES: Partial<Record<RevertBlocker, string>> = {
   beforeLedger: "Can't revert this far back: a later change was made before mboard kept a ledger.",
@@ -48,11 +55,13 @@ function notesWithLedgerReasonOnce(blockers: readonly (RevertBlocker | null)[]):
 /**
  * A task's history log behind a "History" disclosure button, newest entry first. Every entry the task
  * can be reverted to has a Revert to here button, which asks for confirmation first. Entries that can't
- * be reverted to say briefly why, and an archived task asks to be restored first.
+ * be reverted to say briefly why, and an archived task asks to be restored first. ⇧⌘H shows or hides the
+ * log, and ⇧⌘U presses the Revert to here button that has focus.
  */
 export function HistorySection({ task, today, onRevert }: HistorySectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [pending, setPending] = useState<PendingRevert | null>(null);
+  useShortcut('revertToHere', pressFocusedRevertButton, isOpen);
   const listId = useId();
   const newestFirst = task.history.map((entry, index) => ({ entry, index })).reverse();
   const blockers = newestFirst.map(({ index }) => revertBlocker(task, index));
@@ -65,7 +74,13 @@ export function HistorySection({ task, today, onRevert }: HistorySectionProps) {
 
   return (
     <section className={styles.section}>
-      <Button variant="quiet" aria-expanded={isOpen} aria-controls={listId} onClick={() => setIsOpen((open) => !open)}>
+      <Button
+        variant="quiet"
+        aria-expanded={isOpen}
+        aria-controls={listId}
+        shortcut="toggleHistory"
+        onClick={() => setIsOpen((open) => !open)}
+      >
         History
       </Button>
       {isOpen && task.isArchived && task.history.length > 1 && <p className={styles.muted}>{ARCHIVED_NOTE}</p>}
@@ -79,6 +94,8 @@ export function HistorySection({ task, today, onRevert }: HistorySectionProps) {
               {blockers[position] === null && (
                 <Button
                   variant="quiet"
+                  shortcutHint="revertToHere"
+                  {...{ [REVERT_ENTRY_ATTRIBUTE]: '' }}
                   onClick={() => setPending({ index, expected: revertExpectationFor(task.history, index) })}
                 >
                   Revert to here

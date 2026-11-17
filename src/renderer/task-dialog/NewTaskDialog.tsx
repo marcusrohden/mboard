@@ -1,5 +1,7 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, useState } from 'react';
 import { COLUMNS, normaliseProject, type NewTaskInput, type ProjectColour, type Status } from '../../domain';
+import { COLUMN_SHORTCUTS_ARIA, COLUMN_SHORTCUTS_HINT, columnShortcut } from '../shortcuts/keymap';
+import { ShortcutHint, useShortcuts } from '../shortcuts/shortcuts';
 import { Button } from '../ui/Button';
 import { ColourPicker } from '../ui/ColourPicker';
 import { AUTOFOCUS_ATTRIBUTE, Modal } from '../ui/Modal';
@@ -14,6 +16,12 @@ interface NewTaskDialogProps {
   onClose: () => void;
 }
 
+/** Lets ⌘1 to ⌘5 pick the column. Rendered inside the dialog, so the keys belong to its layer. */
+function ColumnShortcuts({ onPick }: { onPick: (status: Status) => void }) {
+  useShortcuts(COLUMNS.map((column, index) => [columnShortcut(index + 1), () => onPick(column)] as const));
+  return null;
+}
+
 function isNewProject(project: string | null, knownProjects: readonly string[]): project is string {
   if (project === null) return false;
   const wanted = project.toLowerCase();
@@ -21,7 +29,8 @@ function isNewProject(project: string | null, knownProjects: readonly string[]):
 }
 
 /**
- * The New task dialog. Enter in the title, or Cmd+Enter anywhere, creates the task, and Esc cancels.
+ * The New task dialog. Enter in the title, or ⌘↵ anywhere, creates the task, ⌘1 to ⌘5 pick the column, and
+ * ⌘. or Esc cancels.
  * Typing a project the board doesn't have yet offers a colour for it, saved once the task exists. The
  * dialog stays open if the task can't be created, so nothing typed is lost.
  */
@@ -57,16 +66,10 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onSetProjectColour
     if (created) onClose();
   }
 
-  function submitOnCommandEnter(event: KeyboardEvent<HTMLDivElement>): void {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      void submit();
-    }
-  }
-
   return (
     <Modal label="New task" onClose={onClose}>
-      <div className={styles.form} onKeyDown={submitOnCommandEnter}>
+      <div className={styles.form}>
+        <ColumnShortcuts onPick={setStatus} />
         <h2 className={styles.heading}>New task</h2>
         <div className={fields.field}>
           <label htmlFor={ids.title} className={fields.label}>
@@ -99,10 +102,18 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onSetProjectColour
         </div>
         <div className={styles.pair}>
           <div className={fields.field}>
-            <label htmlFor={ids.status} className={fields.label}>
-              Column
-            </label>
-            <select id={ids.status} value={status} onChange={(event) => setStatus(event.target.value as Status)}>
+            <span className={fields.labelRow}>
+              <label htmlFor={ids.status} className={fields.label}>
+                Column
+              </label>
+              <ShortcutHint text={COLUMN_SHORTCUTS_HINT} />
+            </span>
+            <select
+              id={ids.status}
+              value={status}
+              aria-keyshortcuts={COLUMN_SHORTCUTS_ARIA}
+              onChange={(event) => setStatus(event.target.value as Status)}
+            >
               {COLUMNS.map((column) => (
                 <option key={column} value={column}>
                   {column}
@@ -143,8 +154,10 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onSetProjectColour
           <textarea id={ids.description} value={description} onChange={(event) => setDescription(event.target.value)} />
         </div>
         <div className={styles.actions}>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" disabled={isSaving} onClick={() => void submit()}>
+          <Button shortcut="cancel" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={isSaving} shortcut="confirm" onClick={() => void submit()}>
             Create task
           </Button>
         </div>

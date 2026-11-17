@@ -1,6 +1,7 @@
 import { compareArchivedTasks, localDateOf, type Task, type TaskId } from '../../domain';
 import { formatDate } from '../lib/format';
 import styles from './ArchivedView.module.css';
+import { TASK_ID_ATTRIBUTE } from '../state/use-task-shortcuts';
 import { ProjectLabel } from '../ui/ProjectLabel';
 
 interface ArchivedViewProps {
@@ -29,7 +30,12 @@ export function ArchivedView({ tasks, hasArchivedTasks, onOpen }: ArchivedViewPr
         </thead>
         <tbody>
           {sorted.map((task) => (
-            <tr key={task.id} className={styles.row} onClick={() => onOpen(task.id)}>
+            <tr
+              key={task.id}
+              className={styles.row}
+              {...{ [TASK_ID_ATTRIBUTE]: task.id }}
+              onClick={() => onOpen(task.id)}
+            >
               <td>
                 <button
                   type="button"

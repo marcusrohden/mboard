@@ -9,6 +9,7 @@ import { UnavailableScreen } from './screens/UnavailableScreen';
 import screenStyles from './screens/Screens.module.css';
 import { SettingsProvider } from './settings/SettingsProvider';
 import { AgeThresholdsProvider } from './state/age-thresholds';
+import { ShortcutProvider } from './shortcuts/shortcuts';
 import { useAppState, type AppStateLoad } from './state/use-app-state';
 
 interface AppRoutesProps {
@@ -65,12 +66,15 @@ function AppShell() {
 
 /**
  * The application root: shows the setup screen, the "Can't open your board" screen or the board,
- * following the app state from the main process. Settings and the new version notice work on every screen.
+ * following the app state from the main process. Settings, the new version notice and the Command
+ * shortcuts work on every screen.
  */
 export function App() {
   return (
-    <ToastProvider>
-      <AppShell />
-    </ToastProvider>
+    <ShortcutProvider>
+      <ToastProvider>
+        <AppShell />
+      </ToastProvider>
+    </ShortcutProvider>
   );
 }

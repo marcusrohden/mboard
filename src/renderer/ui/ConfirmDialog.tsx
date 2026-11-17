@@ -12,7 +12,8 @@ interface ConfirmDialogProps {
 
 /**
  * Asks the person to confirm a destructive action in an alert dialog. Focus starts on Cancel, and the
- * confirm button is named after the action, for example "Delete" or "Archive all".
+ * confirm button is named after the action, for example "Delete" or "Archive all". ⌘↵ confirms, and ⌘. or
+ * Esc cancels.
  */
 export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
   return (
@@ -20,10 +21,10 @@ export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCance
       <h2 className={styles.title}>{title}</h2>
       <p className={styles.message}>{message}</p>
       <div className={styles.actions}>
-        <Button {...{ [AUTOFOCUS_ATTRIBUTE]: '' }} onClick={onCancel}>
+        <Button {...{ [AUTOFOCUS_ATTRIBUTE]: '' }} shortcut="cancel" onClick={onCancel}>
           Cancel
         </Button>
-        <Button variant="danger" onClick={onConfirm}>
+        <Button variant="danger" shortcut="confirm" onClick={onConfirm}>
           {confirmLabel}
         </Button>
       </div>

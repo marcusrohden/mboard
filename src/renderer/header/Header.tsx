@@ -1,6 +1,7 @@
 import type { Ref } from 'react';
 import type { FilterCriteria } from '../../domain';
 import type { FilterAction } from '../lib/filters';
+import { ShortcutHint, shortcutAttributes } from '../shortcuts/shortcuts';
 import { Button } from '../ui/Button';
 import { FilterControls } from './FilterControls';
 import styles from './Header.module.css';
@@ -20,7 +21,8 @@ interface HeaderProps {
 }
 
 /**
- * The board header: name, search, filters, Clear, the Archived toggle, New task and the Settings gear.
+ * The board header: name, search, filters, Clear, the Archived toggle, New task and the Settings gear,
+ * each showing its Command shortcut.
  */
 export function Header({
   boardName,
@@ -37,18 +39,22 @@ export function Header({
   return (
     <header className={styles.header}>
       <h1 className={styles.name}>{boardName}</h1>
-      <input
-        ref={searchRef}
-        type="search"
-        aria-label="Search tasks"
-        placeholder="Search tasks"
-        className={styles.search}
-        value={criteria.query}
-        onChange={(event) => dispatch({ type: 'setQuery', query: event.target.value })}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') event.currentTarget.blur();
-        }}
-      />
+      <span className={styles.searchBox}>
+        <input
+          ref={searchRef}
+          type="search"
+          aria-label="Search tasks"
+          placeholder="Search tasks"
+          className={styles.search}
+          value={criteria.query}
+          {...shortcutAttributes('focusSearch')}
+          onChange={(event) => dispatch({ type: 'setQuery', query: event.target.value })}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') event.currentTarget.blur();
+          }}
+        />
+        <ShortcutHint id="focusSearch" className={styles.searchHint} />
+      </span>
       <FilterControls
         criteria={criteria}
         projects={projects}
@@ -56,15 +62,15 @@ export function Header({
         dispatch={dispatch}
       />
       {isFilterActive && (
-        <Button variant="quiet" onClick={() => dispatch({ type: 'clear' })}>
+        <Button variant="quiet" shortcut="clearFilters" onClick={() => dispatch({ type: 'clear' })}>
           Clear
         </Button>
       )}
       <div className={styles.actions}>
-        <Button aria-pressed={isArchivedView} onClick={onToggleArchived}>
+        <Button aria-pressed={isArchivedView} shortcut="toggleArchived" onClick={onToggleArchived}>
           Archived
         </Button>
-        <Button variant="primary" onClick={onNewTask}>
+        <Button variant="primary" shortcut="newTask" onClick={onNewTask}>
           New task
         </Button>
         <Button
@@ -72,6 +78,7 @@ export function Header({
           className={styles.iconButton}
           aria-label="Settings"
           title="Settings (⌘,)"
+          shortcutHint="settings"
           onClick={onOpenSettings}
         >
           <SettingsIcon />

@@ -131,26 +131,48 @@ describe('Header', () => {
 });
 
 describe('Keyboard shortcuts', () => {
-  it('focuses the search box with / without typing the slash', async () => {
+  it('focuses the search box with ⌘F, and shows the key beside it', async () => {
     const { user } = await renderBoard({ tasks: TASKS() });
-    await user.keyboard('/');
     const search = screen.getByRole('searchbox', { name: 'Search tasks' }) as HTMLInputElement;
+    expect(search.getAttribute('aria-keyshortcuts')).toBe('Meta+F');
+    await user.keyboard('{Meta>}f{/Meta}');
     expect(document.activeElement).toBe(search);
     expect(search.value).toBe('');
   });
 
-  it('opens New task with N, but not while typing', async () => {
+  it('opens New task with ⌘N, even while typing in the search box', async () => {
     const { user } = await renderBoard({ tasks: TASKS() });
     await user.type(screen.getByRole('searchbox', { name: 'Search tasks' }), 'n');
     expect(screen.queryByRole('dialog')).toBeNull();
-    await user.click(document.body);
-    await user.keyboard('n');
+    await user.keyboard('{Meta>}n{/Meta}');
     expect(screen.getByRole('dialog', { name: 'New task' })).toBeTruthy();
   });
 
-  it('ignores N with a modifier held', async () => {
+  it('ignores single keys and Control chords', async () => {
     const { user } = await renderBoard({ tasks: TASKS() });
-    await user.keyboard('{Meta>}n{/Meta}');
+    await user.click(document.body);
+    await user.keyboard('n/');
+    await user.keyboard('{Control>}n{/Control}');
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).not.toBe(screen.getByRole('searchbox', { name: 'Search tasks' }));
+  });
+
+  it('toggles the archived view, Stale only and Clear, and opens the filters with focus on them', async () => {
+    const { user } = await renderBoard({ tasks: TASKS() });
+    await user.keyboard('{Meta>}{Shift>}s{/Shift}{/Meta}');
+    expect((screen.getByRole('switch', { name: 'Stale only' }) as HTMLInputElement).checked).toBe(true);
+    await user.keyboard('{Meta>}{Shift>}x{/Shift}{/Meta}');
+    expect((screen.getByRole('switch', { name: 'Stale only' }) as HTMLInputElement).checked).toBe(false);
+
+    await user.keyboard('{Meta>}{Shift>}p{/Shift}{/Meta}');
+    const project = screen.getByRole('button', { name: 'Project' });
+    expect(project.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(project);
+    await user.tab();
+    await user.keyboard(' ');
+    expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy();
+
+    await user.keyboard('{Meta>}{Shift>}e{/Shift}{/Meta}');
+    expect(screen.getByRole('button', { name: 'Archived' }).getAttribute('aria-pressed')).toBe('true');
   });
 });

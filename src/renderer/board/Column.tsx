@@ -28,7 +28,13 @@ export function Column({ view, tasks, isFiltered, today, onOpen, onArchive, onAr
         <h2 className={styles.name}>{view.status}</h2>
         <span className={styles.count}>{columnCountLabel(view)}</span>
         {view.status === 'Done' && (
-          <Button variant="quiet" className={styles.archiveAll} disabled={view.total === 0} onClick={onArchiveAll}>
+          <Button
+            variant="quiet"
+            className={styles.archiveAll}
+            disabled={view.total === 0}
+            shortcut="archiveAllDone"
+            onClick={onArchiveAll}
+          >
             Archive all
           </Button>
         )}

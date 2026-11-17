@@ -35,7 +35,7 @@ export function Board({ views, isFiltered, today, onOpen, onArchive, onArchiveAl
     return (
       <div className={styles.empty}>
         <p className={styles.emptyText}>No tasks yet</p>
-        <Button variant="primary" onClick={onNewTask}>
+        <Button variant="primary" shortcutHint="newTask" onClick={onNewTask}>
           New task
         </Button>
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { ShortcutLayer } from '../shortcuts/shortcuts';
 import { isolateModal } from './modal-isolation';
 import styles from './Modal.module.css';
 
@@ -34,7 +35,8 @@ function keepFocusInside(event: KeyboardEvent<HTMLElement>): void {
 
 /**
  * A modal dialog rendered into the document body. It hides the rest of the page from assistive
- * technology, keeps keyboard focus inside, closes on Esc and returns focus to where it was on close.
+ * technology, keeps keyboard focus inside, closes on Esc and returns focus to where it was on close. Its
+ * shortcuts form a layer of their own, so the page's shortcuts are off while it is open.
  * Focus starts on the element marked `data-autofocus`, otherwise the first focusable element.
  */
 export function Modal({ role = 'dialog', label, onClose, children }: ModalProps) {
@@ -74,7 +76,7 @@ export function Modal({ role = 'dialog', label, onClose, children }: ModalProps)
         className={styles.panel}
         onKeyDown={handleKeyDown}
       >
-        {children}
+        <ShortcutLayer>{children}</ShortcutLayer>
       </div>
     </div>,
     document.body,

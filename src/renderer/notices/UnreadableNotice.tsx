@@ -21,6 +21,7 @@ export function UnreadableNotice({ files }: { files: readonly UnreadableFile[] }
           variant="quiet"
           aria-expanded={isExpanded}
           aria-controls={detailsId}
+          shortcut="toggleUnreadable"
           onClick={() => setIsExpanded((open) => !open)}
         >
           {isExpanded ? 'Hide details' : 'Show details'}

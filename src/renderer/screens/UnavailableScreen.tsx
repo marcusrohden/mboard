@@ -35,7 +35,9 @@ export function UnavailableScreen({ path, reason, onState }: UnavailableScreenPr
       </p>
       <p className={styles.explanation}>{REASON_TEXT[reason]}</p>
       <FolderPicker onAccepted={onState}>
-        <Button onClick={retry}>Try again</Button>
+        <Button shortcut="tryAgain" onClick={retry}>
+          Try again
+        </Button>
       </FolderPicker>
     </main>
   );

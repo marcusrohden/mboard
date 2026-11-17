@@ -20,9 +20,10 @@ import { useSettingsDialog } from '../settings/SettingsProvider';
 import { useAgeThresholds } from '../state/age-thresholds';
 import { ProjectColoursProvider } from '../state/project-colours';
 import { useBoardData } from '../state/use-board-data';
-import { useGlobalShortcuts } from '../state/use-global-shortcuts';
 import { useTaskCommands } from '../state/use-task-commands';
 import { useTaskSelection } from '../state/use-task-selection';
+import { useTaskShortcuts } from '../state/use-task-shortcuts';
+import { useShortcut } from '../shortcuts/shortcuts';
 import { NewTaskDialog } from '../task-dialog/NewTaskDialog';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import styles from './BoardScreen.module.css';
@@ -51,11 +52,11 @@ export function BoardScreen({ boardName }: { boardName: string }) {
 
   useEffect(() => getMboardApi().onOpenTask(openTask), [openTask]);
 
-  const isModalOpen = isNewTaskOpen || isConfirmingArchiveAll || settings.isOpen;
-  useGlobalShortcuts(
-    { onFocusSearch: () => searchRef.current?.focus(), onNewTask: () => setIsNewTaskOpen(true) },
-    !isModalOpen,
-  );
+  useShortcut('focusSearch', () => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  });
+  useTaskShortcuts(selection.selectedTask, tasks, commands);
 
   const today = snapshot?.today ?? '';
   const thresholds = useAgeThresholds();
