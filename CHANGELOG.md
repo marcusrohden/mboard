@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/marcusrohden/mboard/compare/v0.2.1...v0.2.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* show a 404 from GitHub as a failed update check, not up to date ([#23](https://github.com/marcusrohden/mboard/issues/23)) ([c34b9dc](https://github.com/marcusrohden/mboard/commit/c34b9dcd3523af6591ff610fc667445b419c5a6c))
+
 ## [0.2.1](https://github.com/marcusrohden/mboard/compare/v0.2.0...v0.2.1) (2026-11-17)
 
 
