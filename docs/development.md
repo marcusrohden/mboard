@@ -45,7 +45,7 @@ export electron_config_cache="$TMPDIR/electron-cache"
 
 ## Test hooks
 
-Main reads these at launch (`src/main/launch-config.ts`, spec section 7): `MBOARD_USER_DATA`, `MBOARD_BOARD_PATH`, `MBOARD_FAKE_NOW`, `MBOARD_NOTIFIER_LOG`, `MBOARD_NOTIFIER_FAIL`, `MBOARD_TRASH_DIR`, `MBOARD_DISABLE_LOGIN_ITEM` and `MBOARD_DISABLE_APP_UPDATE_CHECK`. e2e fixtures always set the user-data, trash, login-item and app-update-check hooks.
+Main reads these at launch (`src/main/launch-config.ts`, spec section 7): `MBOARD_USER_DATA`, `MBOARD_BOARD_PATH`, `MBOARD_FAKE_NOW`, `MBOARD_NOTIFIER_LOG`, `MBOARD_NOTIFIER_FAIL`, `MBOARD_TRASH_DIR`, `MBOARD_DISABLE_LOGIN_ITEM` and `MBOARD_DISABLE_APP_UPDATE_CHECK`. The e2e fixtures (`tests/e2e/fixtures.ts`) set `MBOARD_USER_DATA` and `MBOARD_DISABLE_APP_UPDATE_CHECK` for every test. They don't yet set `MBOARD_TRASH_DIR` or `MBOARD_DISABLE_LOGIN_ITEM`, which spec section 7 asks for.
 
 Automatic app update checks only run in a packaged build, so `pnpm start` never reaches GitHub by itself. **Check for updates** in Settings still works there, and offers **Download from GitHub**, because a copy run from source can't replace itself.
 
