@@ -272,3 +272,80 @@ describe('unknown frontmatter survives changes', () => {
     expect(edit(document, { field: 'title', value: 'Other' }).document.unknownFrontmatter).toBe(document.unknownFrontmatter);
   });
 });
+
+describe('ledger data on every update', () => {
+  const comment = { at: '2026-11-16 12:00', text: 'Earlier note' };
+  const base = makeDocument({
+    title: 'Old title',
+    project: 'Acme website',
+    due: '2026-11-20',
+    description: 'Old text\nwith two lines',
+    comments: [comment],
+  });
+
+  function lastLedger(document: TaskDocument) {
+    return document.history.at(-1)?.ledger;
+  }
+
+  it('create carries the initial values, with seconds in its time', () => {
+    const document = createTaskDocument(INPUT, { ...CONTEXT, order: 1 });
+    expect(lastLedger(document)).toEqual({
+      v: 1,
+      at: NOW_FIELD,
+      changes: [
+        { field: 'title', from: null, to: 'Fix login bug' },
+        { field: 'status', from: null, to: 'To do' },
+        { field: 'responsibility', from: null, to: 'Client' },
+        { field: 'project', from: null, to: 'Acme website' },
+        { field: 'due', from: null, to: '2026-11-20' },
+        { field: 'description', from: null, to: 'Steps to reproduce.' },
+      ],
+    });
+  });
+
+  it.each([
+    [{ field: 'title', value: 'New title' }, { field: 'title', from: 'Old title', to: 'New title' }],
+    [
+      { field: 'description', value: 'New text' },
+      { field: 'description', from: 'Old text\nwith two lines', to: 'New text' },
+    ],
+    [{ field: 'project', value: null }, { field: 'project', from: 'Acme website', to: null }],
+    [{ field: 'responsibility', value: 'Internal' }, { field: 'responsibility', from: 'Me', to: 'Internal' }],
+    [{ field: 'due', value: '2026-12-01' }, { field: 'due', from: '2026-11-20', to: '2026-12-01' }],
+  ] as const)('an edit of %o records its old and new value', (change, recorded) => {
+    expect(lastLedger(edit(base, change).document)).toEqual({ v: 1, at: NOW_FIELD, changes: [recorded] });
+  });
+
+  it('a move records the column', () => {
+    expect(lastLedger(moveToColumn(base, 'Done', 1, NOW).document)?.changes).toEqual([
+      { field: 'status', from: 'To do', to: 'Done' },
+    ]);
+  });
+
+  it('a comment records the comment it added', () => {
+    expect(lastLedger(addComment(base, '  Called the client ', NOW))?.changes).toEqual([
+      { field: 'comments', added: [{ at: NOW_LOG, text: 'Called the client' }], removed: [] },
+    ]);
+  });
+
+  it('archive and restore record the archived time, and restore the column it returns to', () => {
+    const archived = archiveDocument({ ...base, status: 'Done' }, NOW);
+    expect(lastLedger(archived)?.changes).toEqual([{ field: 'archived', from: null, to: NOW_FIELD }]);
+    const restored = restoreDocument({ ...archived, status: 'In progress' }, 1, NOW);
+    expect(lastLedger(restored)?.changes).toEqual([
+      { field: 'status', from: 'In progress', to: 'Done' },
+      { field: 'archived', from: NOW_FIELD, to: null },
+    ]);
+  });
+
+  it('records nothing for a no-op edit or a reorder', () => {
+    expect(edit(base, { field: 'title', value: 'Old title' }).document.history).toBe(base.history);
+    expect(moveToColumn(base, 'To do', 5, NOW).document.history).toBe(base.history);
+  });
+
+  it('writes ledger data that reads back from the file', () => {
+    const document = addComment(edit(base, { field: 'description', value: 'Plain' }).document, 'Hi', NOW);
+    const parsed = parseTaskFile(serialiseTaskFile(document), FALLBACK);
+    expect(parsed.kind === 'ok' && parsed.document.history).toEqual(document.history);
+  });
+});

@@ -134,8 +134,8 @@ describe('creating a task', () => {
       updated: '2026-11-16T09:30:00',
       order: 1,
       isArchived: false,
-      history: [{ at: '2026-11-16 09:30', text: 'Created in In progress' }],
     });
+    expect(task.history).toMatchObject([{ at: '2026-11-16 09:30', text: 'Created in In progress' }]);
     expect(await read('tasks/Fix login bug.md')).toBe(
       [
         '---',
@@ -157,7 +157,10 @@ describe('creating a task', () => {
         '',
         '## History',
         '',
-        '- 2026-11-16 09:30 — Created in In progress',
+        '- 2026-11-16 09:30 — Created in In progress <!-- mboard-ledger {"v":1,"at":"2026-11-16T09:30:00","changes":[' +
+          '{"field":"title","from":null,"to":"Fix login bug"},{"field":"status","from":null,"to":"In progress"},' +
+          '{"field":"responsibility","from":null,"to":"Client"},{"field":"project","from":null,"to":"Acme website"},' +
+          '{"field":"due","from":null,"to":"2026-11-20"},{"field":"description","from":null,"to":"The login fails."}]} -->',
         '',
       ].join('\n'),
     );
@@ -216,8 +219,8 @@ describe('editing a task', () => {
 
     expect(task.updated).toBe('2026-11-16T11:00:00');
     expect(task.history).toHaveLength(2);
-    expect(task.history[1]).toEqual({ at: '2026-11-16 11:00', text: historyText });
-    expect(await read('tasks/Fix login bug.md')).toContain(`- 2026-11-16 11:00 — ${historyText}`);
+    expect(task.history[1]).toMatchObject({ at: '2026-11-16 11:00', text: historyText, ledger: { at: '2026-11-16T11:00:00' } });
+    expect(await read('tasks/Fix login bug.md')).toContain(`- 2026-11-16 11:00 — ${historyText} <!-- mboard-ledger {`);
   });
 
   it('renames the file when the title changes', async () => {
@@ -304,7 +307,15 @@ describe('commenting', () => {
     const task = await service.addComment('tasks/Fix login bug.md', '  Asked for the credentials.  ');
 
     expect(task.comments).toEqual([{ at: '2026-11-16 09:35', text: 'Asked for the credentials.' }]);
-    expect(task.history.at(-1)).toEqual({ at: '2026-11-16 09:35', text: 'Comment added' });
+    expect(task.history.at(-1)).toEqual({
+      at: '2026-11-16 09:35',
+      text: 'Comment added',
+      ledger: {
+        v: 1,
+        at: '2026-11-16T09:35:00',
+        changes: [{ field: 'comments', added: [{ at: '2026-11-16 09:35', text: 'Asked for the credentials.' }], removed: [] }],
+      },
+    });
     expect(await read('tasks/Fix login bug.md')).toContain(
       '## Comments\n\n### 2026-11-16 09:35\n\nAsked for the credentials.\n\n## History',
     );
@@ -331,7 +342,13 @@ describe('moving and reordering', () => {
     const task = await service.moveTask('tasks/B.md', 'Done', 'tasks/D.md');
 
     expect(task).toMatchObject({ status: 'Done', order: 0, updated: '2026-11-16T10:00:00' });
-    expect(task.history).toEqual([{ at: '2026-11-16 10:00', text: 'Moved from To do to Done' }]);
+    expect(task.history).toEqual([
+      {
+        at: '2026-11-16 10:00',
+        text: 'Moved from To do to Done',
+        ledger: { v: 1, at: '2026-11-16T10:00:00', changes: [{ field: 'status', from: 'To do', to: 'Done' }] },
+      },
+    ]);
     expect(columnIds('Done')).toEqual(['tasks/B.md', 'tasks/D.md']);
     expect(columnIds('To do')).toEqual(['tasks/A.md', 'tasks/C.md']);
   });

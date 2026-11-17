@@ -1,4 +1,5 @@
 import type { LocalDate, NewTaskInput, Responsibility, Status, TaskDocument, TaskEdit } from './model';
+import { buildLedger, initialLedger, type CommentsDelta } from './ledger';
 import { COLUMNS, RESPONSIBILITIES, isResponsibility, isStatus } from './model';
 import { canonicalProject } from './projects';
 import { trimBlankLines } from './taskFile';
@@ -29,14 +30,21 @@ function unchanged(document: TaskDocument): ChangeResult {
   return { changed: false, document };
 }
 
-function recordUpdate(document: TaskDocument, changes: Partial<TaskDocument>, historyText: string, now: Date): ChangeResult {
+function recordUpdate(
+  document: TaskDocument,
+  changes: Partial<TaskDocument>,
+  historyText: string,
+  now: Date,
+  comments: CommentsDelta | null = null,
+): ChangeResult {
+  const changed = { ...document, ...changes };
+  const ledger = buildLedger(document, changed, now, comments);
   return {
     changed: true,
     document: {
-      ...document,
-      ...changes,
+      ...changed,
       updated: formatLocalDateTime(now),
-      history: [...document.history, { at: formatLogTimestamp(now), text: historyText }],
+      history: [...document.history, { at: formatLogTimestamp(now), text: historyText, ledger }],
     },
   };
 }
@@ -105,7 +113,7 @@ export function createTaskDocument(input: NewTaskInput, context: CreateContext):
   const description = normaliseDescription(input.description);
   assertSafeBodyText(description, 'description');
   const timestamp = formatLocalDateTime(context.now);
-  return {
+  const document: TaskDocument = {
     title: normaliseTitle(input.title),
     status,
     rawStatus: null,
@@ -119,9 +127,11 @@ export function createTaskDocument(input: NewTaskInput, context: CreateContext):
     order: context.order,
     description,
     comments: [],
-    history: [{ at: formatLogTimestamp(context.now), text: `Created in ${status}` }],
+    history: [],
     unknownFrontmatter: [],
   };
+  const created = { at: formatLogTimestamp(context.now), text: `Created in ${status}`, ledger: initialLedger(document, context.now) };
+  return { ...document, history: [created] };
 }
 
 function editTitle(document: TaskDocument, value: string, now: Date): ChangeResult {
@@ -189,8 +199,8 @@ export function addComment(document: TaskDocument, text: string, now: Date): Tas
   if (trimmed === '') throw new Error("A comment can't be empty.");
   assertSafeBodyText(trimmed, 'comment');
   const comment = { at: formatLogTimestamp(now), text: trimmed };
-  const { document: updated } = recordUpdate(document, { comments: [...document.comments, comment] }, 'Comment added', now);
-  return updated;
+  const comments = { added: [comment], removed: [] };
+  return recordUpdate(document, { comments: [...document.comments, comment] }, 'Comment added', now, comments).document;
 }
 
 /**
