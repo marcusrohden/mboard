@@ -48,6 +48,7 @@
   --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.12);
 
   --drawer-width: 400px;
+  --column-min-width: 160px;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -2,7 +2,7 @@
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
-  min-width: 220px;
+  min-width: var(--column-min-width);
   min-height: 0;
   border-radius: var(--radius-medium);
   background: var(--color-column);
@@ -10,14 +10,16 @@
 
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   padding: var(--space-2) var(--space-3);
 }
 
 .name {
   font-size: var(--font-size-base);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .count {
