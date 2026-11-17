@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useDomEnvironment } from '../testing/dom-environment';
 import { buildTask } from '../testing/builders';
@@ -63,8 +63,8 @@ describe('Board', () => {
     const { user } = await renderBoard({ tasks: [buildTask({ title: 'Open me' })] });
     await user.click(screen.getByRole('article', { name: 'Open me' }));
     expect(screen.getByRole('complementary', { name: 'Task details' })).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('complementary', { name: 'Task details' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Task details' })).toBeNull());
     screen.getByRole('article', { name: 'Open me' }).focus();
     await user.keyboard('{Enter}');
     expect(screen.getByRole('complementary', { name: 'Task details' })).toBeTruthy();

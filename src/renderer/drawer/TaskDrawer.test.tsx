@@ -168,6 +168,57 @@ describe('Task detail drawer fields', () => {
   });
 });
 
+describe('Task detail drawer Save', () => {
+  function drawerOrNull(): HTMLElement | null {
+    return screen.queryByRole('complementary', { name: 'Task details' });
+  }
+
+  it('closes straight away when no field is being edited', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    expect(within(drawer).queryByRole('button', { name: 'Close' })).toBeNull();
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(drawerOrNull()).toBeNull());
+    expect(fake.api.editTask).not.toHaveBeenCalled();
+  });
+
+  it('commits the field being edited and waits for that save before closing', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const saveTask = fake.api.editTask.getMockImplementation();
+    if (saveTask === undefined) throw new Error('The fake has no editTask.');
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fake.api.editTask.mockImplementationOnce(async (...args) => {
+      await gate;
+      return saveTask(...args);
+    });
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Description'), ' on Fridays');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(fake.api.editTask).toHaveBeenCalledWith('tasks/Fix login.md', {
+      field: 'description',
+      value: 'Staging fails on Fridays',
+    });
+    expect(fake.api.editTask).toHaveBeenCalledTimes(1);
+    expect(drawerOrNull()).not.toBeNull();
+    await act(async () => release());
+    await waitFor(() => expect(drawerOrNull()).toBeNull());
+    expect(fake.tasks()[0]?.description).toBe('Staging fails on Fridays');
+  });
+
+  it('stays open and shows the error when that save fails', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    fake.api.editTask.mockRejectedValueOnce(new Error('The file is locked.'));
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Project'), ' Corp');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('The file is locked.')).toBeTruthy();
+    expect(drawerOrNull()).not.toBeNull();
+  });
+});
+
 describe('Task detail drawer comments and history', () => {
   it('lists comments oldest first with their timestamps', async () => {
     const { user } = await renderBoard({ tasks: [SAMPLE()] });
