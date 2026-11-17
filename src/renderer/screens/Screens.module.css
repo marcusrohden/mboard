@@ -1,0 +1,53 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 18vh var(--space-5) var(--space-5);
+}
+
+.heading {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+}
+
+.explanation {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.path {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-small);
+  background: var(--color-column);
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.message {
+  margin: 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.status {
+  padding: 18vh var(--space-5);
+  color: var(--color-text-muted);
+  text-align: center;
+}

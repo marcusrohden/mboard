@@ -1,0 +1,48 @@
+.notice {
+  margin: var(--space-2) var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--tone-amber-bg);
+  color: var(--tone-amber-fg);
+}
+
+.noticeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dismiss {
+  margin-left: auto;
+}
+
+.details,
+.reminderList {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+}
+
+.reason {
+  margin-left: var(--space-2);
+}
+
+.reminders {
+  background: var(--tone-red-bg);
+  color: var(--tone-red-fg);
+}
+
+.reminderLink {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.reminderDue {
+  margin-left: var(--space-2);
+}

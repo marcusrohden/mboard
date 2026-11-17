@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "mboard: quit running app",
+      "detail": "Quit mboard if it is running and wait for it to exit",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/quit-mboard.sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    },
+    {
+      "label": "mboard: build",
+      "detail": "Package out/mboard-darwin-arm64/mboard.app",
+      "type": "shell",
+      "command": "pnpm run package",
+      "problemMatcher": []
+    },
+    {
+      "label": "mboard: open",
+      "detail": "Quit mboard if it is running, then open the packaged app with your existing settings",
+      "type": "shell",
+      "command": "open out/mboard-darwin-arm64/mboard.app",
+      "dependsOn": ["mboard: quit running app"],
+      "problemMatcher": []
+    },
+    {
+      "label": "mboard: build and open",
+      "detail": "Quit mboard, package it, then open the new build with your existing settings",
+      "type": "shell",
+      "command": "open out/mboard-darwin-arm64/mboard.app",
+      "dependsOrder": "sequence",
+      "dependsOn": ["mboard: quit running app", "mboard: build"],
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "mboard: dev",
+      "detail": "Quit mboard, then run it from source with the Vite dev server and DevTools",
+      "type": "shell",
+      "command": "pnpm start",
+      "options": { "env": { "MBOARD_DISABLE_LOGIN_ITEM": "1" } },
+      "dependsOn": ["mboard: quit running app"],
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    }
+  ]
+}

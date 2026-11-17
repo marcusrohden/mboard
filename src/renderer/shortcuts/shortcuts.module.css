@@ -1,0 +1,13 @@
+.hint {
+  align-self: flex-end;
+  margin: 0 -4px -1px 0;
+  color: currentColor;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0.55;
+  pointer-events: none;
+}
