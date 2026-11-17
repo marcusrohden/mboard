@@ -31,6 +31,7 @@ ADR 0001 makes the task files the only store: there is no database to keep an au
 ## Consequences
 
 - The history log is no longer strictly append-only: a revert removes the entries after its target. The glossary says so.
+- This qualifies ADR 0001, whose read-modify-write keeps outside edits: a revert keeps them only in fields that no reverted change touched, and replaces the rest with their value at the target entry.
 - Files grow: each description edit stores the old and the new text. That is fine at the expected scale.
 - Older tasks can't be reverted past their legacy entries. Nothing is migrated or back-filled.
 - Outside edits stay unrecorded (ADR 0001). A hand-edited ledger comment that still parses is trusted; one that doesn't parse turns that line into a legacy entry.
