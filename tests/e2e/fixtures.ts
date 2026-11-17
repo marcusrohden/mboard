@@ -38,7 +38,12 @@ export const test = base.extend<MboardFixtures>({
     const electronApp = await electron.launch({
       executablePath: electronExecutablePath(),
       args: [PROJECT_ROOT],
-      env: { ...inheritedEnvironment(), ...launchEnv, MBOARD_USER_DATA: userDataDir },
+      env: {
+        ...inheritedEnvironment(),
+        ...launchEnv,
+        MBOARD_USER_DATA: userDataDir,
+        MBOARD_DISABLE_APP_UPDATE_CHECK: '1',
+      },
     });
     await use(electronApp);
     await electronApp.close();
