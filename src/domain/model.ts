@@ -61,6 +61,16 @@ export interface HistoryEntry {
   ledger?: HistoryLedger;
 }
 
+/**
+ * The history entry a revert was asked for, as the person saw it: the length of the history and that
+ * entry's time and text. Main refuses the revert when the file no longer matches.
+ */
+export interface RevertExpectation {
+  historyLength: number;
+  at: string;
+  text: string;
+}
+
 /** A task as the renderer sees it. */
 export interface Task {
   id: TaskId;
