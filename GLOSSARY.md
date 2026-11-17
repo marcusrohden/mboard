@@ -35,3 +35,10 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 - **Archived task**: a task whose file is in `archive/`. Read-only in the app apart from restore and delete.
 - **Restore**: moving an archived task back to the top of Done.
 - **Delete**: moving a task's file to the macOS Trash.
+
+## App
+
+- **Settings**: the dialog that holds mboard's own settings: the board folder, open at login, notifications and app updates. Opened with the header's gear, **Settings…** in the app and tray menus, or Cmd+,.
+- **Release**: a published version of mboard: a `vX.Y.Z` tag and its GitHub release, with the macOS zip attached. release-please cuts one when its release PR is merged.
+- **New version**: a release newer than the running copy of mboard.
+- **App update**: replacing the running copy of mboard with a new version, from inside the app. _Avoid_: update (that's a task update), upgrade.
