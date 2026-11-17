@@ -138,11 +138,6 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
         if (project === task.project) return task;
         return recorded(task, `Project changed from ${task.project ?? '(none)'} to ${project ?? '(none)'}`, { project });
       }
-      case 'responsibility':
-        if (edit.value === task.responsibility) return task;
-        return recorded(task, `Responsibility changed from ${task.responsibility} to ${edit.value}`, {
-          responsibility: edit.value,
-        });
       case 'due':
         if (edit.value === task.due) return task;
         return recorded(task, `Due date changed from ${task.due ?? '(none)'} to ${edit.value ?? '(none)'}`, {
@@ -171,7 +166,6 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
         id: `tasks/${title}.md`,
         title,
         status: input.status,
-        responsibility: input.responsibility,
         project: input.project,
         due: input.due,
         created: now,

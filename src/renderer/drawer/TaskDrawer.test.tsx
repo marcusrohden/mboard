@@ -21,7 +21,6 @@ const SAMPLE = () =>
   buildTask({
     title: 'Fix login',
     project: 'Acme',
-    responsibility: 'Me',
     due: '2026-11-20',
     description: 'Staging fails',
     comments: [
@@ -40,7 +39,6 @@ describe('Task detail drawer fields', () => {
     const drawer = await openTask(user, 'Fix login');
     expect(input(drawer, 'Title').value).toBe('Fix login');
     expect((within(drawer).getByLabelText('Column') as HTMLSelectElement).value).toBe('To do');
-    expect((within(drawer).getByRole('radio', { name: 'Me' }) as HTMLInputElement).checked).toBe(true);
     expect(input(drawer, 'Project').value).toBe('Acme');
     expect(input(drawer, 'Due date').value).toBe('2026-11-20');
     expect(input(drawer, 'Description').value).toBe('Staging fails');
@@ -120,11 +118,38 @@ describe('Task detail drawer fields', () => {
     });
   });
 
-  it('saves the responsibility as soon as it is chosen', async () => {
-    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+  it('has no responsibility field', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
     const drawer = await openTask(user, 'Fix login');
-    await user.click(within(drawer).getByRole('radio', { name: 'Internal' }));
-    expect(fake.api.editTask).toHaveBeenCalledWith('tasks/Fix login.md', { field: 'responsibility', value: 'Internal' });
+    expect(within(drawer).queryByRole('radiogroup')).toBeNull();
+    expect(within(drawer).queryByText('Responsibility')).toBeNull();
+  });
+
+  it('lists all five columns in the Column select, showing the task\'s own', async () => {
+    const { user } = await renderBoard({ tasks: [buildTask({ title: 'Waiting', status: 'With client' })] });
+    const drawer = await openTask(user, 'Waiting');
+    const select = within(drawer).getByLabelText('Column') as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual(['To do', 'In progress', 'Internal', 'With client', 'Done']);
+    expect(select.value).toBe('With client');
+  });
+
+  it('moves the task into With client and then Internal with the Column field', async () => {
+    const { user, fake } = await renderBoard({
+      tasks: [SAMPLE(), buildTask({ title: 'Quote', status: 'With client', order: 1 })],
+    });
+    const drawer = await openTask(user, 'Fix login');
+    await user.selectOptions(within(drawer).getByLabelText('Column'), 'With client');
+    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Fix login.md', 'With client', 'tasks/Quote.md');
+    const withClient = screen.getByRole('region', { name: 'With client' });
+    await waitFor(() =>
+      expect(within(withClient).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual(['Fix login', 'Quote']),
+    );
+
+    await user.selectOptions(within(drawer).getByLabelText('Column'), 'Internal');
+    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Internal', null);
+    const internal = screen.getByRole('region', { name: 'Internal' });
+    await waitFor(() => expect(within(internal).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual(['Fix login']));
+    expect(fake.tasks().find((task) => task.title === 'Fix login')?.history.at(-1)?.text).toBe('Moved from With client to Internal');
   });
 
   it('moves the task to the top of another column with the Column field', async () => {
@@ -301,7 +326,6 @@ describe('Task detail drawer for an archived task', () => {
     expect(input(drawer, 'Due date').readOnly).toBe(true);
     expect(input(drawer, 'Description').readOnly).toBe(true);
     expect((within(drawer).getByLabelText('Column') as HTMLSelectElement).disabled).toBe(true);
-    expect((within(drawer).getByRole('radio', { name: 'Internal' }) as HTMLInputElement).disabled).toBe(true);
     expect(within(drawer).queryByRole('textbox', { name: 'New comment' })).toBeNull();
     expect(within(drawer).queryByRole('button', { name: 'Remove due date' })).toBeNull();
     expect(within(drawer).queryByRole('button', { name: 'Mark complete' })).toBeNull();

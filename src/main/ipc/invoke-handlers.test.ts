@@ -13,7 +13,6 @@ const UPDATE_STATUS: AppUpdateStatus = {
 const NEW_TASK: NewTaskInput = {
   title: 'A',
   status: 'To do',
-  responsibility: 'Me',
   project: null,
   due: null,
   description: '',
@@ -86,10 +85,25 @@ describe('createInvokeHandlers', () => {
     expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'Done', null);
   });
 
+  it('accepts every column, including Internal and With client', async () => {
+    const { dependencies, board } = fakeDependencies();
+    const handlers = createInvokeHandlers(dependencies);
+
+    for (const status of ['To do', 'In progress', 'Internal', 'With client', 'Done'] as const) {
+      await handlers.createTask({ ...NEW_TASK, status });
+      await handlers.moveTask('tasks/A.md', status, null);
+      expect(board.createTask).toHaveBeenLastCalledWith({ ...NEW_TASK, status });
+      expect(board.moveTask).toHaveBeenLastCalledWith('tasks/A.md', status, null);
+    }
+  });
+
   it.each([
     ['createTask with a missing field', 'createTask', [{ title: 'A' }]],
     ['createTask with an extra field', 'createTask', [{ ...NEW_TASK, order: 1 }]],
     ['createTask with an unknown column', 'createTask', [{ ...NEW_TASK, status: 'Blocked' }]],
+    ['createTask with a responsibility', 'createTask', [{ ...NEW_TASK, responsibility: 'Client' }]],
+    ['editTask of the removed responsibility', 'editTask', ['tasks/A.md', { field: 'responsibility', value: 'Client' }]],
+    ['moveTask to a column in another case', 'moveTask', ['tasks/A.md', 'with client', null]],
     ['editTask with an unknown field', 'editTask', ['tasks/A.md', { field: 'status', value: 'Done' }]],
     ['editTask with a wrongly typed value', 'editTask', ['tasks/A.md', { field: 'title', value: 7 }]],
     ['moveTask with a numeric neighbour', 'moveTask', ['tasks/A.md', 'Done', 3]],

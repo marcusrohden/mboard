@@ -25,7 +25,6 @@ const WATCHING_WORKS = await canWatchFoldersRecursively();
 const NEW_TASK: NewTaskInput = {
   title: 'Fix login bug',
   status: 'In progress',
-  responsibility: 'Client',
   project: 'Acme website',
   due: '2026-11-20',
   description: 'The login fails.',
@@ -141,7 +140,6 @@ describe('creating a task', () => {
         '---',
         'title: "Fix login bug"',
         'status: In progress',
-        'responsibility: Client',
         'project: Acme website',
         'due: 2026-11-20',
         'created: 2026-11-16T09:30:00',
@@ -209,7 +207,6 @@ describe('editing a task', () => {
   it.each([
     [{ field: 'description', value: 'New details.' }, 'Description edited'],
     [{ field: 'project', value: null }, 'Project changed from Acme website to (none)'],
-    [{ field: 'responsibility', value: 'Internal' }, 'Responsibility changed from Client to Internal'],
     [{ field: 'due', value: '2026-12-01' }, 'Due date changed from 2026-11-20 to 2026-12-01'],
   ] as const)('applies %o, bumps updated and adds one history entry', async (edit, historyText) => {
     const task = await service.editTask('tasks/Fix login bug.md', edit);
@@ -256,7 +253,7 @@ describe('editing a task', () => {
     const original = await read('tasks/Fix login bug.md');
     await writeFile(boardFile('tasks/Fix login bug.md'), original.replace('The login fails.', 'Edited in Obsidian.'));
 
-    await service.editTask('tasks/Fix login bug.md', { field: 'responsibility', value: 'Me' });
+    await service.editTask('tasks/Fix login bug.md', { field: 'due', value: '2026-12-01' });
 
     expect(await read('tasks/Fix login bug.md')).toContain('Edited in Obsidian.');
   });
@@ -280,7 +277,7 @@ describe('editing a task', () => {
       ].join('\n'),
     );
     await service.rescan();
-    await service.editTask('tasks/Reserialised.md', { field: 'responsibility', value: 'Internal' });
+    await service.editTask('tasks/Reserialised.md', { field: 'project', value: 'Acme' });
 
     const text = await read('tasks/Reserialised.md');
     const keys = text
@@ -288,7 +285,7 @@ describe('editing a task', () => {
       ?.split('\n')
       .filter((line) => /^[a-z]+:/.test(line))
       .map((line) => line.split(':')[0]);
-    expect(keys).toEqual(['title', 'status', 'responsibility', 'created', 'updated', 'tags', 'aliases', 'cssclasses']);
+    expect(keys).toEqual(['title', 'status', 'project', 'created', 'updated', 'tags', 'aliases', 'cssclasses']);
     expect(text).toContain('status: in progress\n');
     expect(text).toContain('tags:\n  - work\n');
     expect(text).toContain('aliases:\n  - one\n  - two\n');
@@ -370,6 +367,23 @@ describe('moving and reordering', () => {
     expect(renumbered).not.toContain('## History\n\n-');
   });
 
+  it('moves a task freely between every column, recording each move', async () => {
+    for (const status of ['Internal', 'With client', 'In progress', 'With client', 'Done', 'Internal'] as const) {
+      await service.moveTask('tasks/A.md', status, null);
+    }
+
+    expect(taskIn(service.snapshot(), 'tasks/A.md')?.history.map((entry) => entry.text)).toEqual([
+      'Moved from To do to Internal',
+      'Moved from Internal to With client',
+      'Moved from With client to In progress',
+      'Moved from In progress to With client',
+      'Moved from With client to Done',
+      'Moved from Done to Internal',
+    ]);
+    expect(columnIds('Internal')).toEqual(['tasks/A.md']);
+    expect(await read('tasks/A.md')).toContain('\nstatus: Internal\n');
+  });
+
   it('rejects a neighbour that is the task itself or not in the target column', async () => {
     await expect(service.moveTask('tasks/A.md', 'To do', 'tasks/A.md')).rejects.toThrow(
       BoardMessage.placedBeforeItself,
@@ -415,6 +429,16 @@ describe('archiving and restoring', () => {
       'archive/Shipped.md',
       'tasks/Working.md',
     ]);
+  });
+
+  it('archives only Done with Archive all, leaving Internal and With client alone', async () => {
+    await seedTask('tasks/Team.md', { title: 'Team', status: 'Internal' });
+    await seedTask('tasks/Client.md', { title: 'Client', status: 'With client' });
+    await service.rescan();
+
+    await expect(service.archiveTask('tasks/Client.md')).rejects.toThrow('Only tasks in Done can be archived.');
+    expect(await service.archiveAllDone()).toBe(2);
+    expect(await listFilesRecursively(path.join(boardPath, 'tasks'))).toEqual(['Client.md', 'Team.md', 'Working.md']);
   });
 
   it('restores an archived task to the top of Done', async () => {
@@ -509,6 +533,110 @@ describe('outside edits', () => {
 
     expect(snapshots).toHaveLength(2);
     expect(snapshots[1]?.tasks.map((task) => task.id)).toEqual(['tasks/Fix login bug.md']);
+  });
+});
+
+describe('legacy files with a responsibility', () => {
+  function seedLegacy(
+    relativePath: string,
+    status: string,
+    responsibility: string,
+    fields: Record<string, string | number> = {},
+  ): Promise<void> {
+    const title = relativePath.replace(/^(tasks|archive)\/|\.md$/g, '');
+    return seedTask(relativePath, { title, status, responsibility, ...fields });
+  }
+
+  it('shows each in the column its responsibility now names, without writing anything', async () => {
+    await seedLegacy('tasks/Waiting on client.md', 'In progress', 'Client', { order: 2 });
+    await seedLegacy('tasks/Waiting on team.md', 'to do', 'internal', { order: 1 });
+    await seedLegacy('tasks/Mine.md', 'In progress', 'Me', { order: 1 });
+    await seedLegacy('tasks/Finished.md', 'Done', 'Client', { order: 1 });
+    await seedLegacy('archive/Old.md', 'In progress', 'Client', { archived: '2026-11-05T09:00:00' });
+    const ids = ['tasks/Waiting on client.md', 'tasks/Waiting on team.md', 'tasks/Mine.md', 'tasks/Finished.md', 'archive/Old.md'];
+    const before = await Promise.all(ids.map((id) => fileState(boardFile(id))));
+
+    await openBoard();
+    await service.rescan();
+
+    expect(columnIds('With client')).toEqual(['tasks/Waiting on client.md']);
+    expect(columnIds('Internal')).toEqual(['tasks/Waiting on team.md']);
+    expect(columnIds('In progress')).toEqual(['tasks/Mine.md']);
+    expect(columnIds('Done')).toEqual(['tasks/Finished.md']);
+    expect(taskIn(service.snapshot(), 'archive/Old.md')).toMatchObject({ status: 'With client', isArchived: true });
+    const mapped = taskIn(service.snapshot(), 'tasks/Waiting on client.md');
+    expect(mapped).toMatchObject({ order: 2, updated: '2026-11-01T09:00:00', history: [] });
+    expect(mapped).not.toHaveProperty('responsibility');
+    expect(await Promise.all(ids.map((id) => fileState(boardFile(id))))).toEqual(before);
+  });
+
+  it('fixes a file on its next edit, recording only the edit', async () => {
+    await seedLegacy('tasks/Quote.md', 'In progress', 'Client');
+    await openBoard();
+    clock.advanceMinutes(30);
+
+    const task = await service.editTask('tasks/Quote.md', { field: 'description', value: 'Sent the quote.' });
+
+    expect(task).toMatchObject({ status: 'With client', updated: '2026-11-16T10:00:00' });
+    expect(task.history).toEqual([{ at: '2026-11-16 10:00', text: 'Description edited' }]);
+    const text = await read('tasks/Quote.md');
+    expect(text).toContain('\nstatus: With client\n');
+    expect(text).not.toContain('responsibility');
+  });
+
+  it('fixes a file on a reorder, which is still not an update', async () => {
+    await seedLegacy('tasks/Quote.md', 'In progress', 'Client', { order: 1 });
+    await seedTask('tasks/Newer.md', { title: 'Newer', status: 'With client', order: 2 });
+    await openBoard();
+    clock.advanceMinutes(30);
+
+    const task = await service.moveTask('tasks/Quote.md', 'With client', null);
+
+    expect(task).toMatchObject({ status: 'With client', order: 3, updated: '2026-11-01T09:00:00', history: [] });
+    const text = await read('tasks/Quote.md');
+    expect(text).toContain('\nstatus: With client\n');
+    expect(text).not.toContain('responsibility');
+    expect(text).toContain('\nupdated: 2026-11-01T09:00:00\n');
+    expect(text).not.toContain('## History\n\n-');
+    expect(columnIds('With client')).toEqual(['tasks/Newer.md', 'tasks/Quote.md']);
+  });
+
+  it('renumbers a column merged from two legacy columns when a drop lands between equal orders', async () => {
+    await seedLegacy('tasks/Quote.md', 'To do', 'Client', { order: 1 });
+    await seedLegacy('tasks/Access.md', 'In progress', 'Client', { order: 1, created: '2026-11-03T09:00:00' });
+    await seedTask('tasks/Mover.md', { title: 'Mover', status: 'To do', order: 1 });
+    await openBoard();
+    const untouchedAccess = await fileState(boardFile('tasks/Access.md'));
+    expect(columnIds('With client')).toEqual(['tasks/Access.md', 'tasks/Quote.md']);
+    clock.advanceMinutes(30);
+
+    const task = await service.moveTask('tasks/Mover.md', 'With client', 'tasks/Quote.md');
+
+    expect(task).toMatchObject({ status: 'With client', order: 2 });
+    expect(task.history).toEqual([{ at: '2026-11-16 10:00', text: 'Moved from To do to With client' }]);
+    expect(columnIds('With client')).toEqual(['tasks/Access.md', 'tasks/Mover.md', 'tasks/Quote.md']);
+    expect(await fileState(boardFile('tasks/Access.md'))).toEqual(untouchedAccess);
+    const renumbered = await read('tasks/Quote.md');
+    expect(renumbered).toContain('\norder: 3\n');
+    expect(renumbered).toContain('\nstatus: With client\n');
+    expect(renumbered).not.toContain('responsibility');
+    expect(renumbered).toContain('\nupdated: 2026-11-01T09:00:00\n');
+  });
+
+  it('puts a task moved by a button at the top of a merged column with a single write', async () => {
+    await seedLegacy('tasks/Team A.md', 'To do', 'Internal', { order: 1 });
+    await seedLegacy('tasks/Team B.md', 'In progress', 'Internal', { order: 1, created: '2026-11-03T09:00:00' });
+    await seedTask('tasks/Mover.md', { title: 'Mover', status: 'To do', order: 1 });
+    await openBoard();
+    const neighbours = ['tasks/Team A.md', 'tasks/Team B.md'];
+    const untouched = await Promise.all(neighbours.map((id) => fileState(boardFile(id))));
+    const [firstInColumn] = columnIds('Internal');
+
+    const task = await service.moveTask('tasks/Mover.md', 'Internal', firstInColumn ?? null);
+
+    expect(task).toMatchObject({ status: 'Internal', order: 0 });
+    expect(columnIds('Internal')).toEqual(['tasks/Mover.md', 'tasks/Team B.md', 'tasks/Team A.md']);
+    expect(await Promise.all(neighbours.map((id) => fileState(boardFile(id))))).toEqual(untouched);
   });
 });
 

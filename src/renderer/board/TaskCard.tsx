@@ -13,7 +13,7 @@ interface TaskCardProps {
 }
 
 /**
- * One task on the board: title, project, responsibility, due chip and staleness. The whole card is the
+ * One task on the board: title, project, due chip and staleness. The whole card is the
  * drag handle. Clicking it, or pressing Enter on it, opens the detail drawer.
  */
 export function TaskCard({ task, index, status, today, onOpen, onArchive }: TaskCardProps) {
@@ -44,9 +44,6 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
       <p className={styles.title}>{task.title}</p>
       <div className={styles.meta}>
         {task.project !== null && <span className={styles.project}>{task.project}</span>}
-        <span className={styles.badge} data-responsibility={task.responsibility}>
-          {task.responsibility}
-        </span>
         {chip !== null && (
           <span className={styles.chip} data-tone={chip.tone}>
             {chip.text}

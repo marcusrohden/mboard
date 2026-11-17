@@ -15,7 +15,6 @@ export type {
   LocalDateTime,
   NewTaskInput,
   ReminderBannerItem,
-  Responsibility,
   Status,
   Task,
   TaskComment,

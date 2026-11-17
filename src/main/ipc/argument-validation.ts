@@ -1,9 +1,9 @@
-import { COLUMNS, RESPONSIBILITIES, isResponsibility, isStatus } from '../../domain';
-import type { LocalDate, NewTaskInput, Responsibility, Status, TaskEdit, TaskId } from '../../shared/contract';
+import { COLUMNS, isStatus } from '../../domain';
+import type { LocalDate, NewTaskInput, Status, TaskEdit, TaskId } from '../../shared/contract';
 
 type PlainObject = Record<string, unknown>;
 
-const NEW_TASK_KEYS = ['description', 'due', 'project', 'responsibility', 'status', 'title'] as const;
+const NEW_TASK_KEYS = ['description', 'due', 'project', 'status', 'title'] as const;
 const TASK_EDIT_KEYS = ['field', 'value'] as const;
 
 /** Builds the error for a request from the renderer that doesn't have the shape the contract describes. */
@@ -57,11 +57,6 @@ export function readStatus(value: unknown): Status {
   return value;
 }
 
-function readResponsibility(value: unknown): Responsibility {
-  if (!isResponsibility(value)) throw invalidRequest(`the responsibility must be one of ${RESPONSIBILITIES.join(', ')}`);
-  return value;
-}
-
 function readDue(value: unknown): LocalDate | null {
   return readNullableString(value, 'the due date');
 }
@@ -90,7 +85,6 @@ export function readNewTaskInput(value: unknown): NewTaskInput {
   return {
     title: readString(value['title'], 'the title'),
     status: readStatus(value['status']),
-    responsibility: readResponsibility(value['responsibility']),
     project: readNullableString(value['project'], 'the project'),
     due: readDue(value['due']),
     description: readString(value['description'], 'the description'),
@@ -110,11 +104,9 @@ export function readTaskEdit(value: unknown): TaskEdit {
       return { field: 'description', value: readString(editedValue, 'the description') };
     case 'project':
       return { field: 'project', value: readNullableString(editedValue, 'the project') };
-    case 'responsibility':
-      return { field: 'responsibility', value: readResponsibility(editedValue) };
     case 'due':
       return { field: 'due', value: readDue(editedValue) };
     default:
-      throw invalidRequest('the field must be one of title, description, project, responsibility, due');
+      throw invalidRequest('the field must be one of title, description, project, due');
   }
 }

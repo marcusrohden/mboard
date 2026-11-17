@@ -23,7 +23,6 @@ export function ArchivedView({ tasks, hasArchivedTasks, onOpen }: ArchivedViewPr
           <tr>
             <th scope="col">Title</th>
             <th scope="col">Project</th>
-            <th scope="col">Responsibility</th>
             <th scope="col">Archived</th>
           </tr>
         </thead>
@@ -36,11 +35,6 @@ export function ArchivedView({ tasks, hasArchivedTasks, onOpen }: ArchivedViewPr
                 </button>
               </td>
               <td>{task.project ?? ''}</td>
-              <td>
-                <span className={styles.badge} data-responsibility={task.responsibility}>
-                  {task.responsibility}
-                </span>
-              </td>
               <td>{task.archivedAt === null ? '' : formatDate(localDateOf(task.archivedAt))}</td>
             </tr>
           ))}

@@ -6,8 +6,7 @@ import { FALLBACK, makeDocument } from './testHelpers';
 
 const SPEC_EXAMPLE = `---
 title: "Why is the staging build failing?"
-status: In progress
-responsibility: Client
+status: With client
 project: Acme website
 due: 2026-11-20
 created: 2026-11-16T09:30:00
@@ -30,8 +29,13 @@ Asked the client for the staging credentials.
 - 2026-11-16 09:30 — Created in To do
 - 2026-11-16 10:05 — Moved from To do to In progress
 - 2026-11-16 14:02 — Comment added
-- 2026-11-16 14:03 — Responsibility changed from Me to Client
+- 2026-11-16 14:03 — Moved from In progress to With client
 `;
+
+const LEGACY_EXAMPLE = SPEC_EXAMPLE.replace('status: With client\n', 'status: In progress\nresponsibility: Client\n').replace(
+  'Moved from In progress to With client',
+  'Responsibility changed from Me to Client',
+);
 
 function parseOk(content: string): TaskDocument {
   const result: ParseResult = parseTaskFile(content, FALLBACK);
@@ -53,8 +57,8 @@ describe('round-trip of app-written files', () => {
   it('parses the spec example into the expected fields', () => {
     expect(parseOk(SPEC_EXAMPLE)).toMatchObject({
       title: 'Why is the staging build failing?',
-      status: 'In progress',
-      responsibility: 'Client',
+      status: 'With client',
+      rawStatus: null,
       project: 'Acme website',
       due: '2026-11-20',
       created: '2026-11-16T09:30:00',
@@ -73,7 +77,6 @@ describe('round-trip of app-written files', () => {
         '---',
         'title: "Sample task"',
         'status: To do',
-        'responsibility: Me',
         'created: 2026-11-16T09:30:00',
         'updated: 2026-11-16T09:30:00',
         '---',
@@ -97,7 +100,7 @@ describe('round-trip of app-written files', () => {
       .split('\n')
       .slice(1, text.split('\n').indexOf('---', 1))
       .map((line) => line.split(':')[0]);
-    expect(keys).toEqual(['title', 'status', 'responsibility', 'project', 'due', 'created', 'updated', 'archived', 'order']);
+    expect(keys).toEqual(['title', 'status', 'project', 'due', 'created', 'updated', 'archived', 'order']);
   });
 
   it('round-trips a document with every feature: multi-paragraph description, many comments, quoting', () => {
@@ -149,7 +152,6 @@ updated: "2026-11-16T14:03:12"
 created: "2026-11-16T09:30:00"
 due: "2026-11-20"
 project: "Acme website"
-responsibility: client
 status: in progress
 title: Why is the staging build failing?
 tags:
@@ -175,7 +177,6 @@ Body text.
     expect(parseOk(reserialised)).toMatchObject({
       title: 'Why is the staging build failing?',
       status: 'In progress',
-      responsibility: 'Client',
       project: 'Acme website',
       due: '2026-11-20',
       created: '2026-11-16T09:30:00',
@@ -190,10 +191,9 @@ Body text.
     expect(text).toContain('order: 2\ntags:\n  - work\n  - urgent\naliases:\n  - staging\n---\n');
   });
 
-  it('keeps the raw status and responsibility spelling until they change', () => {
+  it('keeps the raw status spelling until the status changes', () => {
     const text = serialiseTaskFile(parseOk(reserialised));
     expect(text).toContain('status: in progress\n');
-    expect(text).toContain('responsibility: client\n');
   });
 
   it('reads flow lists as lists and writes them as block lists', () => {
@@ -240,7 +240,6 @@ describe('files with no usable frontmatter', () => {
     expect(document).toMatchObject({
       title: 'Fallback title',
       status: 'To do',
-      responsibility: 'Me',
       project: null,
       due: null,
       created: '2026-01-02T03:04:05',
@@ -289,19 +288,21 @@ describe('unreadable files', () => {
 });
 
 describe('tolerant reading of values', () => {
-  it('falls back to defaults for an unknown status and responsibility and remembers the raw values', () => {
-    const document = parseOk('---\nstatus: Blocked\nresponsibility: Someone\n---\n');
-    expect(document).toMatchObject({
-      status: 'To do',
-      rawStatus: 'Blocked',
-      responsibility: 'Me',
-      rawResponsibility: 'Someone',
-    });
+  it('falls back to To do for an unknown status and remembers the raw value', () => {
+    expect(parseOk('---\nstatus: Blocked\n---\n')).toMatchObject({ status: 'To do', rawStatus: 'Blocked' });
   });
 
-  it('matches status and responsibility ignoring case and surrounding spaces', () => {
-    const document = parseOk('---\nstatus: "  DONE "\nresponsibility: INTERNAL\n---\n');
-    expect(document).toMatchObject({ status: 'Done', responsibility: 'Internal' });
+  it('matches the status ignoring case and surrounding spaces', () => {
+    expect(parseOk('---\nstatus: "  DONE "\n---\n')).toMatchObject({ status: 'Done', rawStatus: 'DONE' });
+    expect(parseOk('---\nstatus: " with CLIENT "\n---\n')).toMatchObject({ status: 'With client', rawStatus: 'with CLIENT' });
+    expect(parseOk('---\nstatus: internal\n---\n')).toMatchObject({ status: 'Internal', rawStatus: 'internal' });
+  });
+
+  it.each(['To do', 'In progress', 'Internal', 'With client', 'Done'])('reads and writes the status %s exactly', (status) => {
+    const text = serialiseTaskFile(parseOk(`---\ntitle: T\nstatus: ${status}\n---\n`));
+    expect(parseOk(text)).toMatchObject({ status, rawStatus: null });
+    expect(text).toContain(`\nstatus: ${status}\n`);
+    expect(serialiseTaskFile(parseOk(text))).toBe(text);
   });
 
   it.each([
@@ -410,5 +411,116 @@ describe('toTask', () => {
       order: 2,
     });
     expect(task).not.toHaveProperty('unknownFrontmatter');
+    expect(toTask(parseOk(LEGACY_EXAMPLE), 'tasks/Why.md', false)).not.toHaveProperty('responsibility');
+  });
+});
+
+describe('legacy responsibility', () => {
+  function legacy(status: string, responsibility: string, extra = ''): string {
+    return `---\ntitle: "Legacy"\nstatus: ${status}\nresponsibility: ${responsibility}\n${extra}created: 2026-11-01T09:00:00\nupdated: 2026-11-02T10:00:00\norder: 3\n---\n\n## Description\n\n## Comments\n\n## History\n\n- 2026-11-01 09:00 — Created in To do\n`;
+  }
+
+  it.each([
+    ['To do', 'Client', 'With client'],
+    ['To do', 'Internal', 'Internal'],
+    ['In progress', 'Client', 'With client'],
+    ['In progress', 'Internal', 'Internal'],
+  ])('reads %s with %s as the %s column', (status, responsibility, expected) => {
+    expect(parseOk(legacy(status, responsibility))).toMatchObject({ status: expected, rawStatus: null, order: 3 });
+  });
+
+  it.each([
+    ['"  in PROGRESS "', 'CLIENT', 'With client'],
+    ['to do', '" internal "', 'Internal'],
+    ['TO DO', 'client', 'With client'],
+  ])('matches the raw spellings %s and %s ignoring case and spaces', (status, responsibility, expected) => {
+    expect(parseOk(legacy(status, responsibility))).toMatchObject({ status: expected, rawStatus: null });
+  });
+
+  it('leaves Done and the new columns as they are', () => {
+    expect(parseOk(legacy('Done', 'Client')).status).toBe('Done');
+    expect(parseOk(legacy('done', 'Internal'))).toMatchObject({ status: 'Done', rawStatus: 'done' });
+    expect(parseOk(legacy('Internal', 'Client')).status).toBe('Internal');
+    expect(parseOk(legacy('With client', 'Internal')).status).toBe('With client');
+  });
+
+  it('leaves the status as it is for Me, an unknown or an empty responsibility', () => {
+    expect(parseOk(legacy('In progress', 'Me')).status).toBe('In progress');
+    expect(parseOk(legacy('in progress', 'Someone'))).toMatchObject({ status: 'In progress', rawStatus: 'in progress' });
+    expect(parseOk(legacy('To do', '')).status).toBe('To do');
+    expect(parseOk(legacy('To do', '[Client]')).status).toBe('To do');
+  });
+
+  it('maps only a status that names To do or In progress, not an unknown or missing one', () => {
+    expect(parseOk(legacy('Blocked', 'Client'))).toMatchObject({ status: 'To do', rawStatus: 'Blocked' });
+    expect(parseOk('---\ntitle: T\nresponsibility: Client\n---\n')).toMatchObject({ status: 'To do', rawStatus: null });
+  });
+
+  it('maps an archived file the same way', () => {
+    expect(parseOk(legacy('In progress', 'Internal', 'archived: 2026-11-03T08:00:00\n'))).toMatchObject({
+      status: 'Internal',
+      archivedAt: '2026-11-03T08:00:00',
+    });
+  });
+
+  it('never keeps the key, so the next write drops it and writes the column, without counting as an update', () => {
+    const text = serialiseTaskFile(parseOk(legacy('in progress', 'client')));
+    expect(text).not.toContain('responsibility');
+    expect(text).toContain('\nstatus: With client\n');
+    expect(text).toContain('\nupdated: 2026-11-02T10:00:00\n');
+    expect(text.endsWith('## History\n\n- 2026-11-01 09:00 — Created in To do\n')).toBe(true);
+    expect(parseOk(legacy('in progress', 'client')).unknownFrontmatter).toEqual([]);
+  });
+
+  it('drops a responsibility that does not map, keeping the status spelling', () => {
+    const text = serialiseTaskFile(parseOk(legacy('Done', 'Client')));
+    expect(text).not.toContain('responsibility');
+    expect(text).toContain('\nstatus: Done\n');
+    expect(serialiseTaskFile(parseOk(legacy('in progress', 'Me')))).toContain('\nstatus: in progress\n');
+  });
+
+  it('fixes a file in the old shape as Obsidian re-serialises it, keeping its unknown keys', () => {
+    const obsidianLegacy = `---
+updated: "2026-11-16T14:03:12"
+created: "2026-11-16T09:30:00"
+due: "2026-11-20"
+project: "Acme website"
+responsibility: client
+status: in progress
+title: Why is the staging build failing?
+tags:
+  - work
+  - urgent
+aliases:
+  - staging
+order: 2
+---
+
+## Description
+
+Body text.
+
+## Comments
+
+## History
+
+- 2026-11-16 09:30 — Created in To do
+`;
+    const document = parseOk(obsidianLegacy);
+    expect(document).toMatchObject({ status: 'With client', rawStatus: null, updated: '2026-11-16T14:03:12', order: 2 });
+    expect(document.history).toHaveLength(1);
+
+    const text = serialiseTaskFile(document);
+    expect(text).toContain('\nstatus: With client\n');
+    expect(text).not.toContain('responsibility');
+    expect(text).toContain('\nupdated: 2026-11-16T14:03:12\n');
+    expect(text).toContain('order: 2\ntags:\n  - work\n  - urgent\naliases:\n  - staging\n---\n');
+    expect(serialiseTaskFile(parseOk(text))).toBe(text);
+  });
+
+  it('round-trips the fixed file byte for byte', () => {
+    const fixed = serialiseTaskFile(parseOk(LEGACY_EXAMPLE));
+    expect(fixed).toBe(SPEC_EXAMPLE.replace('Moved from In progress to With client', 'Responsibility changed from Me to Client'));
+    expect(serialiseTaskFile(parseOk(fixed))).toBe(fixed);
   });
 });

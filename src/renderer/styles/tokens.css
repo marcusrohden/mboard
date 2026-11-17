@@ -45,18 +45,12 @@
   --tone-info-bg: #d6e6fb;
   --tone-info-fg: #0b4a9e;
 
-  --responsibility-me-bg: #d6e6fb;
-  --responsibility-me-fg: #0b4a9e;
-  --responsibility-client-bg: #eadcf8;
-  --responsibility-client-fg: #5b2a8c;
-  --responsibility-internal-bg: #d3f0df;
-  --responsibility-internal-fg: #14613a;
-
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.12);
   --shadow-popover: 0 6px 24px rgba(0, 0, 0, 0.2);
   --shadow-drawer: -4px 0 24px rgba(0, 0, 0, 0.12);
 
   --drawer-width: 400px;
+  --column-min-width: 160px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -87,13 +81,6 @@
     --tone-red-fg: #ffb0aa;
     --tone-info-bg: #173d6b;
     --tone-info-fg: #a9cdfb;
-
-    --responsibility-me-bg: #173d6b;
-    --responsibility-me-fg: #a9cdfb;
-    --responsibility-client-bg: #3e2761;
-    --responsibility-client-fg: #d6b9f5;
-    --responsibility-internal-bg: #1a4a31;
-    --responsibility-internal-fg: #a6e3c0;
 
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-popover: 0 6px 24px rgba(0, 0, 0, 0.6);

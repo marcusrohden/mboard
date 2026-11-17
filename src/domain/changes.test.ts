@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addComment, applyEdit, archiveDocument, createTaskDocument, moveToColumn, restoreDocument, setOrder } from './changes';
 import type { ChangeContext } from './changes';
-import type { NewTaskInput, TaskDocument, TaskEdit } from './model';
+import type { NewTaskInput, Status, TaskDocument, TaskEdit } from './model';
 import { parseTaskFile, serialiseTaskFile } from './taskFile';
 import { FALLBACK, makeDocument } from './testHelpers';
 
@@ -13,7 +13,6 @@ const CONTEXT: ChangeContext = { now: NOW, knownProjects: ['Acme website'] };
 const INPUT: NewTaskInput = {
   title: '  Fix   login bug ',
   status: 'To do',
-  responsibility: 'Client',
   project: 'acme  WEBSITE',
   due: '2026-11-20',
   description: '\nSteps to reproduce.\n\n',
@@ -33,7 +32,6 @@ describe('createTaskDocument', () => {
     expect(document).toMatchObject({
       title: 'Fix login bug',
       status: 'To do',
-      responsibility: 'Client',
       project: 'Acme website',
       due: '2026-11-20',
       created: NOW_FIELD,
@@ -46,9 +44,10 @@ describe('createTaskDocument', () => {
     });
   });
 
-  it('names the column it was created in', () => {
-    const document = createTaskDocument({ ...INPUT, status: 'In progress' }, { ...CONTEXT, order: 1 });
-    expect(document.history[0]?.text).toBe('Created in In progress');
+  it.each(['In progress', 'Internal', 'With client', 'Done'] as const)('names the column it was created in: %s', (status) => {
+    const document = createTaskDocument({ ...INPUT, status }, { ...CONTEXT, order: 1 });
+    expect(document.status).toBe(status);
+    expect(document.history[0]?.text).toBe(`Created in ${status}`);
   });
 
   it('accepts no project and no due date', () => {
@@ -66,11 +65,12 @@ describe('createTaskDocument', () => {
     );
   });
 
-  it('rejects a column or responsibility that does not exist', () => {
+  it('rejects a column that does not exist', () => {
     const create = (input: Record<string, unknown>) =>
       createTaskDocument({ ...INPUT, ...input } as NewTaskInput, { ...CONTEXT, order: 1 });
-    expect(() => create({ status: 'Blocked' })).toThrow(/column/);
-    expect(() => create({ responsibility: 'Nobody' })).toThrow(/responsibility/);
+    expect(() => create({ status: 'Blocked' })).toThrow(
+      'The column must be one of: To do, In progress, Internal, With client, Done.',
+    );
   });
 
   it('rejects a description that would read back as structure', () => {
@@ -122,12 +122,6 @@ describe('editing each field', () => {
     expect(result.document.project).toBe('Acme website');
   });
 
-  it('responsibility: records the change', () => {
-    const result = edit(base, { field: 'responsibility', value: 'Client' });
-    expect(result.document.responsibility).toBe('Client');
-    expect(lastHistoryText(result.document)).toBe('Responsibility changed from Me to Client');
-  });
-
   it('due: records the change, using (none) for empty', () => {
     expect(lastHistoryText(edit(makeDocument(), { field: 'due', value: '2026-11-20' }).document)).toBe(
       'Due date changed from (none) to 2026-11-20',
@@ -140,16 +134,10 @@ describe('editing each field', () => {
   it('due: rejects an invalid date', () => {
     expect(() => edit(base, { field: 'due', value: 'tomorrow' })).toThrow('The due date must be a real date, written as YYYY-MM-DD.');
   });
-
-  it('replaces a raw unrecognised responsibility once it is set', () => {
-    const raw = makeDocument({ responsibility: 'Me', rawResponsibility: 'someone' });
-    const result = edit(raw, { field: 'responsibility', value: 'Internal' });
-    expect(result.document).toMatchObject({ responsibility: 'Internal', rawResponsibility: null });
-  });
 });
 
 describe('no-op edits', () => {
-  const base = makeDocument({ project: 'Acme website', due: '2026-11-20', description: 'Text', responsibility: 'Client' });
+  const base = makeDocument({ project: 'Acme website', due: '2026-11-20', description: 'Text' });
 
   it.each<[string, TaskEdit]>([
     ['title', { field: 'title', value: 'Sample task' }],
@@ -158,7 +146,6 @@ describe('no-op edits', () => {
     ['description with surrounding blank lines', { field: 'description', value: '\n\nText\n\n' }],
     ['project', { field: 'project', value: 'Acme website' }],
     ['project in another case', { field: 'project', value: 'ACME WEBSITE' }],
-    ['responsibility', { field: 'responsibility', value: 'Client' }],
     ['due', { field: 'due', value: '2026-11-20' }],
   ])('reports %s unchanged and returns the same document', (_name, change) => {
     const result = edit(base, change);
@@ -228,6 +215,23 @@ describe('moveToColumn', () => {
     expect(lastHistoryText(result.document)).toBe('Moved from Done to To do');
   });
 
+  it.each([
+    ['In progress', 'With client'],
+    ['With client', 'Internal'],
+    ['Internal', 'To do'],
+    ['To do', 'Internal'],
+    ['With client', 'Done'],
+    ['Done', 'With client'],
+  ] as const)('moves freely from %s to %s', (from, to) => {
+    const result = moveToColumn(makeDocument({ status: from }), to, 1, NOW);
+    expect(result.document.status).toBe(to);
+    expect(lastHistoryText(result.document)).toBe(`Moved from ${from} to ${to}`);
+  });
+
+  it('rejects a column that does not exist', () => {
+    expect(() => moveToColumn(makeDocument(), 'Waiting' as Status, 1, NOW)).toThrow(/^The column must be one of: /);
+  });
+
   it('replaces a raw unrecognised status when the column changes', () => {
     const result = moveToColumn(makeDocument({ rawStatus: 'Blocked' }), 'Done', 1, NOW);
     expect(result.document.rawStatus).toBeNull();
@@ -252,8 +256,8 @@ describe('archiveDocument and restoreDocument', () => {
     expect(lastHistoryText(document)).toBe('Archived');
   });
 
-  it('rejects archiving a task that is not in Done', () => {
-    expect(() => archiveDocument(makeDocument({ status: 'In progress' }), NOW)).toThrow('Only tasks in Done can be archived.');
+  it.each(['To do', 'In progress', 'Internal', 'With client'] as const)('rejects archiving a task in %s', (status) => {
+    expect(() => archiveDocument(makeDocument({ status }), NOW)).toThrow('Only tasks in Done can be archived.');
   });
 
   it('restores to Done at the given order, removes archived and records "Restored to Done"', () => {
@@ -270,5 +274,62 @@ describe('unknown frontmatter survives changes', () => {
   it('keeps unknown entries through an edit', () => {
     const document = makeDocument({ unknownFrontmatter: [{ key: 'tags', value: ['a'] }] });
     expect(edit(document, { field: 'title', value: 'Other' }).document.unknownFrontmatter).toBe(document.unknownFrontmatter);
+  });
+});
+
+describe('a legacy file with a responsibility', () => {
+  const legacyFile = [
+    '---',
+    'title: "Chase the client"',
+    'status: in progress',
+    'responsibility: Client',
+    'created: 2026-11-01T09:00:00',
+    'updated: 2026-11-02T10:00:00',
+    'order: 2',
+    '---',
+    '',
+    '## Description',
+    '',
+    'Old text.',
+    '',
+    '## Comments',
+    '',
+    '## History',
+    '',
+    '- 2026-11-01 09:00 — Created in To do',
+    '',
+  ].join('\n');
+
+  function parseLegacy(): TaskDocument {
+    const result = parseTaskFile(legacyFile, FALLBACK);
+    if (result.kind !== 'ok') throw new Error(result.reason);
+    return result.document;
+  }
+
+  it('is fixed by the next edit, which records only that edit', () => {
+    const { document } = edit(parseLegacy(), { field: 'description', value: 'New text.' });
+    const text = serialiseTaskFile(document);
+
+    expect(text).toContain('\nstatus: With client\n');
+    expect(text).not.toContain('responsibility');
+    expect(text).toContain(`\nupdated: ${NOW_FIELD}\n`);
+    expect(document.history.map((entry) => entry.text)).toEqual(['Created in To do', 'Description edited']);
+  });
+
+  it('is fixed by a reorder, which is still not an update', () => {
+    const { changed, document } = setOrder(parseLegacy(), 1);
+    const text = serialiseTaskFile(document);
+
+    expect(changed).toBe(true);
+    expect(text).toContain('\nstatus: With client\n');
+    expect(text).not.toContain('responsibility');
+    expect(text).toContain('\nupdated: 2026-11-02T10:00:00\n');
+    expect(document.history).toHaveLength(1);
+  });
+
+  it('moves out of its mapped column like any other task', () => {
+    const { document } = moveToColumn(parseLegacy(), 'Done', 1, NOW);
+    expect(lastHistoryText(document)).toBe('Moved from With client to Done');
+    expect(serialiseTaskFile(document)).not.toContain('responsibility');
   });
 });

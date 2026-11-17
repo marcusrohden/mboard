@@ -19,7 +19,6 @@ const tasks = [
     title: 'Staging build failing',
     description: 'The pipeline fails at the asset step',
     project: 'Acme website',
-    responsibility: 'Client',
     due: '2026-11-20',
     updated: '2026-11-17T09:00:00',
     comments: [{ at: '2026-11-17 09:00', text: 'Asked for the staging credentials' }],
@@ -28,7 +27,6 @@ const tasks = [
     id: 'tasks/Invoice.md',
     title: 'Send invoice',
     project: 'Bookkeeping',
-    responsibility: 'Me',
     due: '2026-11-10',
     updated: '2026-11-17T09:00:00',
   }),
@@ -36,7 +34,6 @@ const tasks = [
     id: 'tasks/Stale thing.md',
     title: 'Chase supplier',
     project: null,
-    responsibility: 'Internal',
     due: '2026-11-18',
     updated: '2026-11-10T09:00:00',
   }),
@@ -44,14 +41,12 @@ const tasks = [
     id: 'tasks/Done old.md',
     title: 'Old finished job',
     status: 'Done',
-    responsibility: 'Me',
     due: '2026-11-22',
     updated: '2026-10-01T09:00:00',
   }),
   makeTask({
     id: 'tasks/Next week.md',
     title: 'Plan the quarter',
-    responsibility: 'Me',
     due: '2026-11-23',
     updated: '2026-11-18T09:00:00',
   }),
@@ -102,11 +97,6 @@ describe('board filters', () => {
     expect(board({ projects: new Set(['Acme website', 'Bookkeeping']) })).toEqual(['Staging build failing', 'Send invoice']);
   });
 
-  it('responsibilities: matches any selected value', () => {
-    expect(board({ responsibilities: new Set(['Client']) })).toEqual(['Staging build failing']);
-    expect(board({ responsibilities: new Set(['Client', 'Internal']) })).toEqual(['Staging build failing', 'Chase supplier']);
-  });
-
   it('due overdue: before today', () => {
     expect(board({ due: 'overdue' })).toEqual(['Send invoice']);
   });
@@ -134,26 +124,26 @@ describe('board filters', () => {
   });
 
   it('combines filters with AND', () => {
-    expect(board({ responsibilities: new Set(['Me']), due: 'overdue' })).toEqual(['Send invoice']);
+    expect(board({ projects: new Set(['Bookkeeping']), due: 'overdue' })).toEqual(['Send invoice']);
     expect(board({ query: 'supplier', projects: new Set(['Acme website']) })).toEqual([]);
-    expect(board({ responsibilities: new Set(['Internal']), staleOnly: true, projects: new Set([null]), due: 'today' })).toEqual([
-      'Chase supplier',
-    ]);
+    expect(board({ staleOnly: true, projects: new Set([null]), due: 'today' })).toEqual(['Chase supplier']);
   });
 });
 
 describe('archived view filters', () => {
   const archived = [
-    makeTask({ title: 'Archived A', project: 'Acme website', responsibility: 'Client', due: '2026-01-01', isArchived: true }),
-    makeTask({ title: 'Archived B', project: null, responsibility: 'Me', isArchived: true }),
+    makeTask({ title: 'Archived A', project: 'Acme website', due: '2026-01-01', isArchived: true }),
+    makeTask({ title: 'Archived B', project: null, isArchived: true }),
   ];
 
-  it('applies search, projects and responsibilities', () => {
+  it('applies search and projects', () => {
     expect(titles(filterArchivedTasks(archived, { ...EMPTY_ARCHIVE_FILTER, query: 'archived website' }))).toEqual(['Archived A']);
     expect(titles(filterArchivedTasks(archived, { ...EMPTY_ARCHIVE_FILTER, projects: new Set([null]) }))).toEqual(['Archived B']);
-    expect(titles(filterArchivedTasks(archived, { ...EMPTY_ARCHIVE_FILTER, responsibilities: new Set(['Client']) }))).toEqual([
-      'Archived A',
-    ]);
+  });
+
+  it('has no responsibility criterion', () => {
+    expect(Object.keys(EMPTY_ARCHIVE_FILTER).sort()).toEqual(['projects', 'query']);
+    expect(Object.keys(EMPTY_FILTER).sort()).toEqual(['due', 'projects', 'query', 'staleOnly']);
   });
 
   it('ignores due and stale criteria that are not part of the archived view', () => {
@@ -169,7 +159,6 @@ describe('isFilterActive', () => {
     expect(isFilterActive({ ...EMPTY_FILTER, query: ' ' })).toBe(false);
     expect(isFilterActive({ ...EMPTY_FILTER, query: 'x' })).toBe(true);
     expect(isFilterActive({ ...EMPTY_FILTER, projects: new Set([null]) })).toBe(true);
-    expect(isFilterActive({ ...EMPTY_FILTER, responsibilities: new Set(['Me']) })).toBe(true);
     expect(isFilterActive({ ...EMPTY_FILTER, due: 'overdue' })).toBe(true);
     expect(isFilterActive({ ...EMPTY_FILTER, staleOnly: true })).toBe(true);
   });

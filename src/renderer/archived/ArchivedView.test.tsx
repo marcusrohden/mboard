@@ -8,9 +8,9 @@ useDomEnvironment();
 
 const TASKS = () => [
   buildTask({ title: 'Live task', project: 'Acme' }),
-  buildTask({ title: 'Older', status: 'Done', isArchived: true, archivedAt: '2026-11-01T10:00:00', project: 'Acme', responsibility: 'Client' }),
-  buildTask({ title: 'Newest', status: 'Done', isArchived: true, archivedAt: '2026-11-14T10:00:00', project: null, responsibility: 'Me', description: 'invoice sent' }),
-  buildTask({ title: 'Undated', status: 'Done', isArchived: true, archivedAt: null, project: 'Other', responsibility: 'Internal' }),
+  buildTask({ title: 'Older', status: 'Done', isArchived: true, archivedAt: '2026-11-01T10:00:00', project: 'Acme' }),
+  buildTask({ title: 'Newest', status: 'Done', isArchived: true, archivedAt: '2026-11-14T10:00:00', project: null, description: 'invoice sent' }),
+  buildTask({ title: 'Undated', status: 'Done', isArchived: true, archivedAt: null, project: 'Other' }),
 ];
 
 function rowTitles(): string[] {
@@ -34,26 +34,22 @@ describe('Archived view', () => {
     expect(screen.getByRole('region', { name: 'To do' })).toBeTruthy();
   });
 
-  it('lists archived tasks newest first with project, responsibility and archived date', async () => {
+  it('lists archived tasks newest first with project and archived date', async () => {
     const { user } = await renderBoard({ tasks: TASKS() });
     await user.click(screen.getByRole('button', { name: 'Archived' }));
     expect(rowTitles()).toEqual(['Newest', 'Older', 'Undated']);
     const older = screen.getByRole('button', { name: 'Older' }).closest('tr')!;
     const cells = within(older).getAllByRole('cell').map((cell) => cell.textContent);
-    expect(cells).toEqual(['Older', 'Acme', 'Client', '1 Nov 2026']);
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
-      'Title',
-      'Project',
-      'Responsibility',
-      'Archived',
-    ]);
+    expect(cells).toEqual(['Older', 'Acme', '1 Nov 2026']);
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Title', 'Project', 'Archived']);
   });
 
-  it('applies search, Project and Responsibility filters but hides Due and Stale only', async () => {
+  it('applies search and the Project filter but hides Due and Stale only', async () => {
     const { user } = await renderBoard({ tasks: TASKS() });
     await user.click(screen.getByRole('button', { name: 'Archived' }));
     expect(screen.queryByRole('button', { name: 'Due' })).toBeNull();
     expect(screen.queryByRole('switch', { name: 'Stale only' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Responsibility' })).toBeNull();
 
     await user.type(screen.getByRole('searchbox', { name: 'Search tasks' }), 'invoice');
     expect(rowTitles()).toEqual(['Newest']);
@@ -65,11 +61,6 @@ describe('Archived view', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Acme' }));
     await user.click(screen.getByRole('checkbox', { name: 'No project' }));
     expect(rowTitles()).toEqual(['Newest']);
-    await user.click(screen.getByRole('button', { name: 'Clear' }));
-
-    await user.click(screen.getByRole('button', { name: 'Responsibility' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Internal' }));
-    expect(rowTitles()).toEqual(['Undated']);
   });
 
   it('keeps the search and filters when switching between the board and the archive', async () => {

@@ -26,7 +26,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import styles from './BoardScreen.module.css';
 
 function archivedCriteria(criteria: FilterCriteria): FilterCriteria {
-  return { ...EMPTY_FILTER, query: criteria.query, projects: criteria.projects, responsibilities: criteria.responsibilities };
+  return { ...EMPTY_FILTER, query: criteria.query, projects: criteria.projects };
 }
 
 /**

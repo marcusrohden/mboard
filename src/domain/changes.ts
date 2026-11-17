@@ -1,5 +1,5 @@
-import type { LocalDate, NewTaskInput, Responsibility, Status, TaskDocument, TaskEdit } from './model';
-import { COLUMNS, RESPONSIBILITIES, isResponsibility, isStatus } from './model';
+import type { LocalDate, NewTaskInput, Status, TaskDocument, TaskEdit } from './model';
+import { COLUMNS, isStatus } from './model';
 import { canonicalProject } from './projects';
 import { trimBlankLines } from './taskFile';
 import { formatLocalDateTime, formatLogTimestamp, normaliseLogTimestamp, parseLocalDate } from './time';
@@ -63,13 +63,6 @@ function validateStatus(status: Status): Status {
   return status;
 }
 
-function validateResponsibility(responsibility: Responsibility): Responsibility {
-  if (!isResponsibility(responsibility)) {
-    throw new Error(`The responsibility must be one of: ${RESPONSIBILITIES.join(', ')}.`);
-  }
-  return responsibility;
-}
-
 function assertSafeBodyText(text: string, subject: string): void {
   const clashes = text
     .split('\n')
@@ -109,8 +102,6 @@ export function createTaskDocument(input: NewTaskInput, context: CreateContext):
     title: normaliseTitle(input.title),
     status,
     rawStatus: null,
-    responsibility: validateResponsibility(input.responsibility),
-    rawResponsibility: null,
     project: canonicalProject(input.project, context.knownProjects),
     due: validateDue(input.due),
     created: timestamp,
@@ -144,13 +135,6 @@ function editProject(document: TaskDocument, value: string | null, context: Chan
   return recordUpdate(document, { project }, text, context.now);
 }
 
-function editResponsibility(document: TaskDocument, value: Responsibility, now: Date): ChangeResult {
-  const responsibility = validateResponsibility(value);
-  if (responsibility === document.responsibility) return unchanged(document);
-  const text = `Responsibility changed from ${document.responsibility} to ${responsibility}`;
-  return recordUpdate(document, { responsibility, rawResponsibility: null }, text, now);
-}
-
 function editDue(document: TaskDocument, value: LocalDate | null, now: Date): ChangeResult {
   const due = validateDue(value);
   if (due === document.due) return unchanged(document);
@@ -172,8 +156,6 @@ export function applyEdit(document: TaskDocument, edit: TaskEdit, context: Chang
       return editDescription(document, edit.value, context.now);
     case 'project':
       return editProject(document, edit.value, context);
-    case 'responsibility':
-      return editResponsibility(document, edit.value, context.now);
     case 'due':
       return editDue(document, edit.value, context.now);
   }

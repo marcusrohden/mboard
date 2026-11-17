@@ -129,6 +129,47 @@ describe('orderForInsertBefore', () => {
   });
 });
 
+describe('a column merged from legacy columns', () => {
+  const merged = [
+    ordered('from to do 1', 1, { status: 'With client', created: '2026-11-01T09:00:00' }),
+    ordered('from to do 2', 2, { status: 'With client', created: '2026-11-01T10:00:00' }),
+    ordered('from in progress 1', 1, { status: 'With client', created: '2026-11-03T09:00:00' }),
+    ordered('from in progress 2', 2, { status: 'With client', created: '2026-11-03T10:00:00' }),
+    ordered('unordered', null, { status: 'With client' }),
+  ];
+
+  it('keeps each order and breaks the duplicates by created descending', () => {
+    expect(columnTasks(merged, 'With client').map((task) => task.title)).toEqual([
+      'from in progress 1',
+      'from to do 1',
+      'from in progress 2',
+      'from to do 2',
+      'unordered',
+    ]);
+  });
+
+  it('puts a button move at the top with a single order', () => {
+    expect(orderForTopOfColumn(merged)).toBe(0);
+  });
+
+  it('renumbers the column for a drop between two equal orders', () => {
+    expect(orderForInsertBefore(merged, 'tasks/x.md', 'tasks/from to do 1.md')).toEqual({
+      kind: 'renumber',
+      assignments: [
+        { id: 'tasks/x.md', order: 2 },
+        { id: 'tasks/from to do 1.md', order: 3 },
+        { id: 'tasks/from in progress 2.md', order: 4 },
+        { id: 'tasks/from to do 2.md', order: 5 },
+        { id: 'tasks/unordered.md', order: 6 },
+      ],
+    });
+  });
+
+  it('drops between different orders with a single write', () => {
+    expect(orderForInsertBefore(merged, 'tasks/x.md', 'tasks/from in progress 2.md')).toEqual({ kind: 'single', order: 1.5 });
+  });
+});
+
 describe('compareArchivedTasks', () => {
   it('sorts archived date descending with missing dates last', () => {
     const tasks = [

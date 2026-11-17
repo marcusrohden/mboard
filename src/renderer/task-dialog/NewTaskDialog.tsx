@@ -1,9 +1,8 @@
 import { useId, useState, type KeyboardEvent } from 'react';
-import { COLUMNS, normaliseProject, type NewTaskInput, type Responsibility, type Status } from '../../domain';
+import { COLUMNS, normaliseProject, type NewTaskInput, type Status } from '../../domain';
 import { Button } from '../ui/Button';
 import { AUTOFOCUS_ATTRIBUTE, Modal } from '../ui/Modal';
 import { ProjectInput } from '../ui/ProjectInput';
-import { ResponsibilityField } from '../ui/ResponsibilityField';
 import fields from '../ui/fields.module.css';
 import styles from './NewTaskDialog.module.css';
 
@@ -21,7 +20,6 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onClose }: NewTask
   const ids = { title: useId(), status: useId(), project: useId(), due: useId(), description: useId() };
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState<Status>('To do');
-  const [responsibility, setResponsibility] = useState<Responsibility>('Me');
   const [project, setProject] = useState('');
   const [due, setDue] = useState('');
   const [description, setDescription] = useState('');
@@ -38,7 +36,6 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onClose }: NewTask
     const created = await onCreate({
       title: title.trim(),
       status,
-      responsibility,
       project: normaliseProject(project),
       due: due === '' ? null : due,
       description,
@@ -99,10 +96,6 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onClose }: NewTask
                 </option>
               ))}
             </select>
-          </div>
-          <div className={fields.field}>
-            <span className={fields.label}>Responsibility</span>
-            <ResponsibilityField value={responsibility} onChange={setResponsibility} />
           </div>
         </div>
         <div className={styles.pair}>

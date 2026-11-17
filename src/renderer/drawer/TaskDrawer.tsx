@@ -4,7 +4,6 @@ import { formatDateTime } from '../lib/format';
 import type { TaskCommands } from '../state/use-task-commands';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { ResponsibilityField } from '../ui/ResponsibilityField';
 import fields from '../ui/fields.module.css';
 import { CommentsSection } from './CommentsSection';
 import { DrawerField } from './DrawerField';
@@ -66,14 +65,6 @@ export function TaskDrawer({ task, projectSuggestions, commands, onClose }: Task
                 </option>
               ))}
             </select>
-          </div>
-          <div className={fields.field}>
-            <span className={fields.label}>Responsibility</span>
-            <ResponsibilityField
-              value={task.responsibility}
-              disabled={readOnly}
-              onChange={(value) => void commands.edit(task.id, { field: 'responsibility', value })}
-            />
           </div>
         </div>
         <div className={styles.pair}>

@@ -1,15 +1,14 @@
 import { dueStatus } from './due';
-import type { LocalDate, Responsibility, Task } from './model';
+import type { LocalDate, Task } from './model';
 import { stalenessOf } from './staleness';
 import { endOfWeek } from './time';
 
 export type DueFilter = 'any' | 'overdue' | 'today' | 'thisWeek' | 'none';
 
-/** The archived view's criteria: search, projects and responsibilities. `null` in `projects` means No project. */
+/** The archived view's criteria: search and projects. `null` in `projects` means No project. */
 export interface ArchiveFilterCriteria {
   query: string;
   projects: ReadonlySet<string | null>;
-  responsibilities: ReadonlySet<Responsibility>;
 }
 
 /** The board's criteria. All of them combine with AND, and an empty set or `any` matches everything. */
@@ -21,7 +20,6 @@ export interface FilterCriteria extends ArchiveFilterCriteria {
 export const EMPTY_ARCHIVE_FILTER: ArchiveFilterCriteria = {
   query: '',
   projects: new Set(),
-  responsibilities: new Set(),
 };
 
 export const EMPTY_FILTER: FilterCriteria = {
@@ -48,12 +46,8 @@ export function matchesSearch(task: Pick<Task, 'title' | 'description' | 'commen
 }
 
 function matchesArchiveCriteria(task: Task, criteria: ArchiveFilterCriteria, terms: readonly string[]): boolean {
-  const { projects, responsibilities } = criteria;
-  return (
-    matchesSearch(task, terms) &&
-    (projects.size === 0 || projects.has(task.project)) &&
-    (responsibilities.size === 0 || responsibilities.has(task.responsibility))
-  );
+  const { projects } = criteria;
+  return matchesSearch(task, terms) && (projects.size === 0 || projects.has(task.project));
 }
 
 function matchesDueFilter(due: Task['due'], filter: DueFilter, today: LocalDate): boolean {
@@ -77,7 +71,6 @@ export function isFilterActive(criteria: ArchiveFilterCriteria | FilterCriteria)
   return (
     searchTerms(criteria.query).length > 0 ||
     criteria.projects.size > 0 ||
-    criteria.responsibilities.size > 0 ||
     hasBoardOnlyCriteria
   );
 }
@@ -93,7 +86,7 @@ export function filterBoardTasks(tasks: readonly Task[], criteria: FilterCriteri
   );
 }
 
-/** Tasks that satisfy the archived view's search, Projects and Responsibilities. Keeps the input order. */
+/** Tasks that satisfy the archived view's search and Projects. Keeps the input order. */
 export function filterArchivedTasks(tasks: readonly Task[], criteria: ArchiveFilterCriteria): Task[] {
   const terms = searchTerms(criteria.query);
   return tasks.filter((task) => matchesArchiveCriteria(task, criteria, terms));

@@ -17,18 +17,31 @@ function titlesIn(name: string): string[] {
 }
 
 describe('Board', () => {
-  it('shows three columns with their tasks as articles, sorted by order', async () => {
+  it('shows five columns in board order with their tasks as articles, sorted by order', async () => {
     await renderBoard({
       tasks: [
         buildTask({ title: 'Second', order: 2 }),
         buildTask({ title: 'First', order: 1 }),
         buildTask({ title: 'Going', status: 'In progress' }),
+        buildTask({ title: 'Asked the team', status: 'Internal' }),
+        buildTask({ title: 'Sent the quote', status: 'With client', order: 2 }),
+        buildTask({ title: 'Sent the draft', status: 'With client', order: 1 }),
         buildTask({ title: 'Finished', status: 'Done' }),
       ],
     });
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'To do',
+      'In progress',
+      'Internal',
+      'With client',
+      'Done',
+    ]);
     expect(titlesIn('To do')).toEqual(['First', 'Second']);
     expect(titlesIn('In progress')).toEqual(['Going']);
+    expect(titlesIn('Internal')).toEqual(['Asked the team']);
+    expect(titlesIn('With client')).toEqual(['Sent the draft', 'Sent the quote']);
     expect(titlesIn('Done')).toEqual(['Finished']);
+    expect(within(column('With client')).getByText('2')).toBeTruthy();
     expect(within(column('To do')).getByRole('heading', { name: 'To do' })).toBeTruthy();
     expect(within(column('To do')).getByText('2')).toBeTruthy();
   });
@@ -49,14 +62,21 @@ describe('Board', () => {
     expect(fake.api.createTask).not.toHaveBeenCalled();
   });
 
-  it('shows the task title, project, responsibility and due chip', async () => {
+  it('shows empty Internal and With client columns as drop targets', async () => {
+    await renderBoard({ tasks: [buildTask({ title: 'Only one' })] });
+    expect(within(column('Internal')).getByText('No tasks')).toBeTruthy();
+    expect(within(column('With client')).getByText('No tasks')).toBeTruthy();
+  });
+
+  it('shows the task title, project and due chip, and no responsibility', async () => {
     await renderBoard({
-      tasks: [buildTask({ title: 'Ship it', project: 'Acme website', responsibility: 'Client', due: '2026-11-20' })],
+      tasks: [buildTask({ title: 'Ship it', project: 'Acme website', status: 'With client', due: '2026-11-20' })],
     });
     const task = screen.getByRole('article', { name: 'Ship it' });
     expect(within(task).getByText('Acme website')).toBeTruthy();
-    expect(within(task).getByText('Client').getAttribute('data-responsibility')).toBe('Client');
     expect(within(task).getByText('20 Nov').getAttribute('data-tone')).toBe('neutral');
+    expect(document.querySelector('[data-responsibility]')).toBeNull();
+    expect(screen.queryByText('Me')).toBeNull();
   });
 
   it('opens the detail on click and on Enter', async () => {
@@ -148,6 +168,33 @@ describe('Done tasks', () => {
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Archive all' }));
     expect(fake.api.archiveAllDone).toHaveBeenCalledOnce();
     expect(await screen.findByText('No tasks yet')).toBeTruthy();
+  });
+
+  it('offers Archive all and the card Archive button only in Done', async () => {
+    await renderBoard({
+      tasks: [
+        buildTask({ title: 'Team', status: 'Internal' }),
+        buildTask({ title: 'Client', status: 'With client' }),
+        buildTask({ title: 'Shipped', status: 'Done' }),
+      ],
+    });
+    for (const name of ['To do', 'In progress', 'Internal', 'With client']) {
+      expect(within(column(name)).queryByRole('button', { name: 'Archive all' })).toBeNull();
+      expect(within(column(name)).queryByRole('button', { name: 'Archive' })).toBeNull();
+    }
+    expect(within(column('Done')).getByRole('button', { name: 'Archive all' })).toBeTruthy();
+    expect(within(column('Done')).getByRole('button', { name: 'Archive' })).toBeTruthy();
+  });
+
+  it('marks a task in With client complete', async () => {
+    const { user, fake } = await renderBoard({
+      tasks: [buildTask({ title: 'Already done', status: 'Done', order: 1 }), buildTask({ title: 'Signed', status: 'With client' })],
+    });
+    await user.click(screen.getByRole('article', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: 'Mark complete' }));
+    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Signed.md', 'Done', 'tasks/Already done.md');
+    expect(titlesIn('Done')).toEqual(['Signed', 'Already done']);
+    expect(titlesIn('With client')).toEqual([]);
   });
 
   it('puts a task at the top of Done with Mark complete', async () => {

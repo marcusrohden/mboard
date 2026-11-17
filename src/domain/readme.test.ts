@@ -10,14 +10,24 @@ describe('buildBoardReadme', () => {
     expect(readme).toContain('archive/');
   });
 
-  it('documents every frontmatter property', () => {
-    for (const key of ['title', 'status', 'responsibility', 'project', 'due', 'created', 'updated', 'archived', 'order']) {
+  it('documents every frontmatter property, and no responsibility', () => {
+    for (const key of ['title', 'status', 'project', 'due', 'created', 'updated', 'archived', 'order']) {
       expect(readme).toContain(`| \`${key}\` |`);
     }
+    expect(readme.toLowerCase()).not.toContain('responsibility');
   });
 
-  it('documents the column and responsibility values and the body sections', () => {
-    for (const text of ['To do', 'In progress', 'Done', 'Me', 'Client', 'Internal', '## Description', '## Comments', '## History']) {
+  it('lists the five status values in board order', () => {
+    expect(readme).toContain('`To do`, `In progress`, `Internal`, `With client` or `Done`');
+  });
+
+  it('explains what Internal and With client mean', () => {
+    expect(readme).toContain('`Internal` means the task is waiting on someone in my organisation');
+    expect(readme).toContain('`With client` means it is waiting on the client');
+  });
+
+  it('documents the body sections', () => {
+    for (const text of ['## Description', '## Comments', '## History']) {
       expect(readme).toContain(text);
     }
   });

@@ -35,28 +35,6 @@
   text-align: left;
 }
 
-.badge {
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: var(--font-size-small);
-  font-weight: 600;
-}
-
-.badge[data-responsibility='Me'] {
-  background: var(--responsibility-me-bg);
-  color: var(--responsibility-me-fg);
-}
-
-.badge[data-responsibility='Client'] {
-  background: var(--responsibility-client-bg);
-  color: var(--responsibility-client-fg);
-}
-
-.badge[data-responsibility='Internal'] {
-  background: var(--responsibility-internal-bg);
-  color: var(--responsibility-internal-fg);
-}
-
 .empty {
   margin: var(--space-4) 0;
   color: var(--color-text-muted);
