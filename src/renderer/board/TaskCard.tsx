@@ -22,14 +22,15 @@ interface TaskCardProps {
 }
 
 /**
- * One task on the board: title, project, due chip, the created and updated dates, and the age chip,
- * whose staleness tier also colours the left edge. The whole card is the drag handle. Clicking it, or
- * pressing Enter on it, opens the detail drawer.
+ * One task on the board: title, project, then the due, created and updated dates on lines of their own.
+ * A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
+ * staleness tier also colours the left edge. The whole card is the drag handle. Clicking it, or pressing
+ * Enter on it, opens the detail drawer.
  */
 export function TaskCard({ task, index, status, today, onOpen, onArchive }: TaskCardProps) {
   const { ref, isDragging } = useSortableTask(task.id, index, status);
   const staleness = stalenessOf(task, today);
-  const chip = dueChip(task, today);
+  const due = dueChip(task, today);
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>): void {
     if (event.key === 'Enter' && event.target === event.currentTarget) {
@@ -51,20 +52,25 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
       onKeyDown={handleKeyDown}
     >
       <p className={styles.title}>{task.title}</p>
-      <div className={styles.meta}>
-        {task.project !== null && <span className={styles.project}>{task.project}</span>}
-        {chip !== null && (
-          <span className={styles.chip} data-tone={chip.tone}>
-            {chip.text}
-          </span>
+      {task.project !== null && <p className={styles.project}>{task.project}</p>}
+      <div className={styles.dates}>
+        {task.due !== null && (
+          <div className={styles.dateLine}>
+            <span>Due {formatCompactDate(task.due, today)}</span>
+            {due !== null && due.tone !== 'neutral' && (
+              <span className={styles.chip} data-tone={due.tone}>
+                {due.text}
+              </span>
+            )}
+          </div>
         )}
-      </div>
-      <div className={styles.age}>
-        <span className={styles.dates}>
-          Created {formatCompactDate(localDateOf(task.created), today)} · Updated{' '}
-          {formatCompactDate(localDateOf(task.updated), today)}
-        </span>
-        <AgeChip task={task} today={today} />
+        <div className={styles.dateLine}>
+          <span>Created {formatCompactDate(localDateOf(task.created), today)}</span>
+        </div>
+        <div className={styles.dateLine}>
+          <span>Updated {formatCompactDate(localDateOf(task.updated), today)}</span>
+          <AgeChip task={task} today={today} />
+        </div>
       </div>
       {task.status === 'Done' && (
         <button

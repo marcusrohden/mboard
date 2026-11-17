@@ -43,27 +43,17 @@
   line-clamp: 2;
 }
 
-.meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  align-items: center;
-  font-size: var(--font-size-small);
-}
-
 .project {
+  margin: 0;
   color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
 }
 
 .chip {
   padding: 0 6px;
   border-radius: 999px;
   font-weight: 600;
-}
-
-.chip[data-tone='neutral'] {
-  background: var(--tone-neutral-bg);
-  color: var(--tone-neutral-fg);
 }
 
 .chip[data-tone='amber'] {
@@ -76,20 +66,19 @@
   color: var(--tone-red-fg);
 }
 
-.age {
+.dates {
   display: flex;
-  gap: var(--space-1);
-  align-items: center;
+  flex-direction: column;
+  gap: 2px;
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
 }
 
-.dates {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.dateLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
 }
 
 .archive {

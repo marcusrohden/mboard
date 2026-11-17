@@ -68,13 +68,14 @@ describe('Board', () => {
     expect(within(column('With client')).getByText('No tasks')).toBeTruthy();
   });
 
-  it('shows the task title, project and due chip, and no responsibility', async () => {
+  it('shows the task title, project and due date, and no responsibility', async () => {
     await renderBoard({
       tasks: [buildTask({ title: 'Ship it', project: 'Acme website', status: 'With client', due: '2026-11-20' })],
     });
     const task = screen.getByRole('article', { name: 'Ship it' });
     expect(within(task).getByText('Acme website')).toBeTruthy();
-    expect(within(task).getByText('20 Nov').getAttribute('data-tone')).toBe('neutral');
+    expect(within(task).getByText('Due 20 Nov')).toBeTruthy();
+    expect(task.querySelector('[data-tone]')).toBeNull();
     expect(document.querySelector('[data-responsibility]')).toBeNull();
     expect(screen.queryByText('Me')).toBeNull();
   });
@@ -118,7 +119,7 @@ describe('Task styling driven by the snapshot date', () => {
     }
   });
 
-  it('shows the created and updated dates on every card, with the full times and the tier in the tooltip', async () => {
+  it('shows the created and updated dates on lines of their own, with the full times and the tier in the tooltip', async () => {
     await renderBoard({
       tasks: [
         buildTask({ title: 'Nudge', created: '2026-11-10T08:00:00', updated: '2026-11-12T09:12:30' }),
@@ -131,12 +132,16 @@ describe('Task styling driven by the snapshot date', () => {
       ],
     });
     const nudge = screen.getByRole('article', { name: 'Nudge' });
-    expect(within(nudge).getByText('Created 10 Nov · Updated 12 Nov')).toBeTruthy();
+    const created = within(nudge).getByText('Created 10 Nov');
+    const updated = within(nudge).getByText('Updated 12 Nov');
+    expect(created.parentElement).not.toBe(updated.parentElement);
+    expect(created.parentElement?.parentElement).toBe(updated.parentElement?.parentElement);
     const tooltip = 'Created 10 Nov 08:00 · Updated 12 Nov 09:12 — 2 working days, Needs a nudge';
     expect(within(nudge).getByTitle(tooltip).textContent).toContain('2d');
     expect(within(nudge).getByText(tooltip).className).toBe('visually-hidden');
     const lastYear = screen.getByRole('article', { name: 'Last year' });
-    expect(within(lastYear).getByText('Created 30 Dec 2025 · Updated 16 Nov')).toBeTruthy();
+    expect(within(lastYear).getByText('Created 30 Dec 2025')).toBeTruthy();
+    expect(within(lastYear).getByText('Updated 16 Nov')).toBeTruthy();
     expect(
       within(lastYear).getByTitle('Created 30 Dec 2025 16:45 · Updated 16 Nov 09:00 — 0 working days, Complete'),
     ).toBeTruthy();
@@ -152,25 +157,28 @@ describe('Task styling driven by the snapshot date', () => {
     expect(within(screen.getByRole('article', { name: 'Future' })).getByText('3d')).toBeTruthy();
   });
 
-  it('shows amber Today, red Overdue and neutral dates, and neutral in Done', async () => {
+  it('always shows the due date, with amber Today or red Overdue beside it, and no chip in Done', async () => {
     await renderBoard({
       tasks: [
         buildTask({ title: 'Due today', due: '2026-11-16' }),
         buildTask({ title: 'Late', due: '2026-11-10' }),
         buildTask({ title: 'Later', due: '2026-12-01' }),
+        buildTask({ title: 'Next year', due: '2027-01-05' }),
         buildTask({ title: 'Done late', status: 'Done', due: '2026-11-10' }),
       ],
     });
-    const chip = (title: string) =>
-      within(screen.getByRole('article', { name: title })).getByText(/^(Today|Overdue|\d+ \w{3})$/);
-    expect(chip('Due today').textContent).toBe('Today');
-    expect(chip('Due today').getAttribute('data-tone')).toBe('amber');
-    expect(chip('Late').textContent).toBe('Overdue');
-    expect(chip('Late').getAttribute('data-tone')).toBe('red');
-    expect(chip('Later').textContent).toBe('1 Dec');
-    expect(chip('Later').getAttribute('data-tone')).toBe('neutral');
-    expect(chip('Done late').textContent).toBe('10 Nov');
-    expect(chip('Done late').getAttribute('data-tone')).toBe('neutral');
+    const card = (title: string) => within(screen.getByRole('article', { name: title }));
+    const chip = (title: string) => card(title).queryByText(/^(Today|Overdue)$/);
+    expect(card('Due today').getByText('Due 16 Nov')).toBeTruthy();
+    expect(chip('Due today')?.getAttribute('data-tone')).toBe('amber');
+    expect(card('Late').getByText('Due 10 Nov')).toBeTruthy();
+    expect(chip('Late')?.textContent).toBe('Overdue');
+    expect(chip('Late')?.getAttribute('data-tone')).toBe('red');
+    expect(card('Later').getByText('Due 1 Dec')).toBeTruthy();
+    expect(chip('Later')).toBeNull();
+    expect(card('Next year').getByText('Due 5 Jan 2027')).toBeTruthy();
+    expect(card('Done late').getByText('Due 10 Nov')).toBeTruthy();
+    expect(chip('Done late')).toBeNull();
   });
 });
 
