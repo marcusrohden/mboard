@@ -47,7 +47,7 @@ Main reads these at launch (`src/main/launch-config.ts`, spec section 7): `MBOAR
 
 ## VS Code tasks
 
-Run these from **Terminal › Run Task…** (`.vscode/tasks.json`). **mboard: build and open** is the default build task (Cmd+Shift+B).
+Starting mboard from VS Code runs it from source with `pnpm start`: **F5** (`.vscode/launch.json`) and **Cmd+Shift+B** (the default build task) both run **mboard: dev**. The other tasks are under **Terminal › Run Task…** (`.vscode/tasks.json`).
 
 | Task | Does |
 | --- | --- |

@@ -32,7 +32,7 @@
       "dependsOrder": "sequence",
       "dependsOn": ["mboard: quit running app", "mboard: build"],
       "problemMatcher": [],
-      "group": { "kind": "build", "isDefault": true }
+      "group": "build"
     },
     {
       "label": "mboard: dev",
@@ -41,7 +41,8 @@
       "command": "pnpm start",
       "options": { "env": { "MBOARD_DISABLE_LOGIN_ITEM": "1" } },
       "dependsOn": ["mboard: quit running app"],
-      "problemMatcher": []
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
     }
   ]
 }
