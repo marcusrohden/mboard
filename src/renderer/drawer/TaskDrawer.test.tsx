@@ -270,6 +270,16 @@ describe('Task detail drawer Save', () => {
 });
 
 describe('Task detail drawer dismissal', () => {
+  it('closes without saving the field being edited from its close button', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Description'), ' on Fridays');
+    await user.click(within(drawer).getByRole('button', { name: 'Close without saving' }));
+    expect(drawerOrNull()).toBeNull();
+    expect(fake.api.editTask).not.toHaveBeenCalled();
+    expect(fake.tasks()[0]?.description).toBe('Staging fails');
+  });
+
   it('closes on Esc without saving the field being edited', async () => {
     const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
     const drawer = await openTask(user, 'Fix login');

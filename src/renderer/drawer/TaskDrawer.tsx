@@ -4,6 +4,7 @@ import { formatDateTime } from '../lib/format';
 import type { TaskCommands } from '../state/use-task-commands';
 import { AgeChip } from '../ui/AgeChip';
 import { Button } from '../ui/Button';
+import { CloseIcon } from '../ui/CloseIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import fields from '../ui/fields.module.css';
 import { useLightDismiss } from '../ui/use-light-dismiss';
@@ -24,8 +25,8 @@ interface TaskDrawerProps {
 /**
  * The task detail drawer, on the right with the board still visible. Fields save as they are edited and
  * refresh from new snapshots, except the one being edited. Save commits the field still being edited and
- * closes the drawer once that save succeeds. Esc, or a press on the page outside the drawer, closes it
- * without saving that field. An archived task is read-only apart from Restore and Delete.
+ * closes the drawer once that save succeeds. The close button, Esc, or a press on the page outside the
+ * drawer closes it without saving that field. An archived task is read-only apart from Restore and Delete.
  */
 export function TaskDrawer(props: TaskDrawerProps) {
   const pendingSaves = usePendingFieldSaves();
@@ -77,6 +78,16 @@ function TaskDrawerPanel({
     <aside ref={panelRef} aria-label="Task details" className={styles.drawer}>
       <div key={task.created} className={styles.content}>
         <div className={styles.top}>
+          <Button
+            variant="quiet"
+            className={styles.iconButton}
+            aria-label="Close without saving"
+            title="Close without saving"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={closeWithoutSaving}
+          >
+            <CloseIcon />
+          </Button>
           <DrawerField label="Title" kind="text" isHeading value={task.title} readOnly={readOnly} onSave={saveTitle} />
           <Button variant="quiet" onClick={() => void saveAndClose()}>
             Save
