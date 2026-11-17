@@ -22,6 +22,7 @@ const SHA256_DIGEST = /^sha256:([0-9a-f]{64})$/i;
 const NOT_UNDERSTOOD = "GitHub's answer about the latest release wasn't understood.";
 const UNREACHABLE = "mboard couldn't reach GitHub to check for a new version. Check your internet connection.";
 const RATE_LIMITED = 'GitHub is limiting update checks right now. Try again later.';
+const RELEASES_NOT_FOUND = "mboard couldn't find its releases on GitHub, so it can't check for a new version.";
 
 const REQUEST_HEADERS = {
   Accept: 'application/vnd.github+json',
@@ -81,14 +82,15 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 /**
- * Looks up mboard's latest release through GitHub's public REST API, without a token. A 404 means
- * nothing has been released yet.
+ * Looks up mboard's latest release through GitHub's public REST API, without a token. A 404 is a
+ * failure, not "up to date": releases exist, so it means GitHub isn't showing them, as it does for a
+ * private repository.
  */
 export function createGitHubReleaseSource({ fetch, arch }: GitHubReleaseSourceOptions): ReleaseSource {
   return {
     async latest() {
       const response = await requestLatestRelease(fetch);
-      if (response.status === 404) return null;
+      if (response.status === 404) throw new Error(RELEASES_NOT_FOUND);
       if (response.status === 403 || response.status === 429) throw new Error(RATE_LIMITED);
       if (!response.ok)
         throw new Error(`GitHub couldn't answer the update check (HTTP ${response.status}). Try again later.`);

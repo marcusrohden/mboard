@@ -32,4 +32,5 @@ mboard is ad-hoc signed and not notarised, and signing for distribution is out o
 - **Silent rollback:** when the swap fails, the helper puts the old version back and reopens it, but mboard doesn't say that the install failed.
 - **Untested permission:** whether macOS lets the helper replace a bundle in `/Applications` without asking can only be checked with a real install. That is manual check M4.
 - **Rate limit:** unauthenticated API calls are limited to 60 an hour per IP address, far more than mboard uses.
+- **Visibility:** the repository must stay public. A private one answers the anonymous check with a 404, which mboard shows as a failed check, never as up to date. Up to 0.2.1, mboard read that 404 as "nothing released" and said it was up to date. That hid the problem while the repository was still private.
 - **Upgrade path:** with a Developer ID signature and notarisation, either switch to Squirrel, or keep this installer and add `codesign --verify --deep --strict` plus a check that the new bundle's Team ID matches the running one.

@@ -164,7 +164,7 @@ describe('AppUpdateService', () => {
       expect(statuses.map((status) => status.stage.kind)).toEqual(['checking', 'upToDate']);
     });
 
-    it('is up to date when nothing has been released yet, or only an older version', async () => {
+    it('is up to date while the latest zip is still uploading, or with only an older version', async () => {
       const { service, releases } = build({ currentVersion: '0.3.0' });
       expect((await service.check()).stage.kind).toBe('upToDate');
       releases.answer = releaseOf('0.2.9');

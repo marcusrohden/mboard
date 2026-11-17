@@ -22,10 +22,10 @@ export interface PublishedRelease {
 /** Where new versions are published. */
 export interface ReleaseSource {
   /**
-   * The latest release, or `null` while there is nothing for this Mac yet: no release at all, or a
-   * release whose zip for this Mac hasn't finished uploading.
+   * The latest release, or `null` while its zip for this Mac hasn't finished uploading.
    *
-   * @throws Error with a user-presentable message when the release can't be looked up.
+   * @throws Error with a user-presentable message when the release can't be looked up, including when
+   * no releases can be found.
    */
   latest(): Promise<PublishedRelease | null>;
 }
