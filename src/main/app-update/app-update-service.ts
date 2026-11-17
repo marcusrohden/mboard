@@ -39,6 +39,11 @@ function failureMessage(error: unknown, fallback: string): string {
   return error.message;
 }
 
+/** The whole percentage of `totalBytes` received so far, from 0 to 100. */
+function downloadPercent(receivedBytes: number, totalBytes: number): number {
+  return Math.min(100, Math.floor((receivedBytes * 100) / totalBytes));
+}
+
 /**
  * Checks GitHub for a newer release and installs it (ADR 0004). A manual check shows `checking` and any
  * failure; automatic checks run quietly and leave the last result in place when they fail. Installing
@@ -109,10 +114,13 @@ export class AppUpdateService implements AppUpdates {
     if (stage.installBlocker !== null) throw new Error(stage.installBlocker);
     const version = stage.version;
     const download = new AbortController();
+    const totalBytes = release.download.size;
     this.download = download;
-    this.setStage({ kind: 'downloading', version });
+    this.setStage({ kind: 'downloading', version, percent: 0 });
     try {
-      const prepared = await this.options.installer.prepare(release.download, version, download.signal);
+      const prepared = await this.options.installer.prepare(release.download, version, download.signal, (received) =>
+        this.showDownloadProgress(download, downloadPercent(received, totalBytes)),
+      );
       this.setStage({ kind: 'installing', version });
       await this.options.installer.launchSwap(prepared);
     } catch (error) {
@@ -132,6 +140,17 @@ export class AppUpdateService implements AppUpdates {
   async openReleasePage(): Promise<void> {
     const known = this.newerRelease === null ? null : trustedReleasePageUrl(this.newerRelease.releaseUrl);
     await this.options.openExternal(known ?? RELEASES_PAGE_URL);
+  }
+
+  /**
+   * Moves the download's percentage on, telling listeners only when the whole percentage changes. Progress
+   * from a download that has since stopped, failed or finished is ignored.
+   */
+  private showDownloadProgress(download: AbortController, percent: number): void {
+    const stage = this.stage;
+    const isCurrentDownload = this.download === download && !download.signal.aborted;
+    if (!isCurrentDownload || stage.kind !== 'downloading' || stage.percent === percent) return;
+    this.setStage({ ...stage, percent });
   }
 
   private isInstalling(): boolean {

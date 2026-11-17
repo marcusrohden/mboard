@@ -12,7 +12,7 @@ const STAGES: Array<[AppUpdateStage, string, boolean, string | null]> = [
     null,
   ],
   [{ kind: 'available', version: '0.2.0', installBlocker: null }, 'mboard 0.2.0 is available.', false, '0.2.0'],
-  [{ kind: 'downloading', version: '0.2.0' }, 'Downloading mboard 0.2.0…', true, '0.2.0'],
+  [{ kind: 'downloading', version: '0.2.0', percent: 0 }, 'Downloading mboard 0.2.0…', true, '0.2.0'],
   [
     { kind: 'installing', version: '0.2.0' },
     'Installing mboard 0.2.0. mboard will restart in a moment.',
@@ -45,6 +45,6 @@ describe('app update stage helpers', () => {
         installBlocker: 'No.',
       }),
     ).toBe(false);
-    expect(canInstallItself({ kind: 'downloading', version: '0.2.0' })).toBe(false);
+    expect(canInstallItself({ kind: 'downloading', version: '0.2.0', percent: 0 })).toBe(false);
   });
 });

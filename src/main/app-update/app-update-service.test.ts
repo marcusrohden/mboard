@@ -53,6 +53,7 @@ class FakeInstaller implements AppUpdateInstaller {
     download: ReleaseDownload;
     version: string;
     signal: AbortSignal;
+    onProgress: (receivedBytes: number) => void;
   }> = [];
   readonly launched: PreparedAppUpdate[] = [];
   leftoverSweeps = 0;
@@ -61,8 +62,13 @@ class FakeInstaller implements AppUpdateInstaller {
 
   installBlocker = async (): Promise<string | null> => this.blocker;
 
-  prepare = async (download: ReleaseDownload, version: string, signal: AbortSignal): Promise<PreparedAppUpdate> => {
-    this.prepared.push({ download, version, signal });
+  prepare = async (
+    download: ReleaseDownload,
+    version: string,
+    signal: AbortSignal,
+    onProgress: (receivedBytes: number) => void,
+  ): Promise<PreparedAppUpdate> => {
+    this.prepared.push({ download, version, signal, onProgress });
     if (this.holdPrepare) await new Promise<void>((resolve) => this.pending.push(resolve));
     if (this.prepareFailure !== null) throw this.prepareFailure;
     return {
@@ -308,10 +314,43 @@ describe('AppUpdateService', () => {
       expect(installer.prepared.map(({ download, version }) => [download, version])).toEqual([[DOWNLOAD, '0.2.0']]);
       expect(installer.launched).toHaveLength(1);
       expect(statuses.map((status) => status.stage)).toEqual([
-        { kind: 'downloading', version: '0.2.0' },
+        { kind: 'downloading', version: '0.2.0', percent: 0 },
         { kind: 'installing', version: '0.2.0' },
       ]);
       expect(quits()).toBe(1);
+    });
+
+    it('shows the whole percentage downloaded, once per step', async () => {
+      const { service, installer, statuses } = await available();
+      installer.holdPrepare = true;
+      const running = service.install();
+      const { onProgress } = installer.prepared[0]!;
+      [1, 2, 2, 3, 9, 10].forEach(onProgress);
+      installer.finishPrepare();
+      await running;
+
+      expect(statuses.map((status) => status.stage)).toEqual([
+        { kind: 'downloading', version: '0.2.0', percent: 0 },
+        { kind: 'downloading', version: '0.2.0', percent: 10 },
+        { kind: 'downloading', version: '0.2.0', percent: 20 },
+        { kind: 'downloading', version: '0.2.0', percent: 30 },
+        { kind: 'downloading', version: '0.2.0', percent: 90 },
+        { kind: 'downloading', version: '0.2.0', percent: 100 },
+        { kind: 'installing', version: '0.2.0' },
+      ]);
+    });
+
+    it('ignores progress that arrives after the download has failed', async () => {
+      const { service, installer } = await available();
+      installer.holdPrepare = true;
+      installer.prepareFailure = new Error('The download stopped before it finished.');
+      const running = service.install();
+      const { onProgress } = installer.prepared[0]!;
+      installer.finishPrepare();
+      await running;
+      onProgress(5);
+
+      expect(service.status().stage).toMatchObject({ kind: 'failed', version: '0.2.0' });
     });
 
     it('shows a failed download without quitting', async () => {
@@ -376,6 +415,7 @@ describe('AppUpdateService', () => {
       expect((await service.check()).stage).toEqual({
         kind: 'downloading',
         version: '0.2.0',
+        percent: 0,
       });
       expect(releases.calls).toBe(callsBefore);
       installer.finishPrepare();
@@ -394,6 +434,7 @@ describe('AppUpdateService', () => {
       expect(service.status().stage).toEqual({
         kind: 'downloading',
         version: '0.2.0',
+        percent: 0,
       });
       installer.finishPrepare();
       await running;
@@ -406,6 +447,8 @@ describe('AppUpdateService', () => {
       const running = service.install();
       service.stop();
       expect(installer.prepared[0]?.signal.aborted).toBe(true);
+      installer.prepared[0]?.onProgress(5);
+      expect(service.status().stage).toMatchObject({ kind: 'downloading', percent: 0 });
       installer.prepareFailure = new Error('The download stopped before it finished.');
       installer.finishPrepare();
       await running;

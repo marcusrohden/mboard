@@ -323,7 +323,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     installAppUpdate: vi.fn(async () => {
       const { stage } = appUpdateStatus;
       if (stage.kind !== 'available') throw new Error("There's no new version to install. Check for updates first.");
-      setAppUpdateStage({ kind: 'downloading', version: stage.version });
+      setAppUpdateStage({ kind: 'downloading', version: stage.version, percent: 0 });
     }),
     openAppUpdateReleasePage: vi.fn(async () => undefined),
     takeOpenSettingsRequest: vi.fn(async () => {

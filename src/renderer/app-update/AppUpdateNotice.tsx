@@ -3,6 +3,7 @@ import noticeStyles from '../notices/Notices.module.css';
 import { Button } from '../ui/Button';
 import { appUpdateStageText, canInstallItself, stageVersion } from './app-update-text';
 import { useAppUpdate } from './AppUpdateProvider';
+import { DownloadProgress } from './DownloadProgress';
 import styles from './AppUpdateNotice.module.css';
 
 type NoticeAction = 'install' | 'releaseNotes' | 'download' | 'later';
@@ -34,8 +35,8 @@ function noticeFor(stage: AppUpdateStage, dismissedVersion: string | null): Noti
 
 /**
  * The app-wide prompt for a new version of mboard: install it and restart, read the release notes, or put
- * it off with Later until the next launch or a newer version. It also shows the download and install
- * while they run, and an install that failed. Renders nothing otherwise.
+ * it off with Later until the next launch or a newer version. It also shows the download, with how much
+ * has arrived, and the install while they run, and an install that failed. Renders nothing otherwise.
  */
 export function AppUpdateNotice() {
   const { status, install, openReleasePage, dismissedVersion, dismiss } = useAppUpdate();
@@ -47,6 +48,7 @@ export function AppUpdateNotice() {
     <section aria-label="New version of mboard" className={`${noticeStyles.notice} ${styles.appUpdate}`}>
       <div className={noticeStyles.noticeRow}>
         <strong role="status">{notice.text}</strong>
+        {status.stage.kind === 'downloading' && <DownloadProgress percent={status.stage.percent} />}
         <div className={styles.actions}>
           {notice.actions.includes('install') && (
             <Button variant="primary" shortcut="installUpdate" onClick={install}>

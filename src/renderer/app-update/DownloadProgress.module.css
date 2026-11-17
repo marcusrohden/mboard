@@ -1,0 +1,30 @@
+.progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.bar {
+  appearance: none;
+  width: 160px;
+  height: 6px;
+  overflow: hidden;
+  border: none;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.bar::-webkit-progress-bar {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.bar::-webkit-progress-value {
+  background: currentColor;
+  transition: width 0.2s ease-out;
+}
+
+.percent {
+  min-width: 4ch;
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
+}
