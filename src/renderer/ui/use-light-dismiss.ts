@@ -48,7 +48,7 @@ function swallowClickEndingPress(): void {
 }
 
 /**
- * Light-dismisses a panel that sits beside the page rather than over it. `onDismiss` runs on Esc, unless
+ * Light-dismisses a non-modal panel in the page's own layer, rather than in a portalled layer of its own. `onDismiss` runs on Esc, unless
  * another control has already handled it, and on a primary-button press on the page outside the panel.
  * That press only dismisses: the click it ends is swallowed, so it never reaches what was under it.
  * Presses in another layer of the document body, such as a modal or a toast, and presses on a scrollbar

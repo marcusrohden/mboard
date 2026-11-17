@@ -26,7 +26,8 @@ interface TaskDrawerProps {
 }
 
 /**
- * The task detail drawer, on the right with the board still visible. Fields save as they are edited and
+ * The task detail drawer, laid over the right of the board or the archived list, neither of which narrows to make room.
+ * Fields save as they are edited and
  * refresh from new snapshots, except the one being edited. Under the project, its colour can be picked. Save commits the field still being edited and
  * closes the drawer once that save succeeds. The close button, Esc, or a press on the page outside the
  * drawer closes it without saving that field. An archived task is read-only apart from Restore and Delete.
