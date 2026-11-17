@@ -106,9 +106,11 @@ describe('createGitHubReleaseSource', () => {
     });
   });
 
-  it('reads a 404 as no release yet', async () => {
+  it('explains a 404, which is what a private repository answers, rather than reading it as up to date', async () => {
     const { fetch } = respondWith(new Response('{"message":"Not Found"}', { status: 404 }));
-    await expect(createGitHubReleaseSource({ fetch, arch: 'arm64' }).latest()).resolves.toBeNull();
+    await expect(createGitHubReleaseSource({ fetch, arch: 'arm64' }).latest()).rejects.toThrow(
+      "mboard couldn't find its releases on GitHub, so it can't check for a new version.",
+    );
   });
 
   it.each([
