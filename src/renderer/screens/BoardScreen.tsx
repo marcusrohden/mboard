@@ -119,6 +119,15 @@ export function BoardScreen({ boardName }: { boardName: string }) {
           onDismiss={dismissReminders}
         />
         <div className={styles.workspace}>
+          {selection.selectedTask !== null && (
+            <TaskDrawer
+              task={selection.selectedTask}
+              today={snapshot.today}
+              projectSuggestions={suggestions}
+              commands={commands}
+              onClose={selection.close}
+            />
+          )}
           <main className={styles.main}>
             {isArchivedView ? (
               <ArchivedView tasks={shownArchived} hasArchivedTasks={archivedTasks.length > 0} onOpen={openTask} />
@@ -135,15 +144,6 @@ export function BoardScreen({ boardName }: { boardName: string }) {
               />
             )}
           </main>
-          {selection.selectedTask !== null && (
-            <TaskDrawer
-              task={selection.selectedTask}
-              today={snapshot.today}
-              projectSuggestions={suggestions}
-              commands={commands}
-              onClose={selection.close}
-            />
-          )}
         </div>
         {isNewTaskOpen && (
           <NewTaskDialog
