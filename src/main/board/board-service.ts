@@ -9,18 +9,28 @@ import {
   fileNameForTitle,
   formatLocalDate,
   formatLocalDateTime,
+  isSameRevertPoint,
   isStatus,
   moveToColumn,
   orderForInsertBefore,
   orderForTopOfColumn,
   projectSuggestions,
   restoreDocument,
+  revertDocument,
   setOrder,
   type ChangeContext,
   type OrderAssignment,
   type TaskDocument,
 } from '../../domain';
-import type { BoardSnapshot, NewTaskInput, Status, Task, TaskEdit, TaskId } from '../../shared/contract';
+import type {
+  BoardSnapshot,
+  NewTaskInput,
+  RevertExpectation,
+  Status,
+  Task,
+  TaskEdit,
+  TaskId,
+} from '../../shared/contract';
 import { AtomicFileWriter } from '../fs/atomic-file-writer';
 import { SerialQueue } from '../fs/serial-queue';
 import type { BoardService, Clock, Trash } from '../ports';
@@ -209,6 +219,23 @@ export class FileBoardService implements BoardService {
       const order = orderForTopOfColumn(columnTasks(board.index.tasks(), 'Done'));
       const document = restoreDocument(current.document, order, this.now());
       const destination = { folder: LIVE_FOLDER, fileName: location.fileName };
+      const saved = await board.files.save(location, current, document, destination);
+      return this.recordWrite(board, document, saved, location);
+    });
+  }
+
+  revertTask(id: TaskId, toEntryIndex: number, expected: RevertExpectation): Promise<Task> {
+    return this.mutate(async (board) => {
+      const location = this.locateLiveTask(board, id);
+      const current = await board.files.read(location);
+      if (!isSameRevertPoint(current.document.history, toEntryIndex, expected)) throw boardError(BoardMessage.staleRevert);
+      const reverted = revertDocument(current.document, toEntryIndex, this.now());
+      const document =
+        reverted.status === current.document.status
+          ? reverted
+          : { ...reverted, order: orderForTopOfColumn(columnTasks(board.index.tasks(), reverted.status)) };
+      const destination =
+        document.title === current.document.title ? location : { folder: location.folder, fileName: fileNameForTitle(document.title) };
       const saved = await board.files.save(location, current, document, destination);
       return this.recordWrite(board, document, saved, location);
     });
