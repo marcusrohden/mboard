@@ -18,6 +18,10 @@ function input(drawer: HTMLElement, label: string): HTMLInputElement {
   return within(drawer).getByLabelText(label) as HTMLInputElement;
 }
 
+function drawerOrNull(): HTMLElement | null {
+  return screen.queryByRole('complementary', { name: 'Task details' });
+}
+
 const SAMPLE = () =>
   buildTask({
     title: 'Fix login',
@@ -74,16 +78,12 @@ describe('Task detail drawer fields', () => {
     expect(fake.api.editTask).toHaveBeenCalledWith('tasks/Fix login.md', { field: 'title', value: 'Fix login now' });
   });
 
-  it('saves nothing when a value is unchanged, and abandons an edit on Esc', async () => {
+  it('saves nothing when a value is unchanged', async () => {
     const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
     const drawer = await openTask(user, 'Fix login');
     await user.click(input(drawer, 'Project'));
     await user.tab();
     expect(fake.api.editTask).not.toHaveBeenCalled();
-    await user.click(input(drawer, 'Project'));
-    await user.type(input(drawer, 'Project'), ' extra{Escape}');
-    expect(fake.api.editTask).not.toHaveBeenCalled();
-    expect(input(drawer, 'Project').value).toBe('Acme');
   });
 
   it('saves the project, and clears it when emptied', async () => {
@@ -223,10 +223,6 @@ describe('Task detail drawer fields', () => {
 });
 
 describe('Task detail drawer Save', () => {
-  function drawerOrNull(): HTMLElement | null {
-    return screen.queryByRole('complementary', { name: 'Task details' });
-  }
-
   it('closes straight away when no field is being edited', async () => {
     const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
     const drawer = await openTask(user, 'Fix login');
@@ -269,6 +265,72 @@ describe('Task detail drawer Save', () => {
     await user.type(input(drawer, 'Project'), ' Corp');
     await user.click(within(drawer).getByRole('button', { name: 'Save' }));
     expect(await screen.findByText('The file is locked.')).toBeTruthy();
+    expect(drawerOrNull()).not.toBeNull();
+  });
+});
+
+describe('Task detail drawer dismissal', () => {
+  it('closes on Esc without saving the field being edited', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Project'), ' Corp{Escape}');
+    expect(drawerOrNull()).toBeNull();
+    expect(fake.api.editTask).not.toHaveBeenCalled();
+    expect(fake.tasks()[0]?.project).toBe('Acme');
+  });
+
+  it('closes on Esc while focus is on the board', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
+    await openTask(user, 'Fix login');
+    expect(document.activeElement).toBe(screen.getByRole('article', { name: 'Fix login' }));
+    await user.keyboard('{Escape}');
+    expect(drawerOrNull()).toBeNull();
+  });
+
+  it('closes without saving on a press on an empty part of the board', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Description'), ' on Fridays');
+    await user.click(screen.getByRole('region', { name: 'Done' }));
+    expect(drawerOrNull()).toBeNull();
+    expect(fake.api.editTask).not.toHaveBeenCalled();
+    expect(fake.tasks()[0]?.description).toBe('Staging fails');
+  });
+
+  it('only closes on a press on another task, which a second press then opens', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE(), buildTask({ title: 'Other' })] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Title'), ' now');
+    await user.click(screen.getByRole('article', { name: 'Other' }));
+    expect(drawerOrNull()).toBeNull();
+    expect(fake.api.editTask).not.toHaveBeenCalled();
+    const reopened = await openTask(user, 'Other');
+    expect(input(reopened, 'Title').value).toBe('Other');
+  });
+
+  it('only closes on a press on a header control', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
+    await openTask(user, 'Fix login');
+    await user.click(screen.getByRole('button', { name: 'New task' }));
+    expect(drawerOrNull()).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'New task' })).toBeNull();
+  });
+
+  it('stays open for presses inside it, in its dialogs and on toasts', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    fake.api.editTask.mockRejectedValueOnce(new Error('The file is locked.'));
+    const drawer = await openTask(user, 'Fix login');
+    await user.click(within(drawer).getByText('Created'));
+    await user.type(input(drawer, 'Project'), ' Corp{Enter}');
+    await user.click(await screen.findByRole('button', { name: 'Hide message' }));
+    expect(screen.queryByText('The file is locked.')).toBeNull();
+
+    await user.click(within(drawer).getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('alertdialog');
+    await user.click(dialog);
+    await user.click(dialog.parentElement ?? dialog);
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(drawerOrNull()).not.toBeNull();
   });
 });
@@ -469,6 +531,7 @@ describe('Task detail drawer actions', () => {
     expect(within(drawer).getByRole('button', { name: 'Mark complete' })).toBeTruthy();
     expect(within(drawer).queryByRole('button', { name: 'Archive' })).toBeNull();
     expect(within(drawer).queryByRole('button', { name: 'Restore' })).toBeNull();
+    await user.keyboard('{Escape}');
     drawer = await openTask(user, 'Finished');
     expect(within(drawer).queryByRole('button', { name: 'Mark complete' })).toBeNull();
     expect(within(drawer).getByRole('button', { name: 'Archive' })).toBeTruthy();
@@ -509,6 +572,7 @@ describe('Task detail drawer actions', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(fake.api.deleteTask).not.toHaveBeenCalled();
+    expect(drawerOrNull()).not.toBeNull();
   });
 
   it('opens the task in Obsidian', async () => {

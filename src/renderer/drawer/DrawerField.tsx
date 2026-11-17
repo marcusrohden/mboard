@@ -2,7 +2,7 @@ import { useId, type KeyboardEvent } from 'react';
 import { Button } from '../ui/Button';
 import { ProjectInput } from '../ui/ProjectInput';
 import fields from '../ui/fields.module.css';
-import { useFieldCommitRegistration } from './pending-field-saves';
+import { useFieldRegistration } from './pending-field-saves';
 import { useEditableValue } from './use-editable-value';
 import styles from './Drawer.module.css';
 
@@ -20,8 +20,8 @@ interface DrawerFieldProps {
 
 /**
  * One inline-editable field in the detail drawer. It saves on blur or Enter (Cmd+Enter for the
- * description), Esc abandons the edit, and a date can be removed with its own button. When `readOnly`
- * the value is shown but can't be changed.
+ * description), and a date can be removed with its own button. Esc reaches the drawer, which closes
+ * without saving the edit. When `readOnly` the value is shown but can't be changed.
  */
 export function DrawerField({
   label,
@@ -34,15 +34,9 @@ export function DrawerField({
 }: DrawerFieldProps) {
   const id = useId();
   const editable = useEditableValue(value, onSave);
-  useFieldCommitRegistration(editable.commit);
+  useFieldRegistration(editable);
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>): void {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      editable.cancel();
-      event.currentTarget.blur();
-      return;
-    }
     const isSubmit =
       kind === 'textarea' ? event.key === 'Enter' && (event.metaKey || event.ctrlKey) : event.key === 'Enter';
     if (isSubmit) {

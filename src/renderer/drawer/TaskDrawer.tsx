@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { COLUMNS, type LocalDate, type Status, type Task } from '../../domain';
 import { formatDateTime } from '../lib/format';
 import type { TaskCommands } from '../state/use-task-commands';
@@ -6,6 +6,7 @@ import { AgeChip } from '../ui/AgeChip';
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import fields from '../ui/fields.module.css';
+import { useLightDismiss } from '../ui/use-light-dismiss';
 import { CommentsSection } from './CommentsSection';
 import { DrawerField } from './DrawerField';
 import { HistorySection } from './HistorySection';
@@ -23,7 +24,8 @@ interface TaskDrawerProps {
 /**
  * The task detail drawer, on the right with the board still visible. Fields save as they are edited and
  * refresh from new snapshots, except the one being edited. Save commits the field still being edited and
- * closes the drawer once that save succeeds. An archived task is read-only apart from Restore and Delete.
+ * closes the drawer once that save succeeds. Esc, or a press on the page outside the drawer, closes it
+ * without saving that field. An archived task is read-only apart from Restore and Delete.
  */
 export function TaskDrawer(props: TaskDrawerProps) {
   const pendingSaves = usePendingFieldSaves();
@@ -43,8 +45,16 @@ function TaskDrawerPanel({
   pendingSaves,
 }: TaskDrawerProps & { pendingSaves: PendingFieldSaves }) {
   const statusId = useId();
+  const panelRef = useRef<HTMLElement>(null);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const readOnly = task.isArchived;
+
+  function closeWithoutSaving(): void {
+    pendingSaves.discardAll();
+    onClose();
+  }
+
+  useLightDismiss(panelRef, closeWithoutSaving);
 
   async function saveAndClose(): Promise<void> {
     if (await pendingSaves.commitAll()) onClose();
@@ -64,7 +74,7 @@ function TaskDrawerPanel({
   }
 
   return (
-    <aside aria-label="Task details" className={styles.drawer}>
+    <aside ref={panelRef} aria-label="Task details" className={styles.drawer}>
       <div key={task.created} className={styles.content}>
         <div className={styles.top}>
           <DrawerField label="Title" kind="text" isHeading value={task.title} readOnly={readOnly} onSave={saveTitle} />

@@ -1,42 +1,61 @@
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 
-type FieldCommit = () => Promise<boolean>;
+/** A drawer field that can hold an unsaved edit. */
+export interface PendingField {
+  commit: () => Promise<boolean>;
+  discard: () => void;
+}
 
-/** The drawer's fields that can hold an unsaved edit, so that Save can commit them all before closing. */
+/**
+ * The drawer's fields that can hold an unsaved edit, so that Save can commit them all before closing and
+ * a dismissal can drop them all.
+ */
 export interface PendingFieldSaves {
-  register: (commit: FieldCommit) => () => void;
+  register: (field: PendingField) => () => void;
   commitAll: () => Promise<boolean>;
+  discardAll: () => void;
 }
 
 export const PendingFieldSavesContext = createContext<PendingFieldSaves | null>(null);
 
 /**
  * Creates the registry the drawer's fields join. `commitAll` commits every field's draft, waits for each
- * save, including one already in flight, and resolves with whether all of them were saved.
+ * save, including one already in flight, and resolves with whether all of them were saved. `discardAll`
+ * drops every field's draft, so that nothing is saved when the drawer closes.
  */
 export function usePendingFieldSaves(): PendingFieldSaves {
-  const commits = useRef(new Set<FieldCommit>());
+  const fields = useRef(new Set<PendingField>());
   return useMemo<PendingFieldSaves>(
     () => ({
-      register: (commit) => {
-        commits.current.add(commit);
+      register: (field) => {
+        fields.current.add(field);
         return () => {
-          commits.current.delete(commit);
+          fields.current.delete(field);
         };
       },
       commitAll: async () => {
-        const results = await Promise.all([...commits.current].map((commit) => commit()));
+        const results = await Promise.all([...fields.current].map((field) => field.commit()));
         return results.every(Boolean);
+      },
+      discardAll: () => {
+        fields.current.forEach((field) => field.discard());
       },
     }),
     [],
   );
 }
 
-/** Adds a field's latest `commit` to the surrounding drawer's registry for as long as the field is shown. */
-export function useFieldCommitRegistration(commit: FieldCommit): void {
+/** Adds a field's latest `commit` and `discard` to the surrounding drawer's registry while it is shown. */
+export function useFieldRegistration(field: PendingField): void {
   const registry = useContext(PendingFieldSavesContext);
-  const latestCommit = useRef(commit);
-  latestCommit.current = commit;
-  useEffect(() => registry?.register(() => latestCommit.current()), [registry]);
+  const latestField = useRef(field);
+  latestField.current = field;
+  useEffect(
+    () =>
+      registry?.register({
+        commit: () => latestField.current.commit(),
+        discard: () => latestField.current.discard(),
+      }),
+    [registry],
+  );
 }

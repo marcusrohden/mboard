@@ -5,7 +5,7 @@ export interface EditableValue {
   begin: () => void;
   change: (next: string) => void;
   commit: (next?: string) => Promise<boolean>;
-  cancel: () => void;
+  discard: () => void;
 }
 
 interface SaveAttempt {
@@ -18,11 +18,12 @@ interface SaveAttempt {
  * shows the person's draft. Otherwise it shows `value` straight from the latest snapshot, so outside
  * changes appear in every field except the one being edited. `commit` saves a changed draft once and
  * resolves with whether it was saved; committing again while that save is in flight waits for it.
+ * `discard` drops the draft, so that the commit that follows, usually from the blur, saves nothing.
  */
 export function useEditableValue(value: string, save: (next: string) => Promise<boolean>): EditableValue {
   const [draft, setDraft] = useState<string | null>(null);
   const inFlight = useRef<SaveAttempt | null>(null);
-  const isCancelling = useRef(false);
+  const isDiscarding = useRef(false);
 
   async function saveValue(next: string): Promise<boolean> {
     const attempt = { value: next, result: save(next) };
@@ -36,8 +37,8 @@ export function useEditableValue(value: string, save: (next: string) => Promise<
   }
 
   async function commit(next: string | undefined = draft ?? undefined): Promise<boolean> {
-    if (isCancelling.current) {
-      isCancelling.current = false;
+    if (isDiscarding.current) {
+      isDiscarding.current = false;
       setDraft(null);
       return true;
     }
@@ -55,8 +56,8 @@ export function useEditableValue(value: string, save: (next: string) => Promise<
     begin: () => setDraft((current) => current ?? value),
     change: setDraft,
     commit,
-    cancel: () => {
-      isCancelling.current = true;
+    discard: () => {
+      if (draft !== null) isDiscarding.current = true;
     },
   };
 }

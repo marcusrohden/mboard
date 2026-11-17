@@ -105,6 +105,7 @@ describe('Archived view', () => {
     expect(within(drawer).getByRole('button', { name: 'Archive' })).toBeTruthy();
     expect((within(drawer).getByLabelText('Title') as HTMLInputElement).readOnly).toBe(false);
 
+    await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Archived' }));
     const done = within(screen.getByRole('region', { name: 'Done' }));
     expect(done.getAllByRole('article').map((article) => article.getAttribute('aria-label'))).toEqual([
