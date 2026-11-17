@@ -230,14 +230,16 @@ describe('tray', () => {
     expect(harness.tray.title).toBe('1');
   });
 
-  it('offers Open mboard, Change board folder, Open at login and Quit', async () => {
+  it('offers Open mboard, Settings, Change board folder, Open at login and Quit', async () => {
     const { harness } = await started('2026-11-16T08:00:00', []);
-    expect(harness.tray.labels).toEqual(['Open mboard', 'Change board folder…', 'Open at login', 'Quit']);
+    expect(harness.tray.labels).toEqual(['Open mboard', 'Settings…', 'Change board folder…', 'Open at login', 'Quit']);
 
     harness.tray.item('Open mboard').click?.();
+    harness.tray.item('Settings…').click?.();
     harness.tray.item('Change board folder…').click?.();
     harness.tray.item('Quit').click?.();
     expect(harness.shown).toEqual([undefined]);
+    expect(harness.openSettingsCalls).toBe(1);
     expect(harness.chooseFolderCalls).toBe(1);
     expect(harness.quitCalls).toBe(1);
   });

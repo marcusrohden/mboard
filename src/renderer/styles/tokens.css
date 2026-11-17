@@ -42,6 +42,8 @@
   --tone-amber-fg: #7a4b00;
   --tone-red-bg: #fbd9d6;
   --tone-red-fg: #8f1c14;
+  --tone-info-bg: #d6e6fb;
+  --tone-info-fg: #0b4a9e;
 
   --responsibility-me-bg: #d6e6fb;
   --responsibility-me-fg: #0b4a9e;
@@ -83,6 +85,8 @@
     --tone-amber-fg: #f6cf7d;
     --tone-red-bg: #4f1f1b;
     --tone-red-fg: #ffb0aa;
+    --tone-info-bg: #173d6b;
+    --tone-info-fg: #a9cdfb;
 
     --responsibility-me-bg: #173d6b;
     --responsibility-me-fg: #a9cdfb;

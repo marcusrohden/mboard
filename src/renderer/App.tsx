@@ -1,13 +1,21 @@
+import type { AppState } from '../shared/contract';
+import styles from './App.module.css';
+import { AppUpdateNotice } from './app-update/AppUpdateNotice';
+import { AppUpdateProvider } from './app-update/AppUpdateProvider';
 import { ToastProvider } from './notices/ToastProvider';
 import { BoardScreen } from './screens/BoardScreen';
 import { SetupScreen } from './screens/SetupScreen';
 import { UnavailableScreen } from './screens/UnavailableScreen';
 import screenStyles from './screens/Screens.module.css';
-import { useAppState } from './state/use-app-state';
+import { SettingsProvider } from './settings/SettingsProvider';
+import { useAppState, type AppStateLoad } from './state/use-app-state';
 
-function AppRoutes() {
-  const { load, applyState } = useAppState();
+interface AppRoutesProps {
+  load: AppStateLoad;
+  applyState: (state: AppState) => void;
+}
 
+function AppRoutes({ load, applyState }: AppRoutesProps) {
   if (load.status === 'loading') {
     return (
       <p role="status" className={screenStyles.status}>
@@ -36,14 +44,30 @@ function AppRoutes() {
   }
 }
 
+function AppShell() {
+  const { load, applyState } = useAppState();
+  return (
+    <AppUpdateProvider>
+      <SettingsProvider appState={load.status === 'loaded' ? load.state : null} onAppState={applyState}>
+        <div className={styles.app}>
+          <AppUpdateNotice />
+          <div className={styles.content}>
+            <AppRoutes load={load} applyState={applyState} />
+          </div>
+        </div>
+      </SettingsProvider>
+    </AppUpdateProvider>
+  );
+}
+
 /**
  * The application root: shows the setup screen, the "Can't open your board" screen or the board,
- * following the app state from the main process.
+ * following the app state from the main process. Settings and the new version notice work on every screen.
  */
 export function App() {
   return (
     <ToastProvider>
-      <AppRoutes />
+      <AppShell />
     </ToastProvider>
   );
 }

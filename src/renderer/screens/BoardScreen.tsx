@@ -16,6 +16,7 @@ import { filterReducer } from '../lib/filters';
 import { getMboardApi } from '../mboard-api';
 import { ReminderBanner } from '../notices/ReminderBanner';
 import { UnreadableNotice } from '../notices/UnreadableNotice';
+import { useSettingsDialog } from '../settings/SettingsProvider';
 import { useBoardData } from '../state/use-board-data';
 import { useGlobalShortcuts } from '../state/use-global-shortcuts';
 import { useTaskCommands } from '../state/use-task-commands';
@@ -39,6 +40,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [isConfirmingArchiveAll, setIsConfirmingArchiveAll] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const settings = useSettingsDialog();
 
   const selection = useTaskSelection(snapshot);
   const tasks = useMemo(() => snapshot?.tasks ?? [], [snapshot]);
@@ -47,7 +49,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
 
   useEffect(() => getMboardApi().onOpenTask(openTask), [openTask]);
 
-  const isModalOpen = isNewTaskOpen || isConfirmingArchiveAll;
+  const isModalOpen = isNewTaskOpen || isConfirmingArchiveAll || settings.isOpen;
   useGlobalShortcuts(
     { onFocusSearch: () => searchRef.current?.focus(), onNewTask: () => setIsNewTaskOpen(true) },
     !isModalOpen,
@@ -92,6 +94,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
         dispatch={dispatch}
         onToggleArchived={() => setIsArchivedView((current) => !current)}
         onNewTask={() => setIsNewTaskOpen(true)}
+        onOpenSettings={settings.open}
       />
       <UnreadableNotice files={snapshot.unreadable} />
       <ReminderBanner

@@ -4,6 +4,7 @@ import type { FilterAction } from '../lib/filters';
 import { Button } from '../ui/Button';
 import { FilterControls } from './FilterControls';
 import styles from './Header.module.css';
+import { SettingsIcon } from './SettingsIcon';
 
 interface HeaderProps {
   boardName: string;
@@ -15,10 +16,11 @@ interface HeaderProps {
   dispatch: (action: FilterAction) => void;
   onToggleArchived: () => void;
   onNewTask: () => void;
+  onOpenSettings: () => void;
 }
 
 /**
- * The board header: name, search, filters, Clear, the Archived toggle and New task.
+ * The board header: name, search, filters, Clear, the Archived toggle, New task and the Settings gear.
  */
 export function Header({
   boardName,
@@ -30,6 +32,7 @@ export function Header({
   dispatch,
   onToggleArchived,
   onNewTask,
+  onOpenSettings,
 }: HeaderProps) {
   return (
     <header className={styles.header}>
@@ -58,6 +61,15 @@ export function Header({
         </Button>
         <Button variant="primary" onClick={onNewTask}>
           New task
+        </Button>
+        <Button
+          variant="quiet"
+          className={styles.iconButton}
+          aria-label="Settings"
+          title="Settings (⌘,)"
+          onClick={onOpenSettings}
+        >
+          <SettingsIcon />
         </Button>
       </div>
     </header>

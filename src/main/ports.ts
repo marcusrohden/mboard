@@ -1,5 +1,6 @@
 import type {
   AppState,
+  AppUpdateStatus,
   BoardSnapshot,
   FolderChoice,
   NewTaskInput,
@@ -92,6 +93,7 @@ export interface PlatformDependencies {
   clock: Clock;
   showWindow(taskId?: TaskId): void;
   chooseFolder(): void;
+  openSettings(): void;
   quit(): void;
 }
 
@@ -118,3 +120,22 @@ export interface PlatformOptions {
 
 /** Builds the platform layer. Implemented by `src/main/platform`. */
 export type PlatformFactory = (options: PlatformOptions) => Platform;
+
+/**
+ * Checks GitHub for a new version of mboard and installs it in place (ADR 0004). Failures while checking
+ * or installing show in the status rather than rejecting.
+ */
+export interface AppUpdates {
+  status(): AppUpdateStatus;
+  onChange(listener: (status: AppUpdateStatus) => void): () => void;
+  /** Checks now, showing progress and any failure in the status. */
+  check(): Promise<AppUpdateStatus>;
+  /**
+   * Downloads, checks and installs the available version, then quits so the new one can take over.
+   *
+   * @throws Error when there is no version this copy can install.
+   */
+  install(): Promise<void>;
+  /** Opens the known release's page in the browser, or the latest release when none is known. */
+  openReleasePage(): Promise<void>;
+}

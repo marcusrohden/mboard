@@ -2,6 +2,7 @@ import path from 'node:path';
 import { app, dialog, session, shell } from 'electron';
 import type { TaskId } from '../shared/contract';
 import { registerAppSchemeAsPrivileged, serveRendererBundle } from './app-protocol';
+import { createAppUpdateService } from './app-update';
 import { FileBoardService } from './board/board-service';
 import { createClock } from './clock';
 import { createInvokeHandlers } from './ipc/invoke-handlers';
@@ -20,6 +21,7 @@ import { denyPermissionRequests, hardenWebContents } from './web-contents-securi
 import { installAppMenu } from './window/app-menu';
 import { MainWindowController } from './window/main-window-controller';
 import { createNativeDialogs } from './window/native-dialogs';
+import { SettingsRequests } from './window/settings-requests';
 
 const PRELOAD_PATH = path.join(__dirname, 'preload.cjs');
 const RENDERER_BUNDLE_DIRECTORY = path.join(__dirname, '..', 'renderer', MAIN_WINDOW_VITE_NAME);
@@ -55,8 +57,8 @@ function applyLaunchConfig(config: LaunchConfig): void {
 }
 
 /**
- * The composition root: builds the clock, settings, board, setup and platform, wires IPC, push events, the
- * app menu and the window, then resolves the launch state before showing the window.
+ * The composition root: builds the clock, settings, board, setup, platform and app updates, wires IPC, push
+ * events, the app menu and the window, then resolves the launch state before showing the window.
  */
 async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSource): Promise<void> {
   denyPermissionRequests(session.defaultSession);
@@ -67,6 +69,7 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
   const settings = new FileSettingsStore(userDataPath);
   const board = new FileBoardService({ clock, trash: createTrash(launchConfig) });
   const platform = createPlatform({ userDataPath, launchConfig });
+  const appUpdates = createAppUpdateService({ clock, launchConfig });
   const setup = new FileBoardSetupService({
     settings,
     board,
@@ -85,6 +88,13 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
     windows.show(taskId).catch((error: unknown) => console.error('mboard could not show its window:', error));
   };
   const changeBoardFolder = (): void => void folderChange.run();
+  const settingsRequests = new SettingsRequests(
+    () => windows.show(),
+    () => windows.send('openSettings', undefined),
+  );
+  const openSettings = (): void => {
+    settingsRequests.open().catch((error: unknown) => console.error('mboard could not open Settings:', error));
+  };
 
   registerIpcHandlers(
     rendererSource.trustedOrigin,
@@ -92,20 +102,32 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
       setup,
       board,
       platform,
+      appUpdates,
+      settingsRequests,
       pickBoardFolder: () => dialogs.pickBoardFolder(),
       openInObsidian: (absolutePath) => shell.openExternal(obsidianOpenUrl(absolutePath)),
     }),
   );
-  const stopRendererEvents = bridgeRendererEvents({ board, setup, platform }, windows.send);
-  installAppMenu({ changeBoardFolder });
+  const stopRendererEvents = bridgeRendererEvents({ board, setup, platform, appUpdates }, windows.send);
+  installAppMenu({ openSettings, changeBoardFolder });
   handleAppLifecycle(windows, showWindow, () => {
     stopRendererEvents();
     platform.stop();
+    appUpdates.stop();
     void board.close();
   });
 
   await setup.start();
-  platform.start({ board, settings, clock, showWindow, chooseFolder: changeBoardFolder, quit: () => app.quit() });
+  platform.start({
+    board,
+    settings,
+    clock,
+    showWindow,
+    chooseFolder: changeBoardFolder,
+    openSettings,
+    quit: () => app.quit(),
+  });
+  appUpdates.start();
   await windows.show();
 }
 
