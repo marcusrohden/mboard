@@ -21,14 +21,20 @@ function reportError(error: unknown): void {
  * so it follows the system's proxy settings. Automatic checks run only in a packaged build, and never when
  * `MBOARD_DISABLE_APP_UPDATE_CHECK=1`. Call it once Electron is ready.
  */
-export function createAppUpdateService({ clock, launchConfig }: AppUpdateServiceDependencies): AppUpdateService {
+export function createAppUpdateService({
+  clock,
+  launchConfig,
+}: AppUpdateServiceDependencies): AppUpdateService {
   const fetch: Fetch = (url, init) => net.fetch(url, init);
   return new AppUpdateService({
     currentVersion: app.getVersion(),
     releases: createGitHubReleaseSource({ fetch, arch: process.arch }),
     installer: createMacAppUpdateInstaller({
       fetch,
-      runningCopy: { isPackaged: app.isPackaged, executablePath: app.getPath('exe') },
+      runningCopy: {
+        isPackaged: app.isPackaged,
+        executablePath: app.getPath('exe'),
+      },
       tempFolder: app.getPath('temp'),
       processId: process.pid,
       run: runCommand,

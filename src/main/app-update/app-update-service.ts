@@ -4,9 +4,18 @@ import { isFileSystemError } from '../fs/fs-errors';
 import type { TimerPort } from '../platform/adapters';
 import type { Countdown } from '../platform/system-notifier';
 import type { AppUpdates, Clock } from '../ports';
-import type { AppUpdateInstaller, PublishedRelease, ReleaseSource } from './adapters';
+import type {
+  AppUpdateInstaller,
+  PublishedRelease,
+  ReleaseSource,
+} from './adapters';
 import { RELEASES_PAGE_URL, trustedReleasePageUrl } from './release-urls';
-import { formatVersion, isNewerVersion, parseVersion, type AppVersion } from './version';
+import {
+  formatVersion,
+  isNewerVersion,
+  parseVersion,
+  type AppVersion,
+} from './version';
 
 /** How long after launch the first automatic check runs. */
 export const FIRST_CHECK_DELAY_MS = 10_000;
@@ -14,8 +23,10 @@ export const FIRST_CHECK_DELAY_MS = 10_000;
 /** How often mboard checks for a new version while it keeps running. */
 export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-const NOTHING_TO_INSTALL = "There's no new version to install. Check for updates first.";
-const UNCHECKABLE_DOWNLOAD = "This release can't be checked before installing, so download it from GitHub instead.";
+const NOTHING_TO_INSTALL =
+  "There's no new version to install. Check for updates first.";
+const UNCHECKABLE_DOWNLOAD =
+  "This release can't be checked before installing, so download it from GitHub instead.";
 const INSTALL_FAILED = "mboard couldn't install the new version.";
 
 export interface AppUpdateServiceOptions {
@@ -35,7 +46,12 @@ export interface AppUpdateServiceOptions {
 type CheckTrigger = 'manual' | 'automatic';
 
 function failureMessage(error: unknown, fallback: string): string {
-  if (isFileSystemError(error) || !(error instanceof Error) || error.message.trim() === '') return fallback;
+  if (
+    isFileSystemError(error) ||
+    !(error instanceof Error) ||
+    error.message.trim() === ''
+  )
+    return fallback;
   return error.message;
 }
 
@@ -104,19 +120,32 @@ export class AppUpdateService implements AppUpdates {
   async install(): Promise<void> {
     const release = this.newerRelease;
     const stage = this.stage;
-    if (stage.kind !== 'available' || release === null || release.download === null) throw new Error(NOTHING_TO_INSTALL);
+    if (
+      stage.kind !== 'available' ||
+      release === null ||
+      release.download === null
+    )
+      throw new Error(NOTHING_TO_INSTALL);
     if (stage.installBlocker !== null) throw new Error(stage.installBlocker);
     const version = stage.version;
     const download = new AbortController();
     this.download = download;
     this.setStage({ kind: 'downloading', version });
     try {
-      const prepared = await this.options.installer.prepare(release.download, version, download.signal);
+      const prepared = await this.options.installer.prepare(
+        release.download,
+        version,
+        download.signal,
+      );
       this.setStage({ kind: 'installing', version });
       await this.options.installer.launchSwap(prepared);
     } catch (error) {
       this.options.reportError(error);
-      this.setStage({ kind: 'failed', message: failureMessage(error, INSTALL_FAILED), version });
+      this.setStage({
+        kind: 'failed',
+        message: failureMessage(error, INSTALL_FAILED),
+        version,
+      });
       return;
     } finally {
       this.download = null;
@@ -125,12 +154,17 @@ export class AppUpdateService implements AppUpdates {
   }
 
   async openReleasePage(): Promise<void> {
-    const known = this.newerRelease === null ? null : trustedReleasePageUrl(this.newerRelease.releaseUrl);
+    const known =
+      this.newerRelease === null
+        ? null
+        : trustedReleasePageUrl(this.newerRelease.releaseUrl);
     await this.options.openExternal(known ?? RELEASES_PAGE_URL);
   }
 
   private isInstalling(): boolean {
-    return this.stage.kind === 'downloading' || this.stage.kind === 'installing';
+    return (
+      this.stage.kind === 'downloading' || this.stage.kind === 'installing'
+    );
   }
 
   private async lookUp(): Promise<void> {
@@ -142,12 +176,22 @@ export class AppUpdateService implements AppUpdates {
     } catch (error) {
       this.options.reportError(error);
       if (this.isInstalling()) return;
-      const message = failureMessage(error, "mboard couldn't check for a new version.");
-      this.setStage(this.showLookupFailure ? { kind: 'failed', message, version: null } : this.settledStage);
+      const message = failureMessage(
+        error,
+        "mboard couldn't check for a new version.",
+      );
+      this.setStage(
+        this.showLookupFailure
+          ? { kind: 'failed', message, version: null }
+          : this.settledStage,
+      );
     }
   }
 
-  private async latest(): Promise<{ release: PublishedRelease | null; stage: AppUpdateStage }> {
+  private async latest(): Promise<{
+    release: PublishedRelease | null;
+    stage: AppUpdateStage;
+  }> {
     if (this.current === null) {
       throw new Error(
         `mboard couldn't tell which version it is (${this.options.currentVersion}), so it can't check for a new one.`,
@@ -155,10 +199,26 @@ export class AppUpdateService implements AppUpdates {
     }
     const latest = await this.options.releases.latest();
     if (latest === null || !isNewerVersion(latest.version, this.current)) {
-      return { release: null, stage: { kind: 'upToDate', checkedAt: formatLocalDateTime(this.options.clock.now()) } };
+      return {
+        release: null,
+        stage: {
+          kind: 'upToDate',
+          checkedAt: formatLocalDateTime(this.options.clock.now()),
+        },
+      };
     }
-    const installBlocker = latest.download === null ? UNCHECKABLE_DOWNLOAD : await this.options.installer.installBlocker();
-    return { release: latest, stage: { kind: 'available', version: formatVersion(latest.version), installBlocker } };
+    const installBlocker =
+      latest.download === null
+        ? UNCHECKABLE_DOWNLOAD
+        : await this.options.installer.installBlocker();
+    return {
+      release: latest,
+      stage: {
+        kind: 'available',
+        version: formatVersion(latest.version),
+        installBlocker,
+      },
+    };
   }
 
   private setStage(next: AppUpdateStage): void {

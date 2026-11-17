@@ -13,14 +13,16 @@ type FolderCommand = (api: MboardApi) => Promise<FolderChoice>;
 
 interface FolderPickerProps {
   onAccepted: (state: AppState) => void;
+  /** The label of the button that opens the folder picker. */
+  chooseLabel?: string;
   children?: ReactNode;
 }
 
 /**
- * The "Choose folder…" control shared by the setup and unavailable screens. It shows a rejection
- * inline, and asks for confirmation when the folder doesn't look like it's inside an Obsidian vault.
+ * The "Choose folder…" control shared by the setup and unavailable screens and Settings. It shows a
+ * rejection inline, and asks for confirmation when the folder doesn't look like it's inside an Obsidian vault.
  */
-export function FolderPicker({ onAccepted, children }: FolderPickerProps) {
+export function FolderPicker({ onAccepted, chooseLabel = 'Choose folder…', children }: FolderPickerProps) {
   const run = useRunCommand();
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'idle' });
   const [isBusy, setIsBusy] = useState(false);
@@ -75,7 +77,7 @@ export function FolderPicker({ onAccepted, children }: FolderPickerProps) {
           )}
           <div className={styles.actions}>
             <Button variant="primary" disabled={isBusy} onClick={choose}>
-              Choose folder…
+              {chooseLabel}
             </Button>
             {children}
           </div>
