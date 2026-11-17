@@ -7,7 +7,12 @@ import type {
   TaskDocument,
 } from './model';
 import { isResponsibility, isStatus } from './model';
-import { formatLocalDateTime, normaliseLogTimestamp, normaliseTimestamp, parseLocalDate } from './time';
+import {
+  formatLocalDateTime,
+  normaliseLogTimestamp,
+  normaliseTimestamp,
+  parseLocalDate,
+} from './time';
 
 /** The comments one update added and removed. */
 export interface CommentsDelta {
@@ -39,18 +44,24 @@ function isLocalDateTime(value: string | null): boolean {
 const TRACKED_FIELDS: Readonly<Record<string, TrackedField>> = {
   title: {
     read: (document) => document.title,
-    write: (document, value) => (value === null ? document : { ...document, title: value }),
+    write: (document, value) =>
+      value === null ? document : { ...document, title: value },
     accepts: isText,
   },
   status: {
     read: (document) => document.status,
-    write: (document, value) => (isStatus(value) ? { ...document, status: value, rawStatus: null } : document),
+    write: (document, value) =>
+      isStatus(value)
+        ? { ...document, status: value, rawStatus: null }
+        : document,
     accepts: (value) => value === null || isStatus(value),
   },
   responsibility: {
     read: (document) => document.responsibility,
     write: (document, value) =>
-      isResponsibility(value) ? { ...document, responsibility: value, rawResponsibility: null } : document,
+      isResponsibility(value)
+        ? { ...document, responsibility: value, rawResponsibility: null }
+        : document,
     accepts: (value) => value === null || isResponsibility(value),
   },
   project: {
@@ -76,7 +87,9 @@ const TRACKED_FIELDS: Readonly<Record<string, TrackedField>> = {
 };
 
 /** Whether a ledger change records comments rather than a single field. */
-export function isCommentsChange(change: LedgerChange): change is LedgerCommentsChange {
+export function isCommentsChange(
+  change: LedgerChange,
+): change is LedgerCommentsChange {
   return 'added' in change;
 }
 
@@ -84,7 +97,11 @@ export function isCommentsChange(change: LedgerChange): change is LedgerComments
  * Writes one value change back into a document. A field this version doesn't track is left alone.
  * `null` for the title, column or responsibility, which can't be empty, leaves the current value.
  */
-export function writeTrackedValue(document: TaskDocument, change: LedgerValueChange, value: string | null): TaskDocument {
+export function writeTrackedValue(
+  document: TaskDocument,
+  change: LedgerValueChange,
+  value: string | null,
+): TaskDocument {
   return TRACKED_FIELDS[change.field]?.write(document, value) ?? document;
 }
 
@@ -94,7 +111,10 @@ export function writeTrackedValue(document: TaskDocument, change: LedgerValueCha
  * means dropping its row from the tracked fields; older ledger data that names it is still read and kept,
  * but never reverted.
  */
-export function valueChangesBetween(before: TaskDocument, after: TaskDocument): LedgerValueChange[] {
+export function valueChangesBetween(
+  before: TaskDocument,
+  after: TaskDocument,
+): LedgerValueChange[] {
   return Object.entries(TRACKED_FIELDS).flatMap(([field, tracked]) => {
     const from = tracked.read(before);
     const to = tracked.read(after);
@@ -103,8 +123,18 @@ export function valueChangesBetween(before: TaskDocument, after: TaskDocument): 
 }
 
 function commentsChange(delta: CommentsDelta | null): LedgerCommentsChange[] {
-  if (delta === null || (delta.added.length === 0 && delta.removed.length === 0)) return [];
-  return [{ field: COMMENTS_FIELD, added: delta.added.map(copyComment), removed: delta.removed.map(copyComment) }];
+  if (
+    delta === null ||
+    (delta.added.length === 0 && delta.removed.length === 0)
+  )
+    return [];
+  return [
+    {
+      field: COMMENTS_FIELD,
+      added: delta.added.map(copyComment),
+      removed: delta.removed.map(copyComment),
+    },
+  ];
 }
 
 function copyComment({ at, text }: TaskComment): TaskComment {
@@ -121,12 +151,18 @@ export function buildLedger(
   return {
     v: LEDGER_VERSION,
     at: formatLocalDateTime(now),
-    changes: [...valueChangesBetween(before, after), ...commentsChange(comments)],
+    changes: [
+      ...valueChangesBetween(before, after),
+      ...commentsChange(comments),
+    ],
   };
 }
 
 /** The ledger for creating a task: every tracked field that starts with a value, each from `null`. */
-export function initialLedger(document: TaskDocument, now: Date): HistoryLedger {
+export function initialLedger(
+  document: TaskDocument,
+  now: Date,
+): HistoryLedger {
   const changes = Object.entries(TRACKED_FIELDS).flatMap(([field, tracked]) => {
     const to = tracked.read(document);
     return to === null || to === '' ? [] : [{ field, from: null, to }];
@@ -136,13 +172,21 @@ export function initialLedger(document: TaskDocument, now: Date): HistoryLedger 
 
 function canonicalChange(change: LedgerChange): LedgerChange {
   if (isCommentsChange(change)) {
-    return { field: COMMENTS_FIELD, added: change.added.map(copyComment), removed: change.removed.map(copyComment) };
+    return {
+      field: COMMENTS_FIELD,
+      added: change.added.map(copyComment),
+      removed: change.removed.map(copyComment),
+    };
   }
   return { field: change.field, from: change.from, to: change.to };
 }
 
 function escapeForComment(json: string): string {
-  return json.replace(UNSAFE_IN_COMMENT, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return json.replace(
+    UNSAFE_IN_COMMENT,
+    (character) =>
+      `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
 }
 
 /**
@@ -152,7 +196,11 @@ function escapeForComment(json: string): string {
  * close it early. JSON already escapes line breaks and control characters.
  */
 export function encodeLedgerComment(ledger: HistoryLedger): string {
-  const canonical = { v: ledger.v, at: ledger.at, changes: ledger.changes.map(canonicalChange) };
+  const canonical = {
+    v: ledger.v,
+    at: ledger.at,
+    changes: ledger.changes.map(canonicalChange),
+  };
   return `${COMMENT_OPENING}${escapeForComment(JSON.stringify(canonical))}${COMMENT_CLOSING}`;
 }
 
@@ -164,7 +212,10 @@ function isPlainObject(value: unknown): value is PlainObject {
 
 function hasExactKeys(value: PlainObject, keys: readonly string[]): boolean {
   const actual = Object.keys(value);
-  return actual.length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+  return (
+    actual.length === keys.length &&
+    keys.every((key) => Object.hasOwn(value, key))
+  );
 }
 
 function readStoredValue(value: unknown): string | null | undefined {
@@ -172,7 +223,8 @@ function readStoredValue(value: unknown): string | null | undefined {
 }
 
 function readComment(value: unknown): TaskComment | null {
-  if (!isPlainObject(value) || !hasExactKeys(value, ['at', 'text'])) return null;
+  if (!isPlainObject(value) || !hasExactKeys(value, ['at', 'text']))
+    return null;
   const { at, text } = value;
   if (typeof at !== 'string' || typeof text !== 'string') return null;
   if (at !== '' && normaliseLogTimestamp(at) !== at) return null;
@@ -182,43 +234,67 @@ function readComment(value: unknown): TaskComment | null {
 function readComments(value: unknown): TaskComment[] | null {
   if (!Array.isArray(value)) return null;
   const comments = value.map(readComment);
-  return comments.every((comment) => comment !== null) ? (comments as TaskComment[]) : null;
+  return comments.every((comment) => comment !== null)
+    ? (comments as TaskComment[])
+    : null;
 }
 
 function readCommentsChange(value: PlainObject): LedgerCommentsChange | null {
   const added = readComments(value['added']);
   const removed = readComments(value['removed']);
-  return added === null || removed === null ? null : { field: COMMENTS_FIELD, added, removed };
+  return added === null || removed === null
+    ? null
+    : { field: COMMENTS_FIELD, added, removed };
 }
 
 function readValueChange(value: PlainObject): LedgerValueChange | null {
   const { field } = value;
   const from = readStoredValue(value['from']);
   const to = readStoredValue(value['to']);
-  if (typeof field !== 'string' || field === '' || field === COMMENTS_FIELD || from === undefined || to === undefined) {
+  if (
+    typeof field !== 'string' ||
+    field === '' ||
+    field === COMMENTS_FIELD ||
+    from === undefined ||
+    to === undefined
+  ) {
     return null;
   }
   const tracked = TRACKED_FIELDS[field];
-  if (tracked !== undefined && !(tracked.accepts(from) && tracked.accepts(to))) return null;
+  if (tracked !== undefined && !(tracked.accepts(from) && tracked.accepts(to)))
+    return null;
   return { field, from, to };
 }
 
 function readChange(value: unknown): LedgerChange | null {
   if (!isPlainObject(value)) return null;
-  if (hasExactKeys(value, ['field', 'added', 'removed']) && value['field'] === COMMENTS_FIELD) {
+  if (
+    hasExactKeys(value, ['field', 'added', 'removed']) &&
+    value['field'] === COMMENTS_FIELD
+  ) {
     return readCommentsChange(value);
   }
-  return hasExactKeys(value, ['field', 'from', 'to']) ? readValueChange(value) : null;
+  return hasExactKeys(value, ['field', 'from', 'to'])
+    ? readValueChange(value)
+    : null;
 }
 
 function readLedger(value: unknown): HistoryLedger | null {
-  if (!isPlainObject(value) || !hasExactKeys(value, ['v', 'at', 'changes'])) return null;
+  if (!isPlainObject(value) || !hasExactKeys(value, ['v', 'at', 'changes']))
+    return null;
   const { v, at, changes } = value;
-  if (v !== LEDGER_VERSION || typeof at !== 'string' || normaliseTimestamp(at) !== at || !Array.isArray(changes)) {
+  if (
+    v !== LEDGER_VERSION ||
+    typeof at !== 'string' ||
+    normaliseTimestamp(at) !== at ||
+    !Array.isArray(changes)
+  ) {
     return null;
   }
   const read = changes.map(readChange);
-  return read.every((change) => change !== null) ? { v: LEDGER_VERSION, at, changes: read as LedgerChange[] } : null;
+  return read.every((change) => change !== null)
+    ? { v: LEDGER_VERSION, at, changes: read as LedgerChange[] }
+    : null;
 }
 
 function decodeLedger(payload: string): HistoryLedger | null {
@@ -235,7 +311,10 @@ function decodeLedger(payload: string): HistoryLedger | null {
  * comment, or whose comment can't be read as a version 1 ledger, is a legacy line: its whole text is kept
  * and it has no ledger.
  */
-export function splitLedgerComment(lineText: string): { text: string; ledger: HistoryLedger | null } {
+export function splitLedgerComment(lineText: string): {
+  text: string;
+  ledger: HistoryLedger | null;
+} {
   const legacy = { text: lineText, ledger: null };
   if (!lineText.endsWith(COMMENT_CLOSING)) return legacy;
   const markerAt = lineText.lastIndexOf(LINE_MARKER);
@@ -245,5 +324,7 @@ export function splitLedgerComment(lineText: string): { text: string; ledger: Hi
   const payload = lineText.slice(payloadStart, payloadEnd);
   if (/[<>]/.test(payload)) return legacy;
   const ledger = decodeLedger(payload);
-  return ledger === null ? legacy : { text: lineText.slice(0, markerAt), ledger };
+  return ledger === null
+    ? legacy
+    : { text: lineText.slice(0, markerAt), ledger };
 }

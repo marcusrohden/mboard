@@ -1,9 +1,31 @@
-import { buildLedger, isCommentsChange, writeTrackedValue, type CommentsDelta } from './ledger';
-import type { HistoryEntry, LedgerChange, RevertExpectation, TaskComment, TaskDocument } from './model';
-import { formatCompactDateTime, formatLocalDate, formatLocalDateTime, formatLogTimestamp } from './time';
+import {
+  buildLedger,
+  isCommentsChange,
+  writeTrackedValue,
+  type CommentsDelta,
+} from './ledger';
+import type {
+  HistoryEntry,
+  LedgerChange,
+  RevertExpectation,
+  TaskComment,
+  TaskDocument,
+} from './model';
+import {
+  formatCompactDateTime,
+  formatLocalDate,
+  formatLocalDateTime,
+  formatLogTimestamp,
+} from './time';
 
 /** Why a task can't be reverted to a history entry. */
-export type RevertBlocker = 'archived' | 'noSuchEntry' | 'latest' | 'undated' | 'beforeLedger' | 'archivedThen';
+export type RevertBlocker =
+  | 'archived'
+  | 'noSuchEntry'
+  | 'latest'
+  | 'undated'
+  | 'beforeLedger'
+  | 'archivedThen';
 
 /** What deciding whether a revert is allowed needs to know about a task. */
 export interface RevertSource {
@@ -13,20 +35,30 @@ export interface RevertSource {
 }
 
 /** The user-presentable reason for each blocker, used when main refuses a revert. */
-export const REVERT_BLOCKER_MESSAGES: Readonly<Record<RevertBlocker, string>> = {
-  archived: "Archived tasks can't be reverted. Restore the task first.",
-  noSuchEntry: "That history entry doesn't exist.",
-  latest: "That's the latest entry, so there's nothing to revert.",
-  undated: "That history entry has no date, so the task can't be reverted to it.",
-  beforeLedger: "A later change was recorded before mboard kept a ledger, so the task can't be reverted that far.",
-  archivedThen: 'The task was archived at that point. Revert to an entry where it was on the board.',
-};
+export const REVERT_BLOCKER_MESSAGES: Readonly<Record<RevertBlocker, string>> =
+  {
+    archived: "Archived tasks can't be reverted. Restore the task first.",
+    noSuchEntry: "That history entry doesn't exist.",
+    latest: "That's the latest entry, so there's nothing to revert.",
+    undated:
+      "That history entry has no date, so the task can't be reverted to it.",
+    beforeLedger:
+      "A later change was recorded before mboard kept a ledger, so the task can't be reverted that far.",
+    archivedThen:
+      'The task was archived at that point. Revert to an entry where it was on the board.',
+  };
 
-function isEntryIndex(history: readonly HistoryEntry[], index: number): boolean {
+function isEntryIndex(
+  history: readonly HistoryEntry[],
+  index: number,
+): boolean {
   return Number.isSafeInteger(index) && index >= 0 && index < history.length;
 }
 
-function changesNewestFirst(history: readonly HistoryEntry[], index: number): LedgerChange[] {
+function changesNewestFirst(
+  history: readonly HistoryEntry[],
+  index: number,
+): LedgerChange[] {
   return history
     .slice(index + 1)
     .reverse()
@@ -35,7 +67,10 @@ function changesNewestFirst(history: readonly HistoryEntry[], index: number): Le
 
 function archivedAfter(source: RevertSource, index: number): string | null {
   return changesNewestFirst(source.history, index).reduce<string | null>(
-    (archived, change) => (!isCommentsChange(change) && change.field === 'archived' ? change.from : archived),
+    (archived, change) =>
+      !isCommentsChange(change) && change.field === 'archived'
+        ? change.from
+        : archived,
     source.archivedAt,
   );
 }
@@ -45,12 +80,18 @@ function archivedAfter(source: RevertSource, index: number): string | null {
  * dated entry that isn't the latest, ledger data on every later entry, and a state after the entry in
  * which the task wasn't archived.
  */
-export function revertBlocker(source: RevertSource, index: number): RevertBlocker | null {
+export function revertBlocker(
+  source: RevertSource,
+  index: number,
+): RevertBlocker | null {
   if (source.isArchived) return 'archived';
   if (!isEntryIndex(source.history, index)) return 'noSuchEntry';
   if (index === source.history.length - 1) return 'latest';
   if (source.history[index]?.at === '') return 'undated';
-  if (source.history.slice(index + 1).some((entry) => entry.ledger === undefined)) return 'beforeLedger';
+  if (
+    source.history.slice(index + 1).some((entry) => entry.ledger === undefined)
+  )
+    return 'beforeLedger';
   if (archivedAfter(source, index) !== null) return 'archivedThen';
   return null;
 }
@@ -59,23 +100,42 @@ function isSameComment(a: TaskComment, b: TaskComment): boolean {
   return a.at === b.at && a.text === b.text;
 }
 
-function withoutComment(comments: readonly TaskComment[], removed: TaskComment): TaskComment[] {
-  const position = comments.findLastIndex((comment) => isSameComment(comment, removed));
+function withoutComment(
+  comments: readonly TaskComment[],
+  removed: TaskComment,
+): TaskComment[] {
+  const position = comments.findLastIndex((comment) =>
+    isSameComment(comment, removed),
+  );
   return position === -1 ? [...comments] : comments.toSpliced(position, 1);
 }
 
-function withCommentInDateOrder(comments: readonly TaskComment[], added: TaskComment): TaskComment[] {
-  const position = comments.findLastIndex((comment) => comment.at <= added.at) + 1;
+function withCommentInDateOrder(
+  comments: readonly TaskComment[],
+  added: TaskComment,
+): TaskComment[] {
+  const position =
+    comments.findLastIndex((comment) => comment.at <= added.at) + 1;
   return comments.toSpliced(position, 0, { ...added });
 }
 
-function undoChange(document: TaskDocument, change: LedgerChange): TaskDocument {
-  if (!isCommentsChange(change)) return writeTrackedValue(document, change, change.from);
+function undoChange(
+  document: TaskDocument,
+  change: LedgerChange,
+): TaskDocument {
+  if (!isCommentsChange(change))
+    return writeTrackedValue(document, change, change.from);
   const withoutAdded = change.added.reduce(withoutComment, document.comments);
-  return { ...document, comments: change.removed.reduce(withCommentInDateOrder, withoutAdded) };
+  return {
+    ...document,
+    comments: change.removed.reduce(withCommentInDateOrder, withoutAdded),
+  };
 }
 
-function commentsMissingFrom(comments: readonly TaskComment[], others: readonly TaskComment[]): TaskComment[] {
+function commentsMissingFrom(
+  comments: readonly TaskComment[],
+  others: readonly TaskComment[],
+): TaskComment[] {
   const unmatched = [...others];
   return comments.filter((comment) => {
     const match = unmatched.findIndex((other) => isSameComment(other, comment));
@@ -85,11 +145,21 @@ function commentsMissingFrom(comments: readonly TaskComment[], others: readonly 
   });
 }
 
-function commentsDelta(before: readonly TaskComment[], after: readonly TaskComment[]): CommentsDelta {
-  return { added: commentsMissingFrom(after, before), removed: commentsMissingFrom(before, after) };
+function commentsDelta(
+  before: readonly TaskComment[],
+  after: readonly TaskComment[],
+): CommentsDelta {
+  return {
+    added: commentsMissingFrom(after, before),
+    removed: commentsMissingFrom(before, after),
+  };
 }
 
-function revertText(target: HistoryEntry, discarded: number, now: Date): string {
+function revertText(
+  target: HistoryEntry,
+  discarded: number,
+  now: Date,
+): string {
   const point = formatCompactDateTime(target.at, formatLocalDate(now));
   return `Reverted to ${point} — ${discarded} ${discarded === 1 ? 'change' : 'changes'} discarded`;
 }
@@ -105,14 +175,30 @@ function revertText(target: HistoryEntry, discarded: number, now: Date): string 
  *
  * @throws Error with a user-presentable message when the task can't be reverted to that entry.
  */
-export function revertDocument(document: TaskDocument, index: number, now: Date): TaskDocument {
+export function revertDocument(
+  document: TaskDocument,
+  index: number,
+  now: Date,
+): TaskDocument {
   const blocker = revertBlocker({ ...document, isArchived: false }, index);
   if (blocker !== null) throw new Error(REVERT_BLOCKER_MESSAGES[blocker]);
   const target = document.history[index] as HistoryEntry;
-  const reverted = changesNewestFirst(document.history, index).reduce(undoChange, document);
+  const reverted = changesNewestFirst(document.history, index).reduce(
+    undoChange,
+    document,
+  );
   const discarded = document.history.length - 1 - index;
-  const ledger = buildLedger(document, reverted, now, commentsDelta(document.comments, reverted.comments));
-  const entry = { at: formatLogTimestamp(now), text: revertText(target, discarded, now), ledger };
+  const ledger = buildLedger(
+    document,
+    reverted,
+    now,
+    commentsDelta(document.comments, reverted.comments),
+  );
+  const entry = {
+    at: formatLogTimestamp(now),
+    text: revertText(target, discarded, now),
+    ledger,
+  };
   return {
     ...reverted,
     updated: formatLocalDateTime(now),
@@ -121,13 +207,24 @@ export function revertDocument(document: TaskDocument, index: number, now: Date)
 }
 
 /** What the renderer sends with a revert request, describing entry `index` of `history` as shown. */
-export function revertExpectationFor(history: readonly HistoryEntry[], index: number): RevertExpectation {
+export function revertExpectationFor(
+  history: readonly HistoryEntry[],
+  index: number,
+): RevertExpectation {
   const entry = history[index];
-  return { historyLength: history.length, at: entry?.at ?? '', text: entry?.text ?? '' };
+  return {
+    historyLength: history.length,
+    at: entry?.at ?? '',
+    text: entry?.text ?? '',
+  };
 }
 
 /** Whether `history` still has, at `index`, the entry the person asked to revert to. */
-export function isSameRevertPoint(history: readonly HistoryEntry[], index: number, expected: RevertExpectation): boolean {
+export function isSameRevertPoint(
+  history: readonly HistoryEntry[],
+  index: number,
+  expected: RevertExpectation,
+): boolean {
   const entry = history[index];
   return (
     history.length === expected.historyLength &&
