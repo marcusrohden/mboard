@@ -322,10 +322,10 @@ describe('Task detail drawer dismissal', () => {
     expect(fake.tasks()[0]?.project).toBe('Acme');
   });
 
-  it('closes on Esc while focus is on the board', async () => {
+  it('closes on Esc while focus is on the drawer itself', async () => {
     const { user } = await renderBoard({ tasks: [SAMPLE()] });
-    await openTask(user, 'Fix login');
-    expect(document.activeElement).toBe(screen.getByRole('article', { name: 'Fix login' }));
+    const drawer = await openTask(user, 'Fix login');
+    expect(document.activeElement).toBe(drawer);
     await user.keyboard('{Escape}');
     expect(drawerOrNull()).toBeNull();
   });
@@ -375,6 +375,44 @@ describe('Task detail drawer dismissal', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(drawerOrNull()).not.toBeNull();
+  });
+});
+
+describe('Task detail drawer focus', () => {
+  it('takes focus from the task opened with Enter, and gives it back on Esc', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
+    const card = screen.getByRole('article', { name: 'Fix login' });
+    card.focus();
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(drawerOrNull());
+    await user.keyboard('{Escape}');
+    expect(drawerOrNull()).toBeNull();
+    expect(document.activeElement).toBe(card);
+  });
+
+  it('gives focus back to the task after Save closes it', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(drawerOrNull()).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole('article', { name: 'Fix login' }));
+  });
+
+  it('leaves focus where a press outside put it', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
+    await openTask(user, 'Fix login');
+    const newTask = screen.getByRole('button', { name: 'New task' });
+    await user.click(newTask);
+    expect(drawerOrNull()).toBeNull();
+    expect(document.activeElement).toBe(newTask);
+  });
+
+  it('comes before the board in tab order', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.tab({ shift: true });
+    expect(drawer.contains(document.activeElement)).toBe(false);
+    expect(screen.getByRole('main').contains(document.activeElement)).toBe(false);
   });
 });
 

@@ -1,6 +1,10 @@
 .drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
   display: flex;
-  flex: 0 0 var(--drawer-width);
   flex-direction: column;
   gap: var(--space-3);
   width: var(--drawer-width);
@@ -9,6 +13,10 @@
   border-left: 1px solid var(--color-border);
   background: var(--color-surface);
   box-shadow: var(--shadow-drawer);
+}
+
+.drawer:focus {
+  outline: none;
 }
 
 .content {

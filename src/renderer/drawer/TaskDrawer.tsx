@@ -15,6 +15,7 @@ import { DrawerField } from './DrawerField';
 import { HistorySection } from './HistorySection';
 import { ProjectColourField } from './ProjectColourField';
 import { PendingFieldSavesContext, usePendingFieldSaves, type PendingFieldSaves } from './pending-field-saves';
+import { useDrawerFocus } from './use-drawer-focus';
 import styles from './Drawer.module.css';
 
 interface TaskDrawerProps {
@@ -26,7 +27,8 @@ interface TaskDrawerProps {
 }
 
 /**
- * The task detail drawer, on the right with the board still visible. Fields save as they are edited and
+ * The task detail drawer, laid over the right of the board or the archived list, neither of which narrows to make room.
+ * It takes keyboard focus while open and gives it back on close. Fields save as they are edited and
  * refresh from new snapshots, except the one being edited. Under the project, its colour can be picked. Save commits the field still being edited and
  * closes the drawer once that save succeeds. The close button, Esc, or a press on the page outside the
  * drawer closes it without saving that field. An archived task is read-only apart from Restore and Delete.
@@ -59,6 +61,7 @@ function TaskDrawerPanel({
   }
 
   useLightDismiss(panelRef, closeWithoutSaving);
+  useDrawerFocus(panelRef, task.created);
 
   async function saveAndClose(): Promise<void> {
     if (await pendingSaves.commitAll()) onClose();
@@ -85,7 +88,7 @@ function TaskDrawerPanel({
   }
 
   return (
-    <aside ref={panelRef} aria-label="Task details" className={styles.drawer}>
+    <aside ref={panelRef} aria-label="Task details" tabIndex={-1} className={styles.drawer}>
       <div key={task.created} className={styles.content}>
         <div className={styles.top}>
           <Button
