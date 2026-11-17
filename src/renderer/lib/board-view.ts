@@ -1,5 +1,6 @@
 import {
   COLUMNS,
+  type AgeThresholds,
   columnTasks,
   filterBoardTasks,
   type FilterCriteria,
@@ -16,10 +17,16 @@ export interface ColumnView {
 }
 
 /**
- * The tasks each column shows: the filtered, sorted ones, and how many the column holds in all.
+ * The tasks each column shows: the filtered, sorted ones, and how many the column holds in all. Stale only
+ * is judged by `thresholds`.
  */
-export function buildColumnViews(tasks: readonly Task[], criteria: FilterCriteria, today: LocalDate): ColumnView[] {
-  const filtered = filterBoardTasks(tasks, criteria, today);
+export function buildColumnViews(
+  tasks: readonly Task[],
+  criteria: FilterCriteria,
+  today: LocalDate,
+  thresholds: AgeThresholds,
+): ColumnView[] {
+  const filtered = filterBoardTasks(tasks, criteria, today, thresholds);
   return COLUMNS.map((status) => ({
     status,
     visible: columnTasks(filtered, status),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COLUMNS, EMPTY_FILTER, isFilterActive, type Status, type TaskId } from '../../domain';
+import { COLUMNS, DEFAULT_AGE_THRESHOLDS, EMPTY_FILTER, isFilterActive, type Status, type TaskId } from '../../domain';
 import {
   beforeIdAfterDrop,
   buildColumnViews,
@@ -47,12 +47,12 @@ describe('buildColumnViews', () => {
   ];
 
   it('builds the five columns in board order', () => {
-    const views = buildColumnViews(tasks, EMPTY_FILTER, TEST_TODAY);
+    const views = buildColumnViews(tasks, EMPTY_FILTER, TEST_TODAY, DEFAULT_AGE_THRESHOLDS);
     expect(views.map((view) => view.status)).toEqual(['To do', 'In progress', 'Internal', 'With client', 'Done']);
   });
 
   it('sorts each column and counts totals without archived tasks', () => {
-    const views = buildColumnViews(tasks, EMPTY_FILTER, TEST_TODAY);
+    const views = buildColumnViews(tasks, EMPTY_FILTER, TEST_TODAY, DEFAULT_AGE_THRESHOLDS);
     expect(views.map((view) => view.visible.map((task) => task.title))).toEqual([
       ['Beta', 'Alpha'],
       [],
@@ -65,20 +65,20 @@ describe('buildColumnViews', () => {
 
   it('shows "shown of total" in every column that is narrowed', () => {
     const criteria = filterReducer(EMPTY_FILTER, { type: 'toggleProject', project: 'Acme' });
-    const labels = buildColumnViews(tasks, criteria, TEST_TODAY).map(columnCountLabel);
+    const labels = buildColumnViews(tasks, criteria, TEST_TODAY, DEFAULT_AGE_THRESHOLDS).map(columnCountLabel);
     expect(labels).toEqual(['1 of 2', '0', '1', '1 of 2', '0 of 1']);
   });
 
   it('narrows the visible tasks but keeps the totals', () => {
     const criteria = filterReducer(EMPTY_FILTER, { type: 'toggleProject', project: 'Acme' });
-    const [todo] = buildColumnViews(tasks, criteria, TEST_TODAY);
+    const [todo] = buildColumnViews(tasks, criteria, TEST_TODAY, DEFAULT_AGE_THRESHOLDS);
     expect(todo?.visible.map((task) => task.title)).toEqual(['Alpha']);
     expect(todo?.total).toBe(2);
     expect(columnCountLabel(todo!)).toBe('1 of 2');
   });
 
   it('shows only the total when nothing is hidden', () => {
-    const [todo] = buildColumnViews(tasks, EMPTY_FILTER, TEST_TODAY);
+    const [todo] = buildColumnViews(tasks, EMPTY_FILTER, TEST_TODAY, DEFAULT_AGE_THRESHOLDS);
     expect(columnCountLabel(todo!)).toBe('2');
   });
 });
@@ -220,16 +220,17 @@ describe('formatting', () => {
 
   it('describes the age of a task with both timestamps, the working days and the tier', () => {
     const task = buildTask({ created: '2026-11-12T08:00:00', updated: '2026-11-12T09:12:30' });
-    expect(describeAge(task, TEST_TODAY)).toBe(
+    expect(describeAge(task, TEST_TODAY, DEFAULT_AGE_THRESHOLDS)).toBe(
       'Created 12 Nov 08:00 · Updated 12 Nov 09:12 — 2 working days, Needs a nudge',
     );
-    expect(describeAge({ ...task, updated: '2026-11-13T17:00:00' }, TEST_TODAY)).toBe(
+    expect(describeAge({ ...task, updated: '2026-11-13T17:00:00' }, TEST_TODAY, DEFAULT_AGE_THRESHOLDS)).toBe(
       'Created 12 Nov 08:00 · Updated 13 Nov 17:00 — 1 working day, On track',
     );
     expect(
       describeAge(
         { ...task, created: '2025-12-30T08:00:00', status: 'Done', updated: `${TEST_TODAY}T09:00:00` },
         TEST_TODAY,
+        DEFAULT_AGE_THRESHOLDS,
       ),
     ).toBe('Created 30 Dec 2025 08:00 · Updated 16 Nov 09:00 — 0 working days, Complete');
   });

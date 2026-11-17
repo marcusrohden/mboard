@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useDomEnvironment } from '../testing/dom-environment';
 import { buildTask } from '../testing/builders';
@@ -108,6 +108,14 @@ describe('Header', () => {
     await user.click(screen.getByRole('switch', { name: 'Stale only' }));
     expect(titles('To do')).toEqual([]);
     expect(titles('In progress')).toEqual(['Old thing']);
+  });
+
+  it('judges stale only by the thresholds from Settings', async () => {
+    const { user, fake } = await renderBoard({ tasks: TASKS() });
+    await user.click(screen.getByRole('switch', { name: 'Stale only' }));
+    expect(titles('In progress')).toEqual(['Old thing']);
+    act(() => fake.pushAgeThresholds({ nudgeFrom: 97, stallingFrom: 98, staleFrom: 99 }));
+    expect(titles('In progress')).toEqual([]);
   });
 
   it('clears everything with Clear', async () => {

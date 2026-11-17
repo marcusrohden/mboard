@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppState, AppUpdateStatus, BoardSnapshot, Preferences, ReminderBannerItem } from '../../shared/contract';
+import type {
+  AgeThresholds,
+  AppState,
+  AppUpdateStatus,
+  BoardSnapshot,
+  Preferences,
+  ReminderBannerItem,
+} from '../../shared/contract';
 import { bridgeRendererEvents, SNAPSHOT_REFRESH_INTERVAL_MS, type RendererEventSources } from './renderer-events';
 
 function listenerSlot<T>() {
@@ -25,6 +32,7 @@ describe('bridgeRendererEvents', () => {
     const appState = listenerSlot<AppState>();
     const banner = listenerSlot<ReminderBannerItem[]>();
     const preferences = listenerSlot<Preferences>();
+    const ageThresholds = listenerSlot<AgeThresholds>();
     const appUpdates = listenerSlot<AppUpdateStatus>();
     let minute = 0;
     const snapshotAt = (): BoardSnapshot => ({
@@ -37,6 +45,7 @@ describe('bridgeRendererEvents', () => {
       board: { onChange: board.subscribe, snapshot: snapshotAt },
       setup: { onStateChange: appState.subscribe },
       platform: { onBannerChange: banner.subscribe, onPreferencesChange: preferences.subscribe },
+      ageThresholds: { onChange: ageThresholds.subscribe },
       appUpdates: { onChange: appUpdates.subscribe },
     };
     const send = vi.fn();
@@ -46,6 +55,7 @@ describe('bridgeRendererEvents', () => {
     appState.emit({ kind: 'needsSetup' });
     banner.emit([]);
     preferences.emit({ openAtLogin: true, notificationsAvailable: false });
+    ageThresholds.emit({ nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 });
     appUpdates.emit({ currentVersion: '0.1.0', stage: { kind: 'checking' } });
     minute = 1;
     vi.advanceTimersByTime(SNAPSHOT_REFRESH_INTERVAL_MS);
@@ -55,13 +65,15 @@ describe('bridgeRendererEvents', () => {
       ['appState', { kind: 'needsSetup' }],
       ['reminderBanner', []],
       ['preferences', { openAtLogin: true, notificationsAvailable: false }],
+      ['ageThresholds', { nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 }],
       ['appUpdateStatus', { currentVersion: '0.1.0', stage: { kind: 'checking' } }],
       ['snapshot', expect.objectContaining({ now: 'minute 1' })],
     ]);
 
     stop();
     vi.advanceTimersByTime(SNAPSHOT_REFRESH_INTERVAL_MS * 3);
-    expect(send).toHaveBeenCalledTimes(6);
-    expect([board.count, appState.count, banner.count, preferences.count, appUpdates.count]).toEqual([0, 0, 0, 0, 0]);
+    expect(send).toHaveBeenCalledTimes(7);
+    const counts = [board, appState, banner, preferences, ageThresholds, appUpdates].map((slot) => slot.count);
+    expect(counts).toEqual([0, 0, 0, 0, 0, 0]);
   });
 });

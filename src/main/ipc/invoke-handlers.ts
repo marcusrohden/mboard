@@ -1,9 +1,10 @@
 import type { FolderChoice, InvokeMethod, MboardInvokeApi } from '../../shared/contract';
 import { isFileSystemError } from '../fs/fs-errors';
-import type { AppUpdates, BoardService, BoardSetupService, Platform } from '../ports';
+import type { AgeThresholdsSetting, AppUpdates, BoardService, BoardSetupService, Platform } from '../ports';
 import { userFacingMessage } from '../user-facing-error';
 import {
   expectArguments,
+  readAgeThresholds,
   readBoolean,
   readFolderPath,
   readNewTaskInput,
@@ -21,6 +22,7 @@ export interface InvokeHandlerDependencies {
   setup: BoardSetupService;
   board: BoardService;
   platform: Pick<Platform, 'preferences' | 'setOpenAtLogin' | 'reminderBanner' | 'dismissReminderBanner'>;
+  ageThresholds: Pick<AgeThresholdsSetting, 'get' | 'set'>;
   appUpdates: AppUpdates;
   /** Claims a pending request from the menu to open Settings. */
   settingsRequests: { take(): boolean };
@@ -110,6 +112,13 @@ function platformHandlers({ platform }: InvokeHandlerDependencies) {
   };
 }
 
+function settingsHandlers({ ageThresholds }: InvokeHandlerDependencies) {
+  return {
+    getAgeThresholds: withoutArguments(() => ageThresholds.get()),
+    setAgeThresholds: async (...args: unknown[]) => ageThresholds.set(readAgeThresholds(expectArguments(args, 1)[0])),
+  };
+}
+
 function appHandlers({ appUpdates, settingsRequests }: InvokeHandlerDependencies) {
   return {
     getAppUpdateStatus: withoutArguments(() => appUpdates.status()),
@@ -130,6 +139,7 @@ export function createInvokeHandlers(dependencies: InvokeHandlerDependencies): I
     ...setupHandlers(dependencies),
     ...boardHandlers(dependencies),
     ...platformHandlers(dependencies),
+    ...settingsHandlers(dependencies),
     ...appHandlers(dependencies),
   };
   return allPresentable(handlers);

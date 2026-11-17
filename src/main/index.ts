@@ -13,6 +13,7 @@ import { obsidianOpenUrl } from './obsidian-link';
 import { createPlatform } from './platform';
 import type { BoardService } from './ports';
 import { resolveRendererSource, type RendererSource } from './renderer-source';
+import { StoredAgeThresholds } from './settings/age-thresholds-setting';
 import { FileSettingsStore } from './settings/settings-store';
 import { FileBoardSetupService } from './setup/board-setup-service';
 import { MenuFolderChange } from './setup/menu-folder-change';
@@ -67,6 +68,7 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
   const userDataPath = app.getPath('userData');
   const clock = createClock(launchConfig);
   const settings = new FileSettingsStore(userDataPath);
+  const ageThresholds = new StoredAgeThresholds(settings);
   const board = new FileBoardService({ clock, trash: createTrash(launchConfig) });
   const platform = createPlatform({ userDataPath, launchConfig });
   const appUpdates = createAppUpdateService({ clock, launchConfig });
@@ -102,13 +104,14 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
       setup,
       board,
       platform,
+      ageThresholds,
       appUpdates,
       settingsRequests,
       pickBoardFolder: () => dialogs.pickBoardFolder(),
       openInObsidian: (absolutePath) => shell.openExternal(obsidianOpenUrl(absolutePath)),
     }),
   );
-  const stopRendererEvents = bridgeRendererEvents({ board, setup, platform, appUpdates }, windows.send);
+  const stopRendererEvents = bridgeRendererEvents({ board, setup, platform, ageThresholds, appUpdates }, windows.send);
   installAppMenu({ openSettings, changeBoardFolder });
   handleAppLifecycle(windows, showWindow, () => {
     stopRendererEvents();
@@ -117,6 +120,7 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
     void board.close();
   });
 
+  await ageThresholds.load();
   await setup.start();
   platform.start({
     board,

@@ -1,5 +1,6 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { DEFAULT_AGE_THRESHOLDS, sanitiseAgeThresholds } from '../../domain';
 import { AtomicFileWriter } from '../fs/atomic-file-writer';
 import { isNotFound } from '../fs/fs-errors';
 import { SerialQueue } from '../fs/serial-queue';
@@ -8,7 +9,11 @@ import type { Settings, SettingsStore, WindowBounds } from '../ports';
 export const SETTINGS_FILE_NAME = 'settings.json';
 
 /** What missing or unreadable settings read as. */
-export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({ boardPath: null, openAtLogin: true });
+export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
+  boardPath: null,
+  openAtLogin: true,
+  ageThresholds: DEFAULT_AGE_THRESHOLDS,
+});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -43,6 +48,7 @@ export function sanitiseSettings(raw: unknown): Settings {
   const settings: Settings = {
     boardPath: readBoardPath(source['boardPath']),
     openAtLogin: readOpenAtLogin(source['openAtLogin']),
+    ageThresholds: sanitiseAgeThresholds(source['ageThresholds']),
   };
   const windowBounds = readWindowBounds(source['windowBounds']);
   if (windowBounds !== undefined) settings.windowBounds = windowBounds;

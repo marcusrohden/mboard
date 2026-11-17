@@ -31,7 +31,8 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 - **Ledger**: the data kept with each history entry, as a hidden comment on its line, recording exactly what that update changed and when, to the second. It is what makes an update revertible. Entries without it are **legacy entries**.
 - **Revert**: returning a task to its state right after an earlier history entry, by undoing the later updates from their ledger. Fields those updates didn't touch keep their current value, and the later entries are replaced by one revert entry. _Avoid_: undo, rollback.
 - **Comment**: a dated note added to a task. Append-only in the app, except that a revert removes the comments added after the entry it reverts to.
-- **Staleness**: how many working days (Monday to Friday, by local date) have passed since the task's date updated, and the **age tier** that follows from it: On track (green, 0–1), Needs a nudge (amber, 2–3), Stalling (orange, 4–5) and Stale (red, 6 or more). Complete and archived tasks are grey and keep their count.
+- **Staleness**: how many working days (Monday to Friday, by local date) have passed since the task's date updated, and the **age tier** that follows from it: On track (green), Needs a nudge (amber), Stalling (orange) and Stale (red). Complete and archived tasks are grey and keep their count.
+- **Age thresholds**: the working days from which Needs a nudge, Stalling and Stale start, set in Settings under **Age colours**. The defaults are 2, 4 and 6, so On track is 0–1, Needs a nudge 2–3, Stalling 4–5 and Stale 6 or more. _Avoid_: legend (the Settings section that shows them), limits.
 - **Age chip**: the `Nd` working-day count on every task, coloured by its age tier.
 
 ## Archive

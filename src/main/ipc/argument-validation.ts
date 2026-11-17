@@ -1,11 +1,20 @@
-import { COLUMNS, isStatus } from '../../domain';
-import type { LocalDate, NewTaskInput, RevertExpectation, Status, TaskEdit, TaskId } from '../../shared/contract';
+import { COLUMNS, ageThresholdsProblem, isStatus } from '../../domain';
+import type {
+  AgeThresholds,
+  LocalDate,
+  NewTaskInput,
+  RevertExpectation,
+  Status,
+  TaskEdit,
+  TaskId,
+} from '../../shared/contract';
 
 type PlainObject = Record<string, unknown>;
 
 const NEW_TASK_KEYS = ['description', 'due', 'project', 'status', 'title'] as const;
 const TASK_EDIT_KEYS = ['field', 'value'] as const;
 const REVERT_EXPECTATION_KEYS = ['at', 'historyLength', 'text'] as const;
+const AGE_THRESHOLD_KEYS = ['nudgeFrom', 'staleFrom', 'stallingFrom'] as const;
 
 /** Builds the error for a request from the renderer that doesn't have the shape the contract describes. */
 export function invalidRequest(detail: string): Error {
@@ -135,4 +144,23 @@ export function readTaskEdit(value: unknown): TaskEdit {
     default:
       throw invalidRequest('the field must be one of title, description, project, due');
   }
+}
+
+/**
+ * Age-colour thresholds, with exactly `nudgeFrom`, `stallingFrom` and `staleFrom`.
+ *
+ * @throws Error naming the problem in plain words when they aren't a usable set.
+ */
+export function readAgeThresholds(value: unknown): AgeThresholds {
+  if (!isPlainObject(value) || !hasExactKeys(value, AGE_THRESHOLD_KEYS)) {
+    throw invalidRequest(`age thresholds need exactly ${AGE_THRESHOLD_KEYS.join(', ')}`);
+  }
+  const thresholds = {
+    nudgeFrom: value['nudgeFrom'],
+    stallingFrom: value['stallingFrom'],
+    staleFrom: value['staleFrom'],
+  } as AgeThresholds;
+  const problem = ageThresholdsProblem(thresholds);
+  if (problem !== null) throw new Error(problem);
+  return thresholds;
 }

@@ -1,5 +1,7 @@
 import { vi, type Mock } from 'vitest';
 import {
+  DEFAULT_AGE_THRESHOLDS,
+  ageThresholdsProblem,
   columnTasks,
   formatLogTimestamp,
   isSameRevertPoint,
@@ -8,6 +10,7 @@ import {
   type TaskDocument,
 } from '../../domain';
 import type {
+  AgeThresholds,
   AppState,
   AppUpdateStage,
   AppUpdateStatus,
@@ -33,6 +36,7 @@ export interface FakeMboardOptions {
   unreadable?: UnreadableFile[];
   banner?: ReminderBannerItem[];
   preferences?: Preferences;
+  ageThresholds?: AgeThresholds;
   appUpdateStatus?: AppUpdateStatus;
   /** Whether the menu asked to open Settings before the app mounted. */
   pendingSettingsRequest?: boolean;
@@ -50,6 +54,7 @@ export interface FakeMboard {
   pushOpenTask(id: TaskId): void;
   pushBanner(items: ReminderBannerItem[]): void;
   pushPreferences(preferences: Preferences): void;
+  pushAgeThresholds(thresholds: AgeThresholds): void;
   pushAppUpdateStage(stage: AppUpdateStage): void;
   /** Does what the app menu's Settings… does: leaves a request pending and pushes `openSettings`. */
   requestSettings(): void;
@@ -88,6 +93,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   let unreadable = [...(options.unreadable ?? [])];
   let banner = [...(options.banner ?? [])];
   let preferences = options.preferences ?? { openAtLogin: true, notificationsAvailable: true };
+  let ageThresholds = options.ageThresholds ?? { ...DEFAULT_AGE_THRESHOLDS };
   let appUpdateStatus = options.appUpdateStatus ?? { currentVersion: '0.1.0', stage: { kind: 'idle' } };
   let isSettingsRequested = options.pendingSettingsRequest ?? false;
   const now = options.now ?? TEST_NOW;
@@ -98,6 +104,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   const openTaskListeners: Listeners<TaskId> = new Set();
   const bannerListeners: Listeners<ReminderBannerItem[]> = new Set();
   const preferencesListeners: Listeners<Preferences> = new Set();
+  const ageThresholdsListeners: Listeners<AgeThresholds> = new Set();
   const appUpdateListeners: Listeners<AppUpdateStatus> = new Set();
   const openSettingsListeners: Listeners<void> = new Set();
 
@@ -278,6 +285,14 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       emitAll(preferencesListeners, preferences);
       return preferences;
     }),
+    getAgeThresholds: vi.fn(async () => ageThresholds),
+    setAgeThresholds: vi.fn(async (next) => {
+      const problem = ageThresholdsProblem(next);
+      if (problem !== null) throw new Error(problem);
+      ageThresholds = { ...next };
+      emitAll(ageThresholdsListeners, ageThresholds);
+      return ageThresholds;
+    }),
     getReminderBanner: vi.fn(async () => banner),
     dismissReminderBanner: vi.fn(async () => {
       banner = [];
@@ -303,6 +318,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     onOpenTask: vi.fn((listener) => subscribe(openTaskListeners, listener)),
     onReminderBanner: vi.fn((listener) => subscribe(bannerListeners, listener)),
     onPreferences: vi.fn((listener) => subscribe(preferencesListeners, listener)),
+    onAgeThresholds: vi.fn((listener) => subscribe(ageThresholdsListeners, listener)),
     onAppUpdateStatus: vi.fn((listener) => subscribe(appUpdateListeners, listener)),
     onOpenSettings: vi.fn((listener) => subscribe(openSettingsListeners, listener)),
   };
@@ -333,6 +349,10 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     pushPreferences(next) {
       preferences = next;
       emitAll(preferencesListeners, preferences);
+    },
+    pushAgeThresholds(next) {
+      ageThresholds = { ...next };
+      emitAll(ageThresholdsListeners, ageThresholds);
     },
     pushAppUpdateStage: (stage) => void setAppUpdateStage(stage),
     requestSettings() {

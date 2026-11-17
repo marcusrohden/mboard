@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTemporaryFolder, listFilesRecursively, removeTemporaryFolder } from '../test-support/temporary-folder';
 import { FileSettingsStore, SETTINGS_FILE_NAME, sanitiseSettings } from './settings-store';
 
+const DEFAULT_THRESHOLDS = { nudgeFrom: 2, stallingFrom: 4, staleFrom: 6 };
+
 describe('FileSettingsStore', () => {
   let userData: string;
   let settingsPath: string;
@@ -18,7 +20,11 @@ describe('FileSettingsStore', () => {
   });
 
   it('reads the defaults when there is no settings file', async () => {
-    expect(await new FileSettingsStore(userData).read()).toEqual({ boardPath: null, openAtLogin: true });
+    expect(await new FileSettingsStore(userData).read()).toEqual({
+      boardPath: null,
+      openAtLogin: true,
+      ageThresholds: DEFAULT_THRESHOLDS,
+    });
   });
 
   it.each([
@@ -28,7 +34,11 @@ describe('FileSettingsStore', () => {
     ['null', 'null'],
   ])('reads the defaults when the file holds %s', async (_description, content) => {
     await writeFile(settingsPath, content);
-    expect(await new FileSettingsStore(userData).read()).toEqual({ boardPath: null, openAtLogin: true });
+    expect(await new FileSettingsStore(userData).read()).toEqual({
+      boardPath: null,
+      openAtLogin: true,
+      ageThresholds: DEFAULT_THRESHOLDS,
+    });
   });
 
   it('keeps valid fields and defaults only the invalid ones', async () => {
@@ -39,13 +49,23 @@ describe('FileSettingsStore', () => {
     expect(await new FileSettingsStore(userData).read()).toEqual({
       boardPath: '/Users/me/Vault/Board',
       openAtLogin: true,
+      ageThresholds: DEFAULT_THRESHOLDS,
     });
+  });
+
+  it('keeps valid age thresholds and defaults a set that is out of order', () => {
+    const custom = { nudgeFrom: 3, stallingFrom: 5, staleFrom: 10 };
+    expect(sanitiseSettings({ ageThresholds: custom }).ageThresholds).toEqual(custom);
+    expect(sanitiseSettings({ ageThresholds: { nudgeFrom: 5, stallingFrom: 3, staleFrom: 10 } }).ageThresholds).toEqual(
+      DEFAULT_THRESHOLDS,
+    );
   });
 
   it('rejects a relative board path', () => {
     expect(sanitiseSettings({ boardPath: 'Vault/Board', openAtLogin: false })).toEqual({
       boardPath: null,
       openAtLogin: false,
+      ageThresholds: DEFAULT_THRESHOLDS,
     });
   });
 
@@ -57,6 +77,7 @@ describe('FileSettingsStore', () => {
     const expected = {
       boardPath: '/Users/me/Vault/Board',
       openAtLogin: true,
+      ageThresholds: DEFAULT_THRESHOLDS,
       windowBounds: { x: 10, y: 20, width: 900, height: 700 },
     };
     expect(updated).toEqual(expected);
@@ -68,13 +89,13 @@ describe('FileSettingsStore', () => {
   it('does not lose either of two concurrent updates', async () => {
     const store = new FileSettingsStore(userData);
     await Promise.all([store.update({ boardPath: '/Board' }), store.update({ openAtLogin: false })]);
-    expect(await store.read()).toEqual({ boardPath: '/Board', openAtLogin: false });
+    expect(await store.read()).toEqual({ boardPath: '/Board', openAtLogin: false, ageThresholds: DEFAULT_THRESHOLDS });
   });
 
   it('creates the user-data folder when it is missing', async () => {
     const nested = path.join(userData, 'nested', 'user-data');
     const store = new FileSettingsStore(nested);
     await store.update({ openAtLogin: false });
-    expect(await store.read()).toEqual({ boardPath: null, openAtLogin: false });
+    expect(await store.read()).toEqual({ boardPath: null, openAtLogin: false, ageThresholds: DEFAULT_THRESHOLDS });
   });
 });

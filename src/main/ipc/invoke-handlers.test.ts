@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AppUpdateStatus, BoardSnapshot, NewTaskInput, RevertExpectation, Task } from '../../shared/contract';
+import type {
+  AgeThresholds,
+  AppUpdateStatus,
+  BoardSnapshot,
+  NewTaskInput,
+  RevertExpectation,
+  Task,
+} from '../../shared/contract';
 import { IPC } from '../../shared/contract';
 import type { BoardService, BoardSetupService } from '../ports';
 import { createInvokeHandlers, type InvokeHandlerDependencies } from './invoke-handlers';
@@ -10,6 +17,7 @@ const UPDATE_STATUS: AppUpdateStatus = {
   currentVersion: '0.1.0',
   stage: { kind: 'available', version: '0.2.0', installBlocker: null },
 };
+const THRESHOLDS: AgeThresholds = { nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 };
 const EXPECTED: RevertExpectation = { historyLength: 4, at: '2026-11-16 09:30', text: 'Moved from To do to Done' };
 const NEW_TASK: NewTaskInput = {
   title: 'A',
@@ -53,17 +61,22 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     openReleasePage: vi.fn(async () => undefined),
   };
   const settingsRequests = { take: vi.fn(() => true) };
+  const ageThresholds = {
+    get: vi.fn(() => THRESHOLDS),
+    set: vi.fn(async (next: AgeThresholds) => next),
+  };
   const dependencies: InvokeHandlerDependencies = {
     board: board as unknown as BoardService,
     setup: setup as unknown as BoardSetupService,
     platform,
+    ageThresholds,
     appUpdates,
     settingsRequests,
     pickBoardFolder: vi.fn(async () => '/Vault/Board'),
     openInObsidian: vi.fn(async () => undefined),
     ...overrides,
   };
-  return { dependencies, board, setup, platform, appUpdates, settingsRequests };
+  return { dependencies, board, setup, platform, ageThresholds, appUpdates, settingsRequests };
 }
 
 describe('createInvokeHandlers', () => {
@@ -118,6 +131,9 @@ describe('createInvokeHandlers', () => {
     ['addComment without text', 'addComment', ['tasks/A.md']],
     ['deleteTask with an object id', 'deleteTask', [{ id: 'tasks/A.md' }]],
     ['setOpenAtLogin with text', 'setOpenAtLogin', ['yes']],
+    ['setAgeThresholds without one threshold', 'setAgeThresholds', [{ nudgeFrom: 3, stallingFrom: 5 }]],
+    ['setAgeThresholds with an extra key', 'setAgeThresholds', [{ ...THRESHOLDS, greenFrom: 0 }]],
+    ['getAgeThresholds with an argument', 'getAgeThresholds', [THRESHOLDS]],
     ['getSnapshot with an argument', 'getSnapshot', [1]],
     ['installAppUpdate with a version', 'installAppUpdate', ['0.2.0']],
     ['openAppUpdateReleasePage with a URL', 'openAppUpdateReleasePage', ['https://example.com']],
@@ -135,15 +151,38 @@ describe('createInvokeHandlers', () => {
     ],
     ['revertTask with a wrongly typed entry text', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, text: null }]],
   ] as const)('rejects %s before it reaches a service', async (_description, method, args) => {
-    const { dependencies, board, platform, appUpdates } = fakeDependencies();
+    const { dependencies, board, platform, ageThresholds, appUpdates } = fakeDependencies();
     const handlers = createInvokeHandlers(dependencies);
 
     await expect((handlers[method] as (...values: unknown[]) => Promise<unknown>)(...args)).rejects.toThrow(
       /^That request wasn't valid: /,
     );
-    for (const spy of [...Object.values(board), ...Object.values(platform), ...Object.values(appUpdates)]) {
+    const services = [board, platform, ageThresholds, appUpdates];
+    for (const spy of services.flatMap((service) => Object.values(service))) {
       if (spy !== board.snapshot) expect(spy).not.toHaveBeenCalled();
     }
+  });
+
+  it('reads and saves the age thresholds', async () => {
+    const { dependencies, ageThresholds } = fakeDependencies();
+    const handlers = createInvokeHandlers(dependencies);
+
+    await expect(handlers.getAgeThresholds()).resolves.toEqual(THRESHOLDS);
+    await expect(handlers.setAgeThresholds({ nudgeFrom: 1, stallingFrom: 2, staleFrom: 3 })).resolves.toEqual({
+      nudgeFrom: 1,
+      stallingFrom: 2,
+      staleFrom: 3,
+    });
+    expect(ageThresholds.set).toHaveBeenCalledWith({ nudgeFrom: 1, stallingFrom: 2, staleFrom: 3 });
+  });
+
+  it('rejects age thresholds out of order with the reason in plain words', async () => {
+    const { dependencies, ageThresholds } = fakeDependencies();
+
+    await expect(
+      createInvokeHandlers(dependencies).setAgeThresholds({ nudgeFrom: 5, stallingFrom: 4, staleFrom: 6 }),
+    ).rejects.toThrow('Needs a nudge must start before Stalling, and Stalling before Stale.');
+    expect(ageThresholds.set).not.toHaveBeenCalled();
   });
 
   it('turns file system errors into plain words without paths', async () => {

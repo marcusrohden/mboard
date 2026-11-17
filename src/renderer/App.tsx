@@ -8,6 +8,7 @@ import { SetupScreen } from './screens/SetupScreen';
 import { UnavailableScreen } from './screens/UnavailableScreen';
 import screenStyles from './screens/Screens.module.css';
 import { SettingsProvider } from './settings/SettingsProvider';
+import { AgeThresholdsProvider } from './state/age-thresholds';
 import { useAppState, type AppStateLoad } from './state/use-app-state';
 
 interface AppRoutesProps {
@@ -48,14 +49,16 @@ function AppShell() {
   const { load, applyState } = useAppState();
   return (
     <AppUpdateProvider>
-      <SettingsProvider appState={load.status === 'loaded' ? load.state : null} onAppState={applyState}>
-        <div className={styles.app}>
-          <AppUpdateNotice />
-          <div className={styles.content}>
-            <AppRoutes load={load} applyState={applyState} />
+      <AgeThresholdsProvider>
+        <SettingsProvider appState={load.status === 'loaded' ? load.state : null} onAppState={applyState}>
+          <div className={styles.app}>
+            <AppUpdateNotice />
+            <div className={styles.content}>
+              <AppRoutes load={load} applyState={applyState} />
+            </div>
           </div>
-        </div>
-      </SettingsProvider>
+        </SettingsProvider>
+      </AgeThresholdsProvider>
     </AppUpdateProvider>
   );
 }

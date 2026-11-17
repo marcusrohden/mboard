@@ -1,4 +1,5 @@
 import type {
+  AgeThresholds,
   AppState,
   AppUpdateStatus,
   BoardSnapshot,
@@ -31,6 +32,7 @@ export interface WindowBounds {
 export interface Settings {
   boardPath: string | null;
   openAtLogin: boolean;
+  ageThresholds: AgeThresholds;
   windowBounds?: WindowBounds;
 }
 
@@ -38,6 +40,13 @@ export interface Settings {
 export interface SettingsStore {
   read(): Promise<Settings>;
   update(patch: Partial<Settings>): Promise<Settings>;
+}
+
+/** The age-colour thresholds, kept in `settings.json` and announced to listeners when they change. */
+export interface AgeThresholdsSetting {
+  get(): AgeThresholds;
+  set(next: AgeThresholds): Promise<AgeThresholds>;
+  onChange(listener: (thresholds: AgeThresholds) => void): () => void;
 }
 
 /** Chooses, checks and reopens the board folder (spec section 4). */

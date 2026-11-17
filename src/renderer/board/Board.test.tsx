@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useDomEnvironment } from '../testing/dom-environment';
 import { buildTask } from '../testing/builders';
@@ -145,6 +145,18 @@ describe('Task styling driven by the snapshot date', () => {
     expect(
       within(lastYear).getByTitle('Created 30 Dec 2025 16:45 · Updated 16 Nov 09:00 — 0 working days, Complete'),
     ).toBeTruthy();
+  });
+
+  it('colours by the thresholds from Settings and follows a change to them', async () => {
+    const { fake } = await renderBoard({
+      ageThresholds: { nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 },
+      tasks: [buildTask({ title: 'Two days', updated: '2026-11-12T09:00:00' })],
+    });
+    const card = () => screen.getByRole('article', { name: 'Two days' });
+    await waitFor(() => expect(card().getAttribute('data-staleness')).toBe('green'));
+    act(() => fake.pushAgeThresholds({ nudgeFrom: 1, stallingFrom: 2, staleFrom: 3 }));
+    expect(card().getAttribute('data-staleness')).toBe('orange');
+    expect(within(card()).getByTitle(/2 working days, Stalling$/)).toBeTruthy();
   });
 
   it('uses the snapshot date, not the real clock, for staleness', async () => {

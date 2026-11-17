@@ -244,3 +244,71 @@ describe('Checking for updates in Settings', () => {
     expect(fake.api.openAppUpdateReleasePage).toHaveBeenCalledOnce();
   });
 });
+
+describe('Settings age colours', () => {
+  function days(label: string): HTMLInputElement {
+    return within(section('Age colours')).getByLabelText(label) as HTMLInputElement;
+  }
+
+  it('lists every colour with the working days it starts from', async () => {
+    await openFromGear();
+    const legend = section('Age colours');
+    expect(within(legend).getByText('On track')).toBeTruthy();
+    expect(within(legend).getByText('0–1 working days')).toBeTruthy();
+    expect(days('Needs a nudge from').value).toBe('2');
+    expect(days('Stalling from').value).toBe('4');
+    expect(days('Stale from').value).toBe('6');
+    expect(within(legend).getByText('Tasks in Done and archived tasks are always grey.')).toBeTruthy();
+    expect((within(legend).getByRole('button', { name: 'Reset to defaults' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it('saves a threshold when its field is left, and recolours the board', async () => {
+    const { user, fake } = await openFromGear({
+      tasks: [buildTask({ title: 'Two days', updated: '2026-11-12T09:00:00' })],
+    });
+    expect(screen.getByRole('article', { name: 'Two days', hidden: true }).getAttribute('data-staleness')).toBe(
+      'amber',
+    );
+    await user.clear(days('Needs a nudge from'));
+    await user.type(days('Needs a nudge from'), '3');
+    await user.tab();
+    expect(fake.api.setAgeThresholds).toHaveBeenCalledWith({ nudgeFrom: 3, stallingFrom: 4, staleFrom: 6 });
+    expect(within(section('Age colours')).getByText('0–2 working days')).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Two days', hidden: true }).getAttribute('data-staleness')).toBe(
+      'green',
+    );
+  });
+
+  it('saves on Enter too', async () => {
+    const { user, fake } = await openFromGear();
+    await user.clear(days('Stale from'));
+    await user.type(days('Stale from'), '10{Enter}');
+    expect(fake.api.setAgeThresholds).toHaveBeenCalledWith({ nudgeFrom: 2, stallingFrom: 4, staleFrom: 10 });
+  });
+
+  it('explains thresholds out of order or out of range and saves nothing', async () => {
+    const { user, fake } = await openFromGear();
+    await user.clear(days('Stalling from'));
+    await user.type(days('Stalling from'), '7');
+    await user.tab();
+    expect(within(section('Age colours')).getByRole('alert').textContent).toBe(
+      'Needs a nudge must start before Stalling, and Stalling before Stale.',
+    );
+    await user.clear(days('Stalling from'));
+    await user.tab();
+    expect(within(section('Age colours')).getByRole('alert').textContent).toBe(
+      'Each age colour starts at a whole number of working days from 1 to 99.',
+    );
+    expect(fake.api.setAgeThresholds).not.toHaveBeenCalled();
+  });
+
+  it('resets to the defaults', async () => {
+    const { user, fake } = await openFromGear({ ageThresholds: { nudgeFrom: 3, stallingFrom: 5, staleFrom: 10 } });
+    expect(days('Stale from').value).toBe('10');
+    await user.click(within(section('Age colours')).getByRole('button', { name: 'Reset to defaults' }));
+    expect(fake.api.setAgeThresholds).toHaveBeenCalledWith({ nudgeFrom: 2, stallingFrom: 4, staleFrom: 6 });
+    expect(days('Stale from').value).toBe('6');
+  });
+});

@@ -1,4 +1,3 @@
-import { useId, type ReactNode } from 'react';
 import type { AppState, Preferences } from '../../shared/contract';
 import { appUpdateStageText, canInstallItself, isAppUpdateBusy, stageVersion } from '../app-update/app-update-text';
 import { useAppUpdate } from '../app-update/AppUpdateProvider';
@@ -8,7 +7,9 @@ import { useLoadedAndPushed } from '../state/use-loaded-and-pushed';
 import { useRunCommand } from '../state/use-run-command';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { AgeColoursSection } from './AgeColoursSection';
 import styles from './SettingsDialog.module.css';
+import { SettingsSection } from './SettingsSection';
 
 interface SettingsDialogProps {
   appState: AppState | null;
@@ -33,18 +34,6 @@ function notificationsText(available: boolean | null | undefined): string {
     return "macOS didn't show mboard's last notification, so reminders show on the board instead. You can allow notifications for mboard in System Settings › Notifications.";
   }
   return "mboard hasn't sent a notification yet, so it doesn't know whether they work.";
-}
-
-function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
-  const headingId = useId();
-  return (
-    <section aria-labelledby={headingId} className={styles.section}>
-      <h3 id={headingId} className={styles.heading}>
-        {title}
-      </h3>
-      {children}
-    </section>
-  );
 }
 
 function BoardFolderSection({ appState, onAppState }: Pick<SettingsDialogProps, 'appState' | 'onAppState'>) {
@@ -124,8 +113,9 @@ function AppUpdatesSection() {
 }
 
 /**
- * The Settings dialog: the board folder (changed with the same checks as setup), open at login, whether
- * notifications work, and app updates with **Check for updates**.
+ * The Settings dialog: the board folder (changed with the same checks as setup), open at login, the age
+ * colours and the working days each starts from, whether notifications work, and app updates with
+ * **Check for updates**.
  */
 export function SettingsDialog({ appState, onAppState, onClose }: SettingsDialogProps) {
   const api = getMboardApi();
@@ -136,6 +126,7 @@ export function SettingsDialog({ appState, onAppState, onClose }: SettingsDialog
       <h2 className={styles.title}>Settings</h2>
       <BoardFolderSection appState={appState} onAppState={onAppState} />
       <StartupSection preferences={preferences} />
+      <AgeColoursSection />
       <NotificationsSection preferences={preferences} />
       <AppUpdatesSection />
       <div className={styles.footer}>

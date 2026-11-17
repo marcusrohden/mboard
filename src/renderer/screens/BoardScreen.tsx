@@ -17,6 +17,7 @@ import { getMboardApi } from '../mboard-api';
 import { ReminderBanner } from '../notices/ReminderBanner';
 import { UnreadableNotice } from '../notices/UnreadableNotice';
 import { useSettingsDialog } from '../settings/SettingsProvider';
+import { useAgeThresholds } from '../state/age-thresholds';
 import { useBoardData } from '../state/use-board-data';
 import { useGlobalShortcuts } from '../state/use-global-shortcuts';
 import { useTaskCommands } from '../state/use-task-commands';
@@ -56,7 +57,11 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   );
 
   const today = snapshot?.today ?? '';
-  const views = useMemo(() => buildColumnViews(tasks, criteria, today), [tasks, criteria, today]);
+  const thresholds = useAgeThresholds();
+  const views = useMemo(
+    () => buildColumnViews(tasks, criteria, today, thresholds),
+    [tasks, criteria, today, thresholds],
+  );
   const suggestions = useMemo(() => projectSuggestions(tasks), [tasks]);
   const projectOptions = useMemo(
     () => [

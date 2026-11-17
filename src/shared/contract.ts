@@ -1,4 +1,5 @@
 import type {
+  AgeThresholds,
   LocalDate,
   LocalDateTime,
   NewTaskInput,
@@ -11,6 +12,7 @@ import type {
 } from '../domain';
 
 export type {
+  AgeThresholds,
   HistoryEntry,
   HistoryLedger,
   LedgerChange,
@@ -110,6 +112,10 @@ export interface MboardInvokeApi {
   getReminderBanner(): Promise<ReminderBannerItem[]>;
   dismissReminderBanner(): Promise<void>;
 
+  getAgeThresholds(): Promise<AgeThresholds>;
+  /** Saves new age-colour thresholds. Rejects thresholds that `ageThresholdsProblem` finds a problem with. */
+  setAgeThresholds(thresholds: AgeThresholds): Promise<AgeThresholds>;
+
   getAppUpdateStatus(): Promise<AppUpdateStatus>;
   checkForAppUpdate(): Promise<AppUpdateStatus>;
   /** Downloads and installs the available new version, then restarts mboard. Progress arrives as status pushes. */
@@ -127,6 +133,7 @@ export interface MboardEventApi {
   onOpenTask(listener: (id: TaskId) => void): () => void;
   onReminderBanner(listener: (items: ReminderBannerItem[]) => void): () => void;
   onPreferences(listener: (preferences: Preferences) => void): () => void;
+  onAgeThresholds(listener: (thresholds: AgeThresholds) => void): () => void;
   onAppUpdateStatus(listener: (status: AppUpdateStatus) => void): () => void;
   /** Signals that the menu asked to open Settings; claim the request with `takeOpenSettingsRequest`. */
   onOpenSettings(listener: () => void): () => void;
@@ -144,6 +151,7 @@ export interface MboardEventPayloads {
   openTask: TaskId;
   reminderBanner: ReminderBannerItem[];
   preferences: Preferences;
+  ageThresholds: AgeThresholds;
   appUpdateStatus: AppUpdateStatus;
   openSettings: void;
 }
@@ -157,6 +165,7 @@ export const EVENT_SUBSCRIBERS = {
   openTask: 'onOpenTask',
   reminderBanner: 'onReminderBanner',
   preferences: 'onPreferences',
+  ageThresholds: 'onAgeThresholds',
   appUpdateStatus: 'onAppUpdateStatus',
   openSettings: 'onOpenSettings',
 } as const satisfies Record<EventName, keyof MboardEventApi>;
@@ -186,6 +195,8 @@ export const IPC = {
     setOpenAtLogin: 'platform:setOpenAtLogin',
     getReminderBanner: 'platform:getReminderBanner',
     dismissReminderBanner: 'platform:dismissReminderBanner',
+    getAgeThresholds: 'settings:getAgeThresholds',
+    setAgeThresholds: 'settings:setAgeThresholds',
     getAppUpdateStatus: 'app:getAppUpdateStatus',
     checkForAppUpdate: 'app:checkForAppUpdate',
     installAppUpdate: 'app:installAppUpdate',
@@ -198,6 +209,7 @@ export const IPC = {
     openTask: 'app:openTask',
     reminderBanner: 'platform:reminderBanner',
     preferences: 'platform:preferences',
+    ageThresholds: 'settings:ageThresholds',
     appUpdateStatus: 'app:appUpdateStatus',
     openSettings: 'app:openSettings',
   },

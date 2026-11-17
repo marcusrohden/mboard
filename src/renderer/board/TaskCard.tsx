@@ -8,6 +8,7 @@ import {
   type Status,
   type Task,
 } from '../../domain';
+import { useAgeThresholds } from '../state/age-thresholds';
 import { AgeChip } from '../ui/AgeChip';
 import { useSortableTask } from './board-dnd';
 import styles from './TaskCard.module.css';
@@ -29,7 +30,7 @@ interface TaskCardProps {
  */
 export function TaskCard({ task, index, status, today, onOpen, onArchive }: TaskCardProps) {
   const { ref, isDragging } = useSortableTask(task.id, index, status);
-  const staleness = stalenessOf(task, today);
+  const staleness = stalenessOf(task, today, useAgeThresholds());
   const due = dueChip(task, today);
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>): void {

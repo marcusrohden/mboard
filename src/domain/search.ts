@@ -1,6 +1,6 @@
 import { dueStatus } from './due';
 import type { LocalDate, Task } from './model';
-import { isStale, stalenessOf } from './staleness';
+import { isStale, stalenessOf, type AgeThresholds } from './staleness';
 import { endOfWeek } from './time';
 
 export type DueFilter = 'any' | 'overdue' | 'today' | 'thisWeek' | 'none';
@@ -74,14 +74,19 @@ export function isFilterActive(criteria: ArchiveFilterCriteria | FilterCriteria)
   return searchTerms(criteria.query).length > 0 || criteria.projects.size > 0 || hasBoardOnlyCriteria;
 }
 
-/** Tasks that satisfy the board's search and filters. Keeps the input order. */
-export function filterBoardTasks(tasks: readonly Task[], criteria: FilterCriteria, today: LocalDate): Task[] {
+/** Tasks that satisfy the board's search and filters, with Stale only judged by `thresholds`. Keeps the input order. */
+export function filterBoardTasks(
+  tasks: readonly Task[],
+  criteria: FilterCriteria,
+  today: LocalDate,
+  thresholds: AgeThresholds,
+): Task[] {
   const terms = searchTerms(criteria.query);
   return tasks.filter(
     (task) =>
       matchesArchiveCriteria(task, criteria, terms) &&
       matchesDueFilter(task.due, criteria.due, today) &&
-      (!criteria.staleOnly || isStale(stalenessOf(task, today))),
+      (!criteria.staleOnly || isStale(stalenessOf(task, today, thresholds))),
   );
 }
 

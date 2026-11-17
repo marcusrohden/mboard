@@ -9,6 +9,7 @@ import {
   searchTerms,
 } from './search';
 import type { FilterCriteria } from './search';
+import { DEFAULT_AGE_THRESHOLDS } from './staleness';
 import { makeTask } from './testHelpers';
 
 const TODAY = '2026-11-18';
@@ -57,7 +58,7 @@ function titles(filtered: readonly { title: string }[]): string[] {
 }
 
 function board(overrides: Partial<FilterCriteria>): string[] {
-  return titles(filterBoardTasks(tasks, { ...EMPTY_FILTER, ...overrides }, TODAY));
+  return titles(filterBoardTasks(tasks, { ...EMPTY_FILTER, ...overrides }, TODAY, DEFAULT_AGE_THRESHOLDS));
 }
 
 describe('searchTerms', () => {
@@ -113,13 +114,15 @@ describe('board filters', () => {
   });
 
   it('due thisWeek on a Sunday includes only that day', () => {
-    const sunday = filterBoardTasks(tasks, { ...EMPTY_FILTER, due: 'thisWeek' }, '2026-11-22');
+    const sunday = filterBoardTasks(tasks, { ...EMPTY_FILTER, due: 'thisWeek' }, '2026-11-22', DEFAULT_AGE_THRESHOLDS);
     expect(titles(sunday)).toEqual(['Old finished job']);
   });
 
   it('due none: no due date', () => {
     const withoutDue = [makeTask({ title: 'No date' }), ...tasks];
-    expect(titles(filterBoardTasks(withoutDue, { ...EMPTY_FILTER, due: 'none' }, TODAY))).toEqual(['No date']);
+    expect(
+      titles(filterBoardTasks(withoutDue, { ...EMPTY_FILTER, due: 'none' }, TODAY, DEFAULT_AGE_THRESHOLDS)),
+    ).toEqual(['No date']);
   });
 
   it('stale only: amber or worse, never Done', () => {
@@ -132,11 +135,23 @@ describe('board filters', () => {
       makeTask({ title: 'Two working days', updated: '2026-11-16T09:00:00' }),
       makeTask({ title: 'Friday, today Monday', updated: '2026-11-13T09:00:00' }),
     ];
-    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, TODAY))).toEqual([
-      'Two working days',
-      'Friday, today Monday',
+    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, TODAY, DEFAULT_AGE_THRESHOLDS))).toEqual(
+      ['Two working days', 'Friday, today Monday'],
+    );
+    expect(
+      titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, '2026-11-16', DEFAULT_AGE_THRESHOLDS)),
+    ).toEqual([]);
+  });
+
+  it('stale only follows changed thresholds', () => {
+    const ages = [
+      makeTask({ title: 'Two working days', updated: '2026-11-16T09:00:00' }),
+      makeTask({ title: 'Three working days', updated: '2026-11-13T09:00:00' }),
+    ];
+    const relaxed = { nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 };
+    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, TODAY, relaxed))).toEqual([
+      'Three working days',
     ]);
-    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, '2026-11-16'))).toEqual([]);
   });
 
   it('combines filters with AND', () => {

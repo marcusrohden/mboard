@@ -1,5 +1,6 @@
 import {
   formatCompactDateTime,
+  type AgeThresholds,
   formatShortDate,
   localDateOf,
   localTimeOf,
@@ -33,8 +34,9 @@ export function formatLogTime(logTimestamp: string): string {
 export function describeAge(
   task: Pick<Task, 'created' | 'updated' | 'status' | 'isArchived'>,
   today: LocalDate,
+  thresholds: AgeThresholds,
 ): string {
-  const { days, tier } = stalenessOf(task, today);
+  const { days, tier } = stalenessOf(task, today, thresholds);
   const count = `${days} working ${days === 1 ? 'day' : 'days'}`;
   const created = formatCompactDateTime(task.created, today);
   const updated = formatCompactDateTime(task.updated, today);
