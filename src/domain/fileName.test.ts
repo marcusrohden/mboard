@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fileNameForTitle, sanitiseTitle, uniqueFileName } from './fileName';
+import { fileNameForTitle, isSameFileName, projectFolderName, sanitiseTitle, uniqueFileName } from './fileName';
 
 describe('sanitiseTitle', () => {
   it('leaves an ordinary title alone', () => {
@@ -79,5 +79,30 @@ describe('uniqueFileName', () => {
 
   it('accepts any iterable of names', () => {
     expect(uniqueFileName('A.md', new Set(['A.md']))).toBe('A 2.md');
+  });
+});
+
+describe('projectFolderName', () => {
+  it('uses the project name as it is when it is safe', () => {
+    expect(projectFolderName('Acme website')).toBe('Acme website');
+  });
+
+  it('cleans the name the way a title is cleaned', () => {
+    expect(projectFolderName('  Acme / Beta: v2  ')).toBe('Acme Beta v2');
+    expect(projectFolderName('..hidden')).toBe('hidden');
+  });
+
+  it('is null for no project, and for a name with nothing safe left, instead of an Untitled folder', () => {
+    expect(projectFolderName(null)).toBeNull();
+    expect(projectFolderName('???')).toBeNull();
+    expect(projectFolderName(' . ')).toBeNull();
+  });
+});
+
+describe('isSameFileName', () => {
+  it('ignores case and Unicode normalisation, as a macOS volume does', () => {
+    expect(isSameFileName('Acme', 'acme')).toBe(true);
+    expect(isSameFileName('Caf\u00e9', 'Cafe\u0301')).toBe(true);
+    expect(isSameFileName('Acme', 'Acme 2')).toBe(false);
   });
 });

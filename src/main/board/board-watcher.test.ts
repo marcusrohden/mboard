@@ -4,6 +4,9 @@ import { isRelevantBoardChange } from './board-watcher';
 describe('isRelevantBoardChange', () => {
   it.each([
     ['tasks/Fix login bug.md', true],
+    ['tasks/Acme website/Fix login bug.md', true],
+    ['archive/Acme website', true],
+    ['tasks/.drafts/Idea.md', false],
     ['archive/Old.md', true],
     ['tasks', true],
     ['archive', true],

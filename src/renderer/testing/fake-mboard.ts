@@ -4,6 +4,7 @@ import {
   ageThresholdsProblem,
   columnTasks,
   normaliseProject,
+  projectFolderName,
   type ProjectColour,
   formatLogTimestamp,
   isSameRevertPoint,
@@ -67,7 +68,12 @@ export interface FakeMboard {
 const READY_STATE: AppState = { kind: 'ready', boardPath: '/vault/Board', boardName: 'Board' };
 
 function nameOf(id: TaskId): string {
-  return id.slice(id.indexOf('/') + 1).replace(/\.md$/, '');
+  return id.slice(id.lastIndexOf('/') + 1).replace(/\.md$/, '');
+}
+
+function idFor(folder: 'tasks' | 'archive', project: string | null, name: string): TaskId {
+  const projectFolder = projectFolderName(project);
+  return projectFolder === null ? `${folder}/${name}.md` : `${folder}/${projectFolder}/${name}.md`;
 }
 
 function documentOf(task: Task): TaskDocument {
@@ -159,7 +165,10 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
         const title = edit.value.trim();
         if (title === '') throw new Error('A task needs a title.');
         if (title === task.title) return task;
-        return recorded(task, `Title changed from "${task.title}" to "${title}"`, { title, id: `tasks/${title}.md` });
+        return recorded(task, `Title changed from "${task.title}" to "${title}"`, {
+          title,
+          id: idFor('tasks', task.project, title),
+        });
       }
       case 'description':
         return edit.value === task.description
@@ -170,6 +179,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
         if (project === task.project) return task;
         return recorded(task, `Project changed from ${task.project ?? '(none)'} to ${project ?? '(none)'}`, {
           project,
+          id: idFor('tasks', project, nameOf(task.id)),
         });
       }
       case 'due':
@@ -197,7 +207,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     createTask: vi.fn(async (input) => {
       const title = input.title.trim();
       const created: Task = {
-        id: `tasks/${title}.md`,
+        id: idFor('tasks', input.project, title),
         title,
         status: input.status,
         project: input.project,
@@ -240,7 +250,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       const task = find(id);
       if (task.status !== 'Done') throw new Error('Only tasks in Done can be archived.');
       const archived = recorded(task, 'Archived', {
-        id: `archive/${nameOf(id)}.md`,
+        id: idFor('archive', task.project, nameOf(id)),
         isArchived: true,
         archivedAt: now,
         order: null,
@@ -265,7 +275,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     restoreTask: vi.fn(async (id) => {
       const task = find(id);
       const restored = recorded(task, 'Restored to Done', {
-        id: `tasks/${nameOf(id)}.md`,
+        id: idFor('tasks', task.project, nameOf(id)),
         isArchived: false,
         archivedAt: null,
         status: 'Done',
@@ -281,7 +291,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       }
       const reverted = revertDocument(documentOf(task), toEntryIndex, new Date(now));
       const order = reverted.status === task.status ? task.order : topOrder(reverted.status, id);
-      return replace(id, toTask({ ...reverted, order }, `tasks/${reverted.title}.md`, false));
+      return replace(id, toTask({ ...reverted, order }, idFor('tasks', reverted.project, reverted.title), false));
     }),
     deleteTask: vi.fn(async (id) => {
       find(id);
