@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/marcusrohden/mboard/compare/v0.3.0...v0.4.0) (2026-11-17)
+
+### Features
+
+* group task files in project folders ([#28](https://github.com/marcusrohden/mboard/pull/28)) ([5dd5e18](https://github.com/marcusrohden/mboard/commit/5dd5e18149d8e8b4d44183587c66c96467687c9a))
+* show a comment count on task cards ([#27](https://github.com/marcusrohden/mboard/pull/27)) ([2734506](https://github.com/marcusrohden/mboard/commit/2734506372b3b9b3c929f3cacdb63bd2262d673a))
+
 ## [0.3.0](https://github.com/marcusrohden/mboard/compare/v0.2.2...v0.3.0) (2026-11-17)
 
 ### Features
