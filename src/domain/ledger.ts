@@ -15,7 +15,6 @@ export interface CommentsDelta {
   removed: readonly TaskComment[];
 }
 
-/** A field the ledger records: how to read it from a document, write it back, and check a stored value. */
 interface TrackedField {
   read(document: TaskDocument): string | null;
   write(document: TaskDocument, value: string | null): TaskDocument;
@@ -37,10 +36,6 @@ function isLocalDateTime(value: string | null): boolean {
   return value === null || normaliseTimestamp(value) === value;
 }
 
-/**
- * The fields every update records, in the order their changes are listed. Dropping a field from the board
- * means dropping its row here: older ledger data that names it is still read and kept, but not reverted.
- */
 const TRACKED_FIELDS: Readonly<Record<string, TrackedField>> = {
   title: {
     read: (document) => document.title,
@@ -93,12 +88,12 @@ export function writeTrackedValue(document: TaskDocument, change: LedgerValueCha
   return TRACKED_FIELDS[change.field]?.write(document, value) ?? document;
 }
 
-/** Whether a value change is to a field this version of mboard can revert. */
-export function isTrackedField(field: string): boolean {
-  return Object.hasOwn(TRACKED_FIELDS, field);
-}
-
-/** The value changes between two versions of a task, one per tracked field that differs, in the tracked order. */
+/**
+ * The value changes between two versions of a task, one per tracked field that differs: title, status,
+ * responsibility, project, due, description and archived, in that order. Dropping a field from the board
+ * means dropping its row from the tracked fields; older ledger data that names it is still read and kept,
+ * but never reverted.
+ */
 export function valueChangesBetween(before: TaskDocument, after: TaskDocument): LedgerValueChange[] {
   return Object.entries(TRACKED_FIELDS).flatMap(([field, tracked]) => {
     const from = tracked.read(before);

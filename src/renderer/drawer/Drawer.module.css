@@ -106,3 +106,23 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
 }
+
+.historyEntry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  align-items: baseline;
+}
+
+.historyText {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.revertNote {
+  flex-basis: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  font-style: italic;
+}

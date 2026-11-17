@@ -146,7 +146,11 @@ function TaskDrawerPanel({ task, today, projectSuggestions, commands, onClose, p
           </Button>
         </div>
         <CommentsSection comments={task.comments} readOnly={readOnly} onAdd={(text) => commands.addComment(task.id, text)} />
-        <HistorySection entries={task.history} />
+        <HistorySection
+          task={task}
+          today={today}
+          onRevert={(toEntryIndex, expected) => commands.revert(task.id, toEntryIndex, expected)}
+        />
       </div>
       {isConfirmingDelete && (
         <ConfirmDialog

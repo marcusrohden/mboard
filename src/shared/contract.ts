@@ -12,6 +12,10 @@ import type {
 
 export type {
   HistoryEntry,
+  HistoryLedger,
+  LedgerChange,
+  LedgerCommentsChange,
+  LedgerValueChange,
   LocalDate,
   LocalDateTime,
   NewTaskInput,
