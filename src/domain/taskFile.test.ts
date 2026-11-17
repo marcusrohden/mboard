@@ -479,6 +479,45 @@ describe('legacy responsibility', () => {
     expect(serialiseTaskFile(parseOk(legacy('in progress', 'Me')))).toContain('\nstatus: in progress\n');
   });
 
+  it('fixes a file in the old shape as Obsidian re-serialises it, keeping its unknown keys', () => {
+    const obsidianLegacy = `---
+updated: "2026-11-16T14:03:12"
+created: "2026-11-16T09:30:00"
+due: "2026-11-20"
+project: "Acme website"
+responsibility: client
+status: in progress
+title: Why is the staging build failing?
+tags:
+  - work
+  - urgent
+aliases:
+  - staging
+order: 2
+---
+
+## Description
+
+Body text.
+
+## Comments
+
+## History
+
+- 2026-11-16 09:30 — Created in To do
+`;
+    const document = parseOk(obsidianLegacy);
+    expect(document).toMatchObject({ status: 'With client', rawStatus: null, updated: '2026-11-16T14:03:12', order: 2 });
+    expect(document.history).toHaveLength(1);
+
+    const text = serialiseTaskFile(document);
+    expect(text).toContain('\nstatus: With client\n');
+    expect(text).not.toContain('responsibility');
+    expect(text).toContain('\nupdated: 2026-11-16T14:03:12\n');
+    expect(text).toContain('order: 2\ntags:\n  - work\n  - urgent\naliases:\n  - staging\n---\n');
+    expect(serialiseTaskFile(parseOk(text))).toBe(text);
+  });
+
   it('round-trips the fixed file byte for byte', () => {
     const fixed = serialiseTaskFile(parseOk(LEGACY_EXAMPLE));
     expect(fixed).toBe(SPEC_EXAMPLE.replace('Moved from In progress to With client', 'Responsibility changed from Me to Client'));
