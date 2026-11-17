@@ -46,6 +46,22 @@ describe('Board', () => {
     expect(within(column('To do')).getByText('2')).toBeTruthy();
   });
 
+  it('shows a comment count on tasks that have comments, and nothing on tasks without', async () => {
+    const comment = (text: string) => ({ at: '2026-11-12 10:00', text });
+    await renderBoard({
+      tasks: [
+        buildTask({ title: 'Discussed', comments: [comment('One'), comment('Two'), comment('Three')] }),
+        buildTask({ title: 'Noted', comments: [comment('Only')] }),
+        buildTask({ title: 'Quiet' }),
+      ],
+    });
+    const card = (title: string) => screen.getByRole('article', { name: title });
+    expect(within(card('Discussed')).getByText('3 comments').parentElement?.getAttribute('title')).toBe('3 comments');
+    expect(within(card('Discussed')).getByText('3').getAttribute('aria-hidden')).toBe('true');
+    expect(within(card('Noted')).getByText('1 comment')).toBeTruthy();
+    expect(within(card('Quiet')).queryByText(/comments?$/)).toBeNull();
+  });
+
   it('keeps the article role on a task even with drag and drop attached', async () => {
     await renderBoard({ tasks: [buildTask({ title: 'Plain' })] });
     expect(screen.getByRole('article', { name: 'Plain' })).toBeTruthy();
