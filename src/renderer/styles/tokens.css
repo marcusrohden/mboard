@@ -32,9 +32,21 @@
   --color-danger: #c4241b;
   --color-danger-text: #ffffff;
 
-  --stale-none: transparent;
-  --stale-amber: #e49b0f;
-  --stale-red: #d4352b;
+  --age-green-bg: #d8f2e1;
+  --age-green-fg: #11602f;
+  --age-green-edge: #2f9e5b;
+  --age-amber-bg: #fdebc4;
+  --age-amber-fg: #7a4b00;
+  --age-amber-edge: #bf7f00;
+  --age-orange-bg: #fde0cc;
+  --age-orange-fg: #8a3a00;
+  --age-orange-edge: #e0670f;
+  --age-red-bg: #fbd9d6;
+  --age-red-fg: #8f1c14;
+  --age-red-edge: #d4352b;
+  --age-grey-bg: #e4e4ea;
+  --age-grey-fg: #4a4a52;
+  --age-grey-edge: #86868c;
 
   --tone-neutral-bg: #e4e4ea;
   --tone-neutral-fg: #4a4a52;
@@ -70,8 +82,21 @@
     --color-danger: #ff5d52;
     --color-danger-text: #1c1c1e;
 
-    --stale-amber: #f0b13a;
-    --stale-red: #ff6259;
+    --age-green-bg: #1b4a2f;
+    --age-green-fg: #a6e3c0;
+    --age-green-edge: #3fb36e;
+    --age-amber-bg: #4d3b10;
+    --age-amber-fg: #f6cf7d;
+    --age-amber-edge: #f0b13a;
+    --age-orange-bg: #55290c;
+    --age-orange-fg: #ffc29a;
+    --age-orange-edge: #f58a3c;
+    --age-red-bg: #4f1f1b;
+    --age-red-fg: #ffb0aa;
+    --age-red-edge: #ff6259;
+    --age-grey-bg: #3a3a3e;
+    --age-grey-fg: #c8c8ce;
+    --age-grey-edge: #7c7c82;
 
     --tone-neutral-bg: #3a3a3e;
     --tone-neutral-fg: #c8c8ce;

@@ -9,7 +9,7 @@ import {
   type ColumnArrangement,
 } from './board-view';
 import { filterReducer } from './filters';
-import { formatDate, formatDateTime, formatLogTime } from './format';
+import { describeAge, formatDate, formatDateTime, formatLogTime } from './format';
 import { buildTask, TEST_TODAY } from '../testing/builders';
 
 describe('filterReducer', () => {
@@ -169,5 +169,16 @@ describe('formatting', () => {
     expect(formatDateTime('2026-11-16T14:03:12')).toBe('16 Nov 2026, 14:03');
     expect(formatLogTime('2026-11-16 14:03')).toBe('16 Nov 2026, 14:03');
     expect(formatLogTime('')).toBe('');
+  });
+
+  it('describes the age of a task with both timestamps, the working days and the tier', () => {
+    const task = buildTask({ created: '2026-11-12T08:00:00', updated: '2026-11-12T09:12:30' });
+    expect(describeAge(task, TEST_TODAY)).toBe('Created 12 Nov 08:00 · Updated 12 Nov 09:12 — 2 working days, Needs a nudge');
+    expect(describeAge({ ...task, updated: '2026-11-13T17:00:00' }, TEST_TODAY)).toBe(
+      'Created 12 Nov 08:00 · Updated 13 Nov 17:00 — 1 working day, On track',
+    );
+    expect(describeAge({ ...task, created: '2025-12-30T08:00:00', status: 'Done', updated: `${TEST_TODAY}T09:00:00` }, TEST_TODAY)).toBe(
+      'Created 30 Dec 2025 08:00 · Updated 16 Nov 09:00 — 0 working days, Complete',
+    );
   });
 });

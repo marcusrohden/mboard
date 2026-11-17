@@ -1,0 +1,32 @@
+.chip {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip[data-staleness='green'] {
+  background: var(--age-green-bg);
+  color: var(--age-green-fg);
+}
+
+.chip[data-staleness='amber'] {
+  background: var(--age-amber-bg);
+  color: var(--age-amber-fg);
+}
+
+.chip[data-staleness='orange'] {
+  background: var(--age-orange-bg);
+  color: var(--age-orange-fg);
+}
+
+.chip[data-staleness='red'] {
+  background: var(--age-red-bg);
+  color: var(--age-red-fg);
+}
+
+.chip[data-staleness='grey'] {
+  background: var(--age-grey-bg);
+  color: var(--age-grey-fg);
+}

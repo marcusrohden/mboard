@@ -8,6 +8,7 @@ export const BoardMessage = {
   alreadyArchived: 'That task is already archived.',
   notArchived: "That task isn't archived.",
   placedBeforeItself: "A task can't be placed before itself.",
+  staleRevert: 'This task changed since you opened its history. Check it and try again.',
   boardFolderMissing: "The board folder can't be found. It may have been moved or renamed.",
 } as const;
 

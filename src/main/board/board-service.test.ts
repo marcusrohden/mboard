@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { columnTasks } from '../../domain';
+import { columnTasks, revertExpectationFor } from '../../domain';
 import type { BoardSnapshot, NewTaskInput, Task } from '../../shared/contract';
 import {
   FakeClock,
@@ -133,8 +133,8 @@ describe('creating a task', () => {
       updated: '2026-11-16T09:30:00',
       order: 1,
       isArchived: false,
-      history: [{ at: '2026-11-16 09:30', text: 'Created in In progress' }],
     });
+    expect(task.history).toMatchObject([{ at: '2026-11-16 09:30', text: 'Created in In progress' }]);
     expect(await read('tasks/Fix login bug.md')).toBe(
       [
         '---',
@@ -155,7 +155,10 @@ describe('creating a task', () => {
         '',
         '## History',
         '',
-        '- 2026-11-16 09:30 — Created in In progress',
+        '- 2026-11-16 09:30 — Created in In progress <!-- mboard-ledger {"v":1,"at":"2026-11-16T09:30:00","changes":[' +
+          '{"field":"title","from":null,"to":"Fix login bug"},{"field":"status","from":null,"to":"In progress"},' +
+          '{"field":"project","from":null,"to":"Acme website"},' +
+          '{"field":"due","from":null,"to":"2026-11-20"},{"field":"description","from":null,"to":"The login fails."}]} -->',
         '',
       ].join('\n'),
     );
@@ -213,8 +216,8 @@ describe('editing a task', () => {
 
     expect(task.updated).toBe('2026-11-16T11:00:00');
     expect(task.history).toHaveLength(2);
-    expect(task.history[1]).toEqual({ at: '2026-11-16 11:00', text: historyText });
-    expect(await read('tasks/Fix login bug.md')).toContain(`- 2026-11-16 11:00 — ${historyText}`);
+    expect(task.history[1]).toMatchObject({ at: '2026-11-16 11:00', text: historyText, ledger: { at: '2026-11-16T11:00:00' } });
+    expect(await read('tasks/Fix login bug.md')).toContain(`- 2026-11-16 11:00 — ${historyText} <!-- mboard-ledger {`);
   });
 
   it('renames the file when the title changes', async () => {
@@ -301,7 +304,15 @@ describe('commenting', () => {
     const task = await service.addComment('tasks/Fix login bug.md', '  Asked for the credentials.  ');
 
     expect(task.comments).toEqual([{ at: '2026-11-16 09:35', text: 'Asked for the credentials.' }]);
-    expect(task.history.at(-1)).toEqual({ at: '2026-11-16 09:35', text: 'Comment added' });
+    expect(task.history.at(-1)).toEqual({
+      at: '2026-11-16 09:35',
+      text: 'Comment added',
+      ledger: {
+        v: 1,
+        at: '2026-11-16T09:35:00',
+        changes: [{ field: 'comments', added: [{ at: '2026-11-16 09:35', text: 'Asked for the credentials.' }], removed: [] }],
+      },
+    });
     expect(await read('tasks/Fix login bug.md')).toContain(
       '## Comments\n\n### 2026-11-16 09:35\n\nAsked for the credentials.\n\n## History',
     );
@@ -328,7 +339,13 @@ describe('moving and reordering', () => {
     const task = await service.moveTask('tasks/B.md', 'Done', 'tasks/D.md');
 
     expect(task).toMatchObject({ status: 'Done', order: 0, updated: '2026-11-16T10:00:00' });
-    expect(task.history).toEqual([{ at: '2026-11-16 10:00', text: 'Moved from To do to Done' }]);
+    expect(task.history).toEqual([
+      {
+        at: '2026-11-16 10:00',
+        text: 'Moved from To do to Done',
+        ledger: { v: 1, at: '2026-11-16T10:00:00', changes: [{ field: 'status', from: 'To do', to: 'Done' }] },
+      },
+    ]);
     expect(columnIds('Done')).toEqual(['tasks/B.md', 'tasks/D.md']);
     expect(columnIds('To do')).toEqual(['tasks/A.md', 'tasks/C.md']);
   });
@@ -470,6 +487,87 @@ describe('archiving and restoring', () => {
   });
 });
 
+describe('reverting', () => {
+  beforeEach(async () => {
+    await openBoard();
+    await service.createTask(NEW_TASK);
+    clock.advanceMinutes(10);
+  });
+
+  function expectationAt(id: string, index: number) {
+    const task = taskIn(service.snapshot(), id);
+    if (task === undefined) throw new Error(`No task ${id}.`);
+    return revertExpectationFor(task.history, index);
+  }
+
+  it('renames the file back, keeps an outside edit to a field no later change touched, and records the revert', async () => {
+    await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix sign in' });
+    clock.advanceMinutes(5);
+    await service.editTask('tasks/Fix sign in.md', { field: 'due', value: '2026-12-01' });
+    const editedOutside = (await read('tasks/Fix sign in.md')).replace('project: Acme website', 'project: Edited in Obsidian');
+    await writeBoardFile(boardPath, 'tasks/Fix sign in.md', editedOutside);
+    await service.rescan();
+    const expected = expectationAt('tasks/Fix sign in.md', 0);
+    clock.advanceMinutes(5);
+
+    const task = await service.revertTask('tasks/Fix sign in.md', 0, expected);
+
+    expect(task).toMatchObject({
+      id: 'tasks/Fix login bug.md',
+      title: 'Fix login bug',
+      due: '2026-11-20',
+      project: 'Edited in Obsidian',
+      updated: '2026-11-16T09:50:00',
+    });
+    expect(task.history.map((entry) => entry.text)).toEqual([
+      'Created in In progress',
+      'Reverted to 16 Nov 09:30 — 2 changes discarded',
+    ]);
+    expect(existsSync(boardFile('tasks/Fix sign in.md'))).toBe(false);
+    const content = await read('tasks/Fix login bug.md');
+    expect(content).toContain('- 2026-11-16 09:50 — Reverted to 16 Nov 09:30 — 2 changes discarded <!-- mboard-ledger {');
+    expect(content).toContain('"changes":[{"field":"title","from":"Fix sign in","to":"Fix login bug"},');
+    expect(taskIn(service.snapshot(), 'tasks/Fix login bug.md')?.title).toBe('Fix login bug');
+  });
+
+  it('puts a task whose column changes back at the top of that column, and removes later comments', async () => {
+    await service.createTask({ ...NEW_TASK, title: 'Neighbour' });
+    await service.addComment('tasks/Fix login bug.md', 'Waiting on the client');
+    await service.moveTask('tasks/Fix login bug.md', 'Done', null);
+    const expected = expectationAt('tasks/Fix login bug.md', 0);
+
+    const task = await service.revertTask('tasks/Fix login bug.md', 0, expected);
+
+    expect(task).toMatchObject({ status: 'In progress', comments: [] });
+    expect(columnIds('In progress')).toEqual(['tasks/Fix login bug.md', 'tasks/Neighbour.md']);
+    expect(await read('tasks/Fix login bug.md')).not.toContain('### 2026-11-16');
+  });
+
+  it('rejects a stale view of the history without writing anything', async () => {
+    await service.editTask('tasks/Fix login bug.md', { field: 'title', value: 'Fix sign in' });
+    const expected = expectationAt('tasks/Fix sign in.md', 0);
+    await service.editTask('tasks/Fix sign in.md', { field: 'due', value: null });
+    const before = await fileState(boardFile('tasks/Fix sign in.md'));
+
+    await expect(service.revertTask('tasks/Fix sign in.md', 0, expected)).rejects.toThrow(BoardMessage.staleRevert);
+    await expect(service.revertTask('tasks/Fix sign in.md', 1, { ...expected, historyLength: 3 })).rejects.toThrow(
+      BoardMessage.staleRevert,
+    );
+    expect(await fileState(boardFile('tasks/Fix sign in.md'))).toEqual(before);
+  });
+
+  it('refuses an entry it may not revert to, and an archived task', async () => {
+    await service.moveTask('tasks/Fix login bug.md', 'Done', null);
+    const latest = expectationAt('tasks/Fix login bug.md', 1);
+    await expect(service.revertTask('tasks/Fix login bug.md', 1, latest)).rejects.toThrow(
+      "That's the latest entry, so there's nothing to revert.",
+    );
+    await service.archiveTask('tasks/Fix login bug.md');
+    const archived = expectationAt('archive/Fix login bug.md', 0);
+    await expect(service.revertTask('archive/Fix login bug.md', 0, archived)).rejects.toThrow(BoardMessage.archivedReadOnly);
+  });
+});
+
 describe('deleting', () => {
   it('moves the file into the trash folder', async () => {
     await openBoard();
@@ -578,7 +676,7 @@ describe('legacy files with a responsibility', () => {
     const task = await service.editTask('tasks/Quote.md', { field: 'description', value: 'Sent the quote.' });
 
     expect(task).toMatchObject({ status: 'With client', updated: '2026-11-16T10:00:00' });
-    expect(task.history).toEqual([{ at: '2026-11-16 10:00', text: 'Description edited' }]);
+    expect(task.history).toMatchObject([{ at: '2026-11-16 10:00', text: 'Description edited' }]);
     const text = await read('tasks/Quote.md');
     expect(text).toContain('\nstatus: With client\n');
     expect(text).not.toContain('responsibility');
@@ -613,7 +711,7 @@ describe('legacy files with a responsibility', () => {
     const task = await service.moveTask('tasks/Mover.md', 'With client', 'tasks/Quote.md');
 
     expect(task).toMatchObject({ status: 'With client', order: 2 });
-    expect(task.history).toEqual([{ at: '2026-11-16 10:00', text: 'Moved from To do to With client' }]);
+    expect(task.history).toMatchObject([{ at: '2026-11-16 10:00', text: 'Moved from To do to With client' }]);
     expect(columnIds('With client')).toEqual(['tasks/Access.md', 'tasks/Mover.md', 'tasks/Quote.md']);
     expect(await fileState(boardFile('tasks/Access.md'))).toEqual(untouchedAccess);
     const renumbered = await read('tasks/Quote.md');

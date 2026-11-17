@@ -1,10 +1,11 @@
 import { COLUMNS, isStatus } from '../../domain';
-import type { LocalDate, NewTaskInput, Status, TaskEdit, TaskId } from '../../shared/contract';
+import type { LocalDate, NewTaskInput, RevertExpectation, Status, TaskEdit, TaskId } from '../../shared/contract';
 
 type PlainObject = Record<string, unknown>;
 
 const NEW_TASK_KEYS = ['description', 'due', 'project', 'status', 'title'] as const;
 const TASK_EDIT_KEYS = ['field', 'value'] as const;
+const REVERT_EXPECTATION_KEYS = ['at', 'historyLength', 'text'] as const;
 
 /** Builds the error for a request from the renderer that doesn't have the shape the contract describes. */
 export function invalidRequest(detail: string): Error {
@@ -64,6 +65,30 @@ function readDue(value: unknown): LocalDate | null {
 /** Free text, such as a comment. */
 export function readText(value: unknown, what: string): string {
   return readString(value, what);
+}
+
+function readCount(value: unknown, what: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw invalidRequest(`${what} must be a whole number from 0`);
+  }
+  return value;
+}
+
+/** The position of a history entry, oldest first: a whole number from 0. */
+export function readEntryIndex(value: unknown): number {
+  return readCount(value, 'the history entry');
+}
+
+/** The history entry a revert expects to find, with exactly `historyLength`, `at` and `text`. */
+export function readRevertExpectation(value: unknown): RevertExpectation {
+  if (!isPlainObject(value) || !hasExactKeys(value, REVERT_EXPECTATION_KEYS)) {
+    throw invalidRequest(`a revert needs exactly these details of the entry: ${REVERT_EXPECTATION_KEYS.join(', ')}`);
+  }
+  return {
+    historyLength: readCount(value['historyLength'], 'the history length'),
+    at: readString(value['at'], "the entry's time"),
+    text: readString(value['text'], "the entry's text"),
+  };
 }
 
 /** A folder path, as sent back by the renderer to confirm a folder. */

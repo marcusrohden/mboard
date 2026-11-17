@@ -50,10 +50,10 @@ Asked the client for the staging credentials.
 
 ## History
 
-- 2026-11-16 09:30 — Created in To do
-- 2026-11-16 10:05 — Moved from To do to In progress
-- 2026-11-16 14:02 — Comment added
-- 2026-11-16 14:03 — Moved from In progress to With client
+- 2026-11-16 09:30 — Created in To do <!-- mboard-ledger {…} -->
+- 2026-11-16 10:05 — Moved from To do to In progress <!-- mboard-ledger {…} -->
+- 2026-11-16 14:02 — Comment added <!-- mboard-ledger {…} -->
+- 2026-11-16 14:03 — Moved from In progress to With client <!-- mboard-ledger {…} -->
 \`\`\`
 
 ## Properties
@@ -80,13 +80,15 @@ Asked the client for the staging credentials.
 | --- | --- |
 | \`## Description\` | Free markdown. Other headings inside it are fine, except the two below |
 | \`## Comments\` | One \`### YYYY-MM-DD HH:mm\` heading per comment, then the comment text. Oldest first |
-| \`## History\` | One line per change, \`- YYYY-MM-DD HH:mm — <what changed>\`, oldest first |
+| \`## History\` | One line per change, \`- YYYY-MM-DD HH:mm — <what changed>\`, oldest first, usually followed by a hidden \`<!-- mboard-ledger {…} -->\` comment |
 
 ## Editing tasks as a person or an agent
 
 - To add a task, create a file in \`tasks/\` with the properties above. At least \`title\` and \`status\` are needed. Set \`created\` and \`updated\` to the current local time.
 - To move a task, change \`status\`. To reorder it, change \`order\`.
 - You don't need to update \`updated\` or the history. mboard never records outside edits in the history log, and it never rewrites a file just because you changed it.
+- Leave the \`<!-- mboard-ledger … -->\` comments alone. Each one records exactly what that change did, so that mboard can revert the task to an earlier history entry.
+- Your own edits aren't in the ledger. A revert keeps them, except in a field that a reverted change also touched. A history line you add yourself has no ledger comment, so mboard can't revert the task to a point before it.
 - Don't put a line that is just \`## Comments\` or \`## History\` inside a description or a comment.
 - Dates are local time with no offset. Don't add a time zone.
 `;

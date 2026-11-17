@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import type { MboardApi, NewTaskInput, Status, Task, TaskEdit, TaskId } from '../../shared/contract';
+import type { MboardApi, NewTaskInput, RevertExpectation, Status, Task, TaskEdit, TaskId } from '../../shared/contract';
 import { topOfColumnBeforeId } from '../lib/board-view';
 import type { TaskSelection } from './use-task-selection';
 import { useRunCommand } from './use-run-command';
@@ -13,6 +13,7 @@ export interface TaskCommands {
   archive: (id: TaskId) => Promise<boolean>;
   archiveAllDone: () => Promise<boolean>;
   restore: (id: TaskId) => Promise<boolean>;
+  revert: (id: TaskId, toEntryIndex: number, expected: RevertExpectation) => Promise<boolean>;
   remove: (id: TaskId) => Promise<boolean>;
   openInObsidian: (id: TaskId) => Promise<boolean>;
 }
@@ -51,6 +52,7 @@ export function useTaskCommands(tasks: readonly Task[], selection: TaskSelection
       drop: (id, status, beforeId) => change(id, (api) => api.moveTask(id, status, beforeId)),
       archive: (id) => change(id, (api) => api.archiveTask(id)),
       restore: (id) => change(id, (api) => api.restoreTask(id)),
+      revert: (id, toEntryIndex, expected) => change(id, (api) => api.revertTask(id, toEntryIndex, expected)),
       archiveAllDone: async () => {
         const selected = selectionRef.current.selectedTask;
         if (selected !== null && selected.status === 'Done' && !selected.isArchived) selectionRef.current.close();

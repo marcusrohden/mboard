@@ -1,4 +1,5 @@
 import { Document, Scalar, parseDocument } from 'yaml';
+import { encodeLedgerComment, splitLedgerComment } from './ledger';
 import type { HistoryEntry, LocalDateTime, Status, Task, TaskComment, TaskDocument, TaskId, UnknownFrontmatterEntry } from './model';
 import { matchStatus } from './model';
 import { normaliseProject } from './projects';
@@ -180,10 +181,11 @@ function readComments(lines: readonly string[]): TaskComment[] {
 }
 
 function readHistoryEntry(lineText: string): HistoryEntry {
-  const dated = DATED_HISTORY_TEXT.exec(lineText);
+  const { text: visibleText, ledger } = splitLedgerComment(lineText);
+  const dated = DATED_HISTORY_TEXT.exec(visibleText);
   const at = dated?.[1] === undefined ? null : normaliseLogTimestamp(dated[1]);
-  if (dated === null || at === null) return { at: '', text: lineText };
-  return { at, text: dated[2] ?? '' };
+  const entry = dated === null || at === null ? { at: '', text: visibleText } : { at, text: dated[2] ?? '' };
+  return ledger === null ? entry : { ...entry, ledger };
 }
 
 function readHistory(lines: readonly string[]): HistoryEntry[] {
@@ -291,8 +293,9 @@ function commentBlock({ at, text }: TaskComment): string {
   return text === '' ? `### ${at}` : `### ${at}\n\n${text}`;
 }
 
-function historyLine({ at, text }: HistoryEntry): string {
-  return at === '' ? `- ${text}` : `- ${at} ${HISTORY_SEPARATOR} ${text}`;
+function historyLine({ at, text, ledger }: HistoryEntry): string {
+  const visible = at === '' ? `- ${text}` : `- ${at} ${HISTORY_SEPARATOR} ${text}`;
+  return ledger === undefined ? visible : `${visible} ${encodeLedgerComment(ledger)}`;
 }
 
 function serialiseBody(document: TaskDocument): string {

@@ -32,6 +32,12 @@ describe('buildBoardReadme', () => {
     }
   });
 
+  it('asks agents to leave the ledger comments alone and says their edits are not in the ledger', () => {
+    expect(readme).toContain('<!-- mboard-ledger');
+    expect(readme).toContain("Leave the `<!-- mboard-ledger … -->` comments alone");
+    expect(readme).toContain("Your own edits aren't in the ledger");
+  });
+
   it('ends with a single newline', () => {
     expect(readme.endsWith('.\n')).toBe(true);
   });

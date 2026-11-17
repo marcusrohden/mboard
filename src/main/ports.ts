@@ -6,6 +6,7 @@ import type {
   NewTaskInput,
   Preferences,
   ReminderBannerItem,
+  RevertExpectation,
   Status,
   Task,
   TaskEdit,
@@ -65,6 +66,11 @@ export interface BoardService {
   archiveTask(id: TaskId): Promise<Task>;
   archiveAllDone(): Promise<number>;
   restoreTask(id: TaskId): Promise<Task>;
+  revertTask(
+    id: TaskId,
+    toEntryIndex: number,
+    expected: RevertExpectation,
+  ): Promise<Task>;
   deleteTask(id: TaskId): Promise<void>;
   absolutePath(id: TaskId): string;
 }

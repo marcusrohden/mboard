@@ -1,6 +1,6 @@
 import { dueStatus } from './due';
 import type { LocalDate, Task } from './model';
-import { stalenessOf } from './staleness';
+import { isStale, stalenessOf } from './staleness';
 import { endOfWeek } from './time';
 
 export type DueFilter = 'any' | 'overdue' | 'today' | 'thisWeek' | 'none';
@@ -82,7 +82,7 @@ export function filterBoardTasks(tasks: readonly Task[], criteria: FilterCriteri
     (task) =>
       matchesArchiveCriteria(task, criteria, terms) &&
       matchesDueFilter(task.due, criteria.due, today) &&
-      (!criteria.staleOnly || stalenessOf(task, today).level !== 'none'),
+      (!criteria.staleOnly || isStale(stalenessOf(task, today))),
   );
 }
 

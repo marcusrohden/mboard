@@ -21,8 +21,51 @@ export interface TaskComment {
   text: string;
 }
 
-/** One line of a task's history log. `at` is `YYYY-MM-DD HH:mm`, or an empty string when the line has no date. */
+/**
+ * A change to one single-value field, as stored in the task file: `null` means empty. `field` is one of
+ * the ledger's tracked fields, or a field another version of mboard tracked, which is kept but never reverted.
+ */
+export interface LedgerValueChange {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
+/** The comments one update added to the task and removed from it. */
+export interface LedgerCommentsChange {
+  field: 'comments';
+  added: readonly TaskComment[];
+  removed: readonly TaskComment[];
+}
+
+export type LedgerChange = LedgerValueChange | LedgerCommentsChange;
+
+/**
+ * What one in-app update changed, kept with its history entry so that the update can be reverted.
+ * `at` is the update's local time with seconds.
+ */
+export interface HistoryLedger {
+  v: 1;
+  at: LocalDateTime;
+  changes: readonly LedgerChange[];
+}
+
+/**
+ * One line of a task's history log. `at` is `YYYY-MM-DD HH:mm`, or an empty string when the line has no date.
+ * `ledger` is missing on entries written before mboard kept a ledger, and on lines it couldn't read.
+ */
 export interface HistoryEntry {
+  at: string;
+  text: string;
+  ledger?: HistoryLedger;
+}
+
+/**
+ * The history entry a revert was asked for, as the person saw it: the length of the history and that
+ * entry's time and text. Main refuses the revert when the file no longer matches.
+ */
+export interface RevertExpectation {
+  historyLength: number;
   at: string;
   text: string;
 }

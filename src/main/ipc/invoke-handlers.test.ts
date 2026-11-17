@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AppUpdateStatus, BoardSnapshot, NewTaskInput, Task } from '../../shared/contract';
+import type { AppUpdateStatus, BoardSnapshot, NewTaskInput, RevertExpectation, Task } from '../../shared/contract';
 import { IPC } from '../../shared/contract';
 import type { BoardService, BoardSetupService } from '../ports';
 import { createInvokeHandlers, type InvokeHandlerDependencies } from './invoke-handlers';
@@ -10,6 +10,7 @@ const UPDATE_STATUS: AppUpdateStatus = {
   currentVersion: '0.1.0',
   stage: { kind: 'available', version: '0.2.0', installBlocker: null },
 };
+const EXPECTED: RevertExpectation = { historyLength: 4, at: '2026-11-16 09:30', text: 'Moved from To do to Done' };
 const NEW_TASK: NewTaskInput = {
   title: 'A',
   status: 'To do',
@@ -28,6 +29,7 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     archiveTask: vi.fn(async () => TASK),
     archiveAllDone: vi.fn(async () => 2),
     restoreTask: vi.fn(async () => TASK),
+    revertTask: vi.fn(async () => TASK),
     deleteTask: vi.fn(async () => undefined),
     absolutePath: vi.fn((id: string) => `/Vault/Board/${id}`),
   };
@@ -79,10 +81,12 @@ describe('createInvokeHandlers', () => {
     await handlers.moveTask('tasks/A.md', 'Done', null);
     await expect(handlers.archiveAllDone()).resolves.toBe(2);
     await expect(handlers.getSnapshot()).resolves.toBe(SNAPSHOT);
+    await handlers.revertTask('tasks/A.md', 2, EXPECTED);
 
     expect(board.createTask).toHaveBeenCalledWith(NEW_TASK);
     expect(board.editTask).toHaveBeenCalledWith('tasks/A.md', { field: 'project', value: null });
     expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'Done', null);
+    expect(board.revertTask).toHaveBeenCalledWith('tasks/A.md', 2, EXPECTED);
   });
 
   it('accepts every column, including Internal and With client', async () => {
@@ -114,6 +118,14 @@ describe('createInvokeHandlers', () => {
     ['installAppUpdate with a version', 'installAppUpdate', ['0.2.0']],
     ['openAppUpdateReleasePage with a URL', 'openAppUpdateReleasePage', ['https://example.com']],
     ['checkForAppUpdate with an argument', 'checkForAppUpdate', [true]],
+    ['revertTask without an expectation', 'revertTask', ['tasks/A.md', 2]],
+    ['revertTask with a negative entry index', 'revertTask', ['tasks/A.md', -1, EXPECTED]],
+    ['revertTask with a fractional entry index', 'revertTask', ['tasks/A.md', 1.5, EXPECTED]],
+    ['revertTask with an entry index as text', 'revertTask', ['tasks/A.md', '2', EXPECTED]],
+    ['revertTask with an extra expectation key', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, ledger: {} }]],
+    ['revertTask with a missing expectation key', 'revertTask', ['tasks/A.md', 2, { historyLength: 4, at: '' }]],
+    ['revertTask with a wrongly typed history length', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, historyLength: '4' }]],
+    ['revertTask with a wrongly typed entry text', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, text: null }]],
   ] as const)('rejects %s before it reaches a service', async (_description, method, args) => {
     const { dependencies, board, platform, appUpdates } = fakeDependencies();
     const handlers = createInvokeHandlers(dependencies);

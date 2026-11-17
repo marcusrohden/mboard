@@ -119,8 +119,18 @@ describe('board filters', () => {
     expect(titles(filterBoardTasks(withoutDue, { ...EMPTY_FILTER, due: 'none' }, TODAY))).toEqual(['No date']);
   });
 
-  it('stale only: amber or red, never Done', () => {
+  it('stale only: amber or worse, never Done', () => {
     expect(board({ staleOnly: true })).toEqual(['Chase supplier']);
+  });
+
+  it('stale only starts at 2 working days, counting weekends as nothing', () => {
+    const ages = [
+      makeTask({ title: 'One working day', updated: '2026-11-17T09:00:00' }),
+      makeTask({ title: 'Two working days', updated: '2026-11-16T09:00:00' }),
+      makeTask({ title: 'Friday, today Monday', updated: '2026-11-13T09:00:00' }),
+    ];
+    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, TODAY))).toEqual(['Two working days', 'Friday, today Monday']);
+    expect(titles(filterBoardTasks(ages, { ...EMPTY_FILTER, staleOnly: true }, '2026-11-16'))).toEqual([]);
   });
 
   it('combines filters with AND', () => {

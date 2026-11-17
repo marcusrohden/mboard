@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   addDays,
   calendarDaysBetween,
+  formatCompactDate,
+  formatCompactDateTime,
   endOfWeek,
   formatLocalDate,
   formatLocalDateTime,
@@ -11,6 +13,7 @@ import {
   normaliseTimestamp,
   parseLocalDate,
   parseTimestamp,
+  workingDaysBetween,
 } from './time';
 
 describe('formatting', () => {
@@ -107,5 +110,62 @@ describe('endOfWeek', () => {
     ['2026-12-30', '2027-01-03'],
   ])('ends the week of %s on %s', (date, expected) => {
     expect(endOfWeek(date)).toBe(expected);
+  });
+});
+
+describe('workingDaysBetween', () => {
+  it('counts the Monday to Friday days after the first date, up to and including the second', () => {
+    expect(workingDaysBetween('2026-11-16', '2026-11-16')).toBe(0);
+    expect(workingDaysBetween('2026-11-16', '2026-11-17')).toBe(1);
+    expect(workingDaysBetween('2026-11-16', '2026-11-20')).toBe(4);
+    expect(workingDaysBetween('2026-11-16', '2026-11-23')).toBe(5);
+  });
+
+  it.each([
+    ['Friday to Saturday', '2026-11-13', '2026-11-14', 0],
+    ['Friday to Sunday', '2026-11-13', '2026-11-15', 0],
+    ['Friday to Monday', '2026-11-13', '2026-11-16', 1],
+    ['Saturday to Monday', '2026-11-14', '2026-11-16', 1],
+    ['Sunday to Monday', '2026-11-15', '2026-11-16', 1],
+    ['Saturday to Sunday', '2026-11-14', '2026-11-15', 0],
+    ['Thursday to the next Tuesday', '2026-11-12', '2026-11-17', 3],
+    ['Wednesday to the Wednesday two weeks later', '2026-11-04', '2026-11-18', 10],
+  ])('crosses a weekend: %s', (_name, from, to, expected) => {
+    expect(workingDaysBetween(from, to)).toBe(expected);
+  });
+
+  it('crosses month and year ends', () => {
+    expect(workingDaysBetween('2026-10-30', '2026-11-02')).toBe(1);
+    expect(workingDaysBetween('2026-12-31', '2027-01-04')).toBe(2);
+    expect(workingDaysBetween('2025-12-29', '2026-01-01')).toBe(3);
+    expect(workingDaysBetween('2028-02-28', '2028-03-01')).toBe(2);
+  });
+
+  it('crosses daylight saving changes by calendar day', () => {
+    expect(workingDaysBetween('2026-10-02', '2026-10-06')).toBe(2);
+    expect(workingDaysBetween('2026-04-03', '2026-04-07')).toBe(2);
+    expect(workingDaysBetween('2026-03-27', '2026-03-31')).toBe(2);
+  });
+
+  it('counts a whole year', () => {
+    expect(workingDaysBetween('2025-12-31', '2026-12-31')).toBe(261);
+  });
+
+  it('is never negative', () => {
+    expect(workingDaysBetween('2026-11-20', '2026-11-16')).toBe(0);
+  });
+});
+
+describe('compact dates', () => {
+  it('shows d MMM within the year of today, and adds the year otherwise', () => {
+    expect(formatCompactDate('2026-11-12', '2026-11-16')).toBe('12 Nov');
+    expect(formatCompactDate('2025-12-30', '2026-01-02')).toBe('30 Dec 2025');
+    expect(formatCompactDate('2027-01-02', '2026-12-30')).toBe('2 Jan 2027');
+  });
+
+  it('adds the time from a local date-time or a log timestamp', () => {
+    expect(formatCompactDateTime('2026-11-14T09:12:45', '2026-11-16')).toBe('14 Nov 09:12');
+    expect(formatCompactDateTime('2026-11-14 09:12', '2026-11-16')).toBe('14 Nov 09:12');
+    expect(formatCompactDateTime('2025-11-14 09:12', '2026-11-16')).toBe('14 Nov 2025 09:12');
   });
 });

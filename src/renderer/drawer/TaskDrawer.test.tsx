@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import type { HistoryEntry, LedgerChange } from '../../shared/contract';
 import { useDomEnvironment } from '../testing/dom-environment';
 import { buildTask } from '../testing/builders';
 import { renderBoard } from '../testing/render-board';
@@ -44,6 +45,7 @@ describe('Task detail drawer fields', () => {
     expect(input(drawer, 'Description').value).toBe('Staging fails');
     expect(within(drawer).getByText('10 Nov 2026, 09:00')).toBeTruthy();
     expect(within(drawer).getByText('16 Nov 2026, 10:00')).toBeTruthy();
+    expect(within(drawer).getByTitle('Created 10 Nov 09:00 · Updated 16 Nov 10:00 — 0 working days, On track').textContent).toContain('0d');
   });
 
   it('saves the title on blur and follows the renamed task', async () => {
@@ -193,6 +195,57 @@ describe('Task detail drawer fields', () => {
   });
 });
 
+describe('Task detail drawer Save', () => {
+  function drawerOrNull(): HTMLElement | null {
+    return screen.queryByRole('complementary', { name: 'Task details' });
+  }
+
+  it('closes straight away when no field is being edited', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    expect(within(drawer).queryByRole('button', { name: 'Close' })).toBeNull();
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(drawerOrNull()).toBeNull());
+    expect(fake.api.editTask).not.toHaveBeenCalled();
+  });
+
+  it('commits the field being edited and waits for that save before closing', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const saveTask = fake.api.editTask.getMockImplementation();
+    if (saveTask === undefined) throw new Error('The fake has no editTask.');
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fake.api.editTask.mockImplementationOnce(async (...args) => {
+      await gate;
+      return saveTask(...args);
+    });
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Description'), ' on Fridays');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(fake.api.editTask).toHaveBeenCalledWith('tasks/Fix login.md', {
+      field: 'description',
+      value: 'Staging fails on Fridays',
+    });
+    expect(fake.api.editTask).toHaveBeenCalledTimes(1);
+    expect(drawerOrNull()).not.toBeNull();
+    await act(async () => release());
+    await waitFor(() => expect(drawerOrNull()).toBeNull());
+    expect(fake.tasks()[0]?.description).toBe('Staging fails on Fridays');
+  });
+
+  it('stays open and shows the error when that save fails', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    fake.api.editTask.mockRejectedValueOnce(new Error('The file is locked.'));
+    const drawer = await openTask(user, 'Fix login');
+    await user.type(input(drawer, 'Project'), ' Corp');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('The file is locked.')).toBeTruthy();
+    expect(drawerOrNull()).not.toBeNull();
+  });
+});
+
 describe('Task detail drawer comments and history', () => {
   it('lists comments oldest first with their timestamps', async () => {
     const { user } = await renderBoard({ tasks: [SAMPLE()] });
@@ -240,8 +293,131 @@ describe('Task detail drawer comments and history', () => {
     const entries = within(within(drawer).getByRole('list', { name: 'History entries' })).getAllByRole('listitem');
     expect(entries.map((entry) => entry.textContent)).toEqual([
       '12 Nov 2026, 10:30 Comment added',
-      '10 Nov 2026, 09:00 Created in To do',
+      "10 Nov 2026, 09:00 Created in To doCan't revert this far back: a later change was made before mboard kept a ledger.",
     ]);
+  });
+});
+
+function ledgerEntry(at: string, text: string, changes: LedgerChange[]): HistoryEntry {
+  return { at, text, ledger: { v: 1, at: `${at.replace(' ', 'T')}:20`, changes } };
+}
+
+const LEDGER_TASK = () =>
+  buildTask({
+    title: 'Renamed task',
+    due: '2026-12-01',
+    comments: [{ at: '2026-11-15 09:00', text: 'Later note' }],
+    history: [
+      ledgerEntry('2026-11-10 09:00', 'Created in To do', [
+        { field: 'title', from: null, to: 'Original' },
+        { field: 'status', from: null, to: 'To do' },
+      ]),
+      ledgerEntry('2026-11-14 14:02', 'Title changed from "Original" to "Renamed task"', [
+        { field: 'title', from: 'Original', to: 'Renamed task' },
+      ]),
+      ledgerEntry('2026-11-15 09:00', 'Comment added', [
+        { field: 'comments', added: [{ at: '2026-11-15 09:00', text: 'Later note' }], removed: [] },
+      ]),
+      ledgerEntry('2026-11-16 09:30', 'Due date changed from (none) to 2026-12-01', [{ field: 'due', from: null, to: '2026-12-01' }]),
+    ],
+  });
+
+async function openHistory(user: User, title: string): Promise<HTMLElement> {
+  const drawer = await openTask(user, title);
+  await user.click(within(drawer).getByRole('button', { name: 'History' }));
+  return drawer;
+}
+
+function historyEntry(drawer: HTMLElement, text: string): HTMLElement {
+  const entries = within(within(drawer).getByRole('list', { name: 'History entries' })).getAllByRole('listitem');
+  const entry = entries.find((item) => item.textContent?.includes(text));
+  if (entry === undefined) throw new Error(`No history entry with "${text}".`);
+  return entry;
+}
+
+describe('Task detail drawer revert', () => {
+  it('offers Revert to here on every entry but the latest', async () => {
+    const { user } = await renderBoard({ tasks: [LEDGER_TASK()] });
+    const drawer = await openHistory(user, 'Renamed task');
+    expect(within(drawer).getAllByRole('button', { name: 'Revert to here' })).toHaveLength(3);
+    expect(within(historyEntry(drawer, 'Due date changed')).queryByRole('button')).toBeNull();
+  });
+
+  it('asks before reverting, with focus on Cancel, and Cancel changes nothing', async () => {
+    const { user, fake } = await renderBoard({ tasks: [LEDGER_TASK()] });
+    const drawer = await openHistory(user, 'Renamed task');
+    await user.click(within(historyEntry(drawer, 'Title changed')).getByRole('button', { name: 'Revert to here' }));
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Revert task?' });
+    expect(within(dialog).getByText(
+      '“Renamed task” will go back to how it was at 14 Nov 14:02. The 2 changes made after that will be removed from the task and its history.',
+    )).toBeTruthy();
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(within(dialog).getByRole('button', { name: 'Revert' })).toBeTruthy();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(fake.api.revertTask).not.toHaveBeenCalled();
+    expect(fake.tasks()[0]?.title).toBe('Renamed task');
+  });
+
+  it('says 1 change for a single later entry', async () => {
+    const { user } = await renderBoard({ tasks: [LEDGER_TASK()] });
+    const drawer = await openHistory(user, 'Renamed task');
+    await user.click(within(historyEntry(drawer, 'Comment added')).getByRole('button', { name: 'Revert to here' }));
+    expect(
+      within(screen.getByRole('alertdialog')).getByText(/The 1 change made after that will be removed from the task and its history\.$/),
+    ).toBeTruthy();
+  });
+
+  it('reverts when confirmed and follows the task to its old title', async () => {
+    const { user, fake } = await renderBoard({ tasks: [LEDGER_TASK()] });
+    const drawer = await openHistory(user, 'Renamed task');
+    await user.click(within(historyEntry(drawer, 'Created in To do')).getByRole('button', { name: 'Revert to here' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Revert' }));
+
+    expect(fake.api.revertTask).toHaveBeenCalledWith('tasks/Renamed task.md', 0, {
+      historyLength: 4,
+      at: '2026-11-10 09:00',
+      text: 'Created in To do',
+    });
+    await waitFor(() => expect(input(drawer, 'Title').value).toBe('Original'));
+    expect(screen.queryByText(/no longer on the board/)).toBeNull();
+    expect(input(drawer, 'Due date').value).toBe('');
+    expect(within(drawer).queryByText('Later note')).toBeNull();
+    expect(within(drawer).getByText('Reverted to 10 Nov 09:00 — 3 changes discarded')).toBeTruthy();
+  });
+
+  it('shows a refused revert as a toast', async () => {
+    const { user, fake } = await renderBoard({ tasks: [LEDGER_TASK()] });
+    fake.api.revertTask.mockRejectedValueOnce(new Error('This task changed since you opened its history. Check it and try again.'));
+    const drawer = await openHistory(user, 'Renamed task');
+    await user.click(within(historyEntry(drawer, 'Created in To do')).getByRole('button', { name: 'Revert to here' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Revert' }));
+    expect(await screen.findByText('This task changed since you opened its history. Check it and try again.')).toBeTruthy();
+    expect(input(drawer, 'Title').value).toBe('Renamed task');
+  });
+
+  it('says briefly why older entries from before the ledger have no revert control', async () => {
+    const { user } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openHistory(user, 'Fix login');
+    expect(within(drawer).queryByRole('button', { name: 'Revert to here' })).toBeNull();
+    expect(
+      within(historyEntry(drawer, 'Created in To do')).getByText(
+        "Can't revert this far back: a later change was made before mboard kept a ledger.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it('asks for a restore before an archived task can be reverted', async () => {
+    const archived = { ...LEDGER_TASK(), id: 'archive/Renamed task.md', isArchived: true, status: 'Done' as const };
+    const { user } = await renderBoard({ tasks: [archived] });
+    await user.click(screen.getByRole('button', { name: 'Archived' }));
+    await user.click(screen.getByRole('button', { name: 'Renamed task' }));
+    const drawer = screen.getByRole('complementary', { name: 'Task details' });
+    await user.click(within(drawer).getByRole('button', { name: 'History' }));
+    expect(within(drawer).queryByRole('button', { name: 'Revert to here' })).toBeNull();
+    expect(within(drawer).getByText('Restore the task to revert it to an earlier entry.')).toBeTruthy();
   });
 });
 

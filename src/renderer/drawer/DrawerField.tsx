@@ -2,6 +2,7 @@ import { useId, type KeyboardEvent } from 'react';
 import { Button } from '../ui/Button';
 import { ProjectInput } from '../ui/ProjectInput';
 import fields from '../ui/fields.module.css';
+import { useFieldCommitRegistration } from './pending-field-saves';
 import { useEditableValue } from './use-editable-value';
 import styles from './Drawer.module.css';
 
@@ -25,6 +26,7 @@ interface DrawerFieldProps {
 export function DrawerField({ label, kind, value, onSave, readOnly, suggestions = [], isHeading = false }: DrawerFieldProps) {
   const id = useId();
   const editable = useEditableValue(value, onSave);
+  useFieldCommitRegistration(editable.commit);
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>): void {
     if (event.key === 'Escape') {

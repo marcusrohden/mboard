@@ -7,7 +7,9 @@ import {
   readBoolean,
   readFolderPath,
   readNewTaskInput,
+  readEntryIndex,
   readOptionalTaskId,
+  readRevertExpectation,
   readStatus,
   readTaskEdit,
   readTaskId,
@@ -72,6 +74,10 @@ function boardHandlers(dependencies: InvokeHandlerDependencies) {
     archiveTask: async (...args: unknown[]) => board.archiveTask(readTaskId(expectArguments(args, 1)[0])),
     archiveAllDone: withoutArguments(() => board.archiveAllDone()),
     restoreTask: async (...args: unknown[]) => board.restoreTask(readTaskId(expectArguments(args, 1)[0])),
+    revertTask: async (...args: unknown[]) => {
+      const [id, toEntryIndex, expected] = expectArguments(args, 3);
+      return board.revertTask(readTaskId(id), readEntryIndex(toEntryIndex), readRevertExpectation(expected));
+    },
     deleteTask: async (...args: unknown[]) => board.deleteTask(readTaskId(expectArguments(args, 1)[0])),
     openInObsidian: async (...args: unknown[]) => {
       const absolutePath = board.absolutePath(readTaskId(expectArguments(args, 1)[0]));

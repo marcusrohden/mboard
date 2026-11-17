@@ -3,6 +3,7 @@ import type {
   LocalDateTime,
   NewTaskInput,
   ReminderBannerItem,
+  RevertExpectation,
   Status,
   Task,
   TaskEdit,
@@ -11,10 +12,15 @@ import type {
 
 export type {
   HistoryEntry,
+  HistoryLedger,
+  LedgerChange,
+  LedgerCommentsChange,
+  LedgerValueChange,
   LocalDate,
   LocalDateTime,
   NewTaskInput,
   ReminderBannerItem,
+  RevertExpectation,
   Status,
   Task,
   TaskComment,
@@ -95,6 +101,7 @@ export interface MboardInvokeApi {
   archiveTask(id: TaskId): Promise<Task>;
   archiveAllDone(): Promise<number>;
   restoreTask(id: TaskId): Promise<Task>;
+  revertTask(id: TaskId, toEntryIndex: number, expected: RevertExpectation): Promise<Task>;
   deleteTask(id: TaskId): Promise<void>;
   openInObsidian(id: TaskId): Promise<void>;
 
@@ -172,6 +179,7 @@ export const IPC = {
     archiveTask: 'board:archiveTask',
     archiveAllDone: 'board:archiveAllDone',
     restoreTask: 'board:restoreTask',
+    revertTask: 'board:revertTask',
     deleteTask: 'board:deleteTask',
     openInObsidian: 'board:openInObsidian',
     getPreferences: 'platform:getPreferences',

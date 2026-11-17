@@ -1,5 +1,5 @@
 import { vi, type Mock } from 'vitest';
-import { columnTasks, formatLogTimestamp } from '../../domain';
+import { columnTasks, formatLogTimestamp, isSameRevertPoint, revertDocument, toTask, type TaskDocument } from '../../domain';
 import type {
   AppState,
   AppUpdateStage,
@@ -52,6 +52,11 @@ const READY_STATE: AppState = { kind: 'ready', boardPath: '/vault/Board', boardN
 
 function nameOf(id: TaskId): string {
   return id.slice(id.indexOf('/') + 1).replace(/\.md$/, '');
+}
+
+function documentOf(task: Task): TaskDocument {
+  const { id: _id, isArchived: _isArchived, ...fields } = task;
+  return { ...fields, rawStatus: null, unknownFrontmatter: [] };
 }
 
 function emitAll<T>(listeners: Listeners<T>, payload: T): void {
@@ -232,6 +237,16 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
         order: topOrder('Done', null),
       });
       return replace(id, restored);
+    }),
+    revertTask: vi.fn(async (id, toEntryIndex, expected) => {
+      const task = find(id);
+      if (task.isArchived) throw new Error("Archived tasks can't be changed. Restore the task first.");
+      if (!isSameRevertPoint(task.history, toEntryIndex, expected)) {
+        throw new Error('This task changed since you opened its history. Check it and try again.');
+      }
+      const reverted = revertDocument(documentOf(task), toEntryIndex, new Date(now));
+      const order = reverted.status === task.status ? task.order : topOrder(reverted.status, id);
+      return replace(id, toTask({ ...reverted, order }, `tasks/${reverted.title}.md`, false));
     }),
     deleteTask: vi.fn(async (id) => {
       find(id);
