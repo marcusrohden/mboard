@@ -176,6 +176,17 @@ describe('Checking for updates in Settings', () => {
     expect(check.disabled).toBe(false);
   });
 
+  it('shows how much of the new version has downloaded', async () => {
+    const { fake } = await openFromGear();
+    act(() => fake.pushAppUpdateStage({ kind: 'downloading', version: '0.2.0', percent: 7 }));
+    const bar = within(section('App updates')).getByRole('progressbar', {
+      name: 'Download progress',
+    }) as HTMLProgressElement;
+    expect(bar.value).toBe(7);
+    expect(within(section('App updates')).getByText('7%')).toBeTruthy();
+    expect(updatesStatus()).toBe('Downloading mboard 0.2.0…');
+  });
+
   it('shows why a check failed', async () => {
     const { fake } = await openFromGear();
     act(() =>

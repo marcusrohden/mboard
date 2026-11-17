@@ -104,7 +104,12 @@ export function createMacAppUpdateInstaller(options: MacAppUpdateInstallerOption
     return response;
   }
 
-  async function downloadInto(zipPath: string, download: ReleaseDownload, signal: AbortSignal): Promise<void> {
+  async function downloadInto(
+    zipPath: string,
+    download: ReleaseDownload,
+    signal: AbortSignal,
+    onProgress: (receivedBytes: number) => void,
+  ): Promise<void> {
     const body = (await requestDownload(download, signal)).body as ReadableStream<Uint8Array>;
     const hash = createHash('sha256');
     let received = 0;
@@ -116,6 +121,7 @@ export function createMacAppUpdateInstaller(options: MacAppUpdateInstallerOption
           if (received > download.size) throw new AppUpdateFailure(Message.mismatch);
           hash.update(chunk);
           await file.write(chunk);
+          onProgress(received);
         }
       });
     } finally {
@@ -156,14 +162,19 @@ export function createMacAppUpdateInstaller(options: MacAppUpdateInstallerOption
     await run(XATTR, ['-dr', 'com.apple.quarantine', bundle]).catch(() => undefined);
   }
 
-  async function prepare(download: ReleaseDownload, version: string, signal: AbortSignal): Promise<PreparedAppUpdate> {
+  async function prepare(
+    download: ReleaseDownload,
+    version: string,
+    signal: AbortSignal,
+    onProgress: (receivedBytes: number) => void,
+  ): Promise<PreparedAppUpdate> {
     stopIfAborted(signal);
     const stagingFolder = await step(Message.download, () =>
       mkdtemp(path.join(tempFolder, `${STAGING_FOLDER_PREFIX}${version}-`)),
     );
     try {
       const zipPath = path.join(stagingFolder, path.basename(download.fileName));
-      await downloadInto(zipPath, download, signal);
+      await downloadInto(zipPath, download, signal, onProgress);
       const bundlePath = await unpack(zipPath, path.join(stagingFolder, UNPACKED_FOLDER));
       stopIfAborted(signal);
       await checkBundle(bundlePath, version);

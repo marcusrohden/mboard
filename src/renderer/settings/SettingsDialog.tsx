@@ -1,6 +1,7 @@
 import type { AppState, Preferences } from '../../shared/contract';
 import { appUpdateStageText, canInstallItself, isAppUpdateBusy, stageVersion } from '../app-update/app-update-text';
 import { useAppUpdate } from '../app-update/AppUpdateProvider';
+import { DownloadProgress } from '../app-update/DownloadProgress';
 import { getMboardApi } from '../mboard-api';
 import { FolderPicker } from '../screens/FolderPicker';
 import { useLoadedAndPushed } from '../state/use-loaded-and-pushed';
@@ -91,6 +92,7 @@ function AppUpdatesSection() {
       <p role="status" className={styles.muted}>
         {appUpdateStageText(stage)}
       </p>
+      {stage.kind === 'downloading' && <DownloadProgress percent={stage.percent} />}
       {stage.kind === 'available' && stage.installBlocker !== null && (
         <p className={styles.muted}>{stage.installBlocker}</p>
       )}

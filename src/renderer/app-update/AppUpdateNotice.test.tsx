@@ -39,6 +39,22 @@ describe('New version notice', () => {
     expect(within(notice()).getByRole('status').textContent).toBe('Downloading mboard 0.2.0…');
   });
 
+  it('shows how much has downloaded as a bar and a percentage, without changing the status line', async () => {
+    const { fake } = await renderBoard();
+    act(() => fake.pushAppUpdateStage({ kind: 'downloading', version: '0.2.0', percent: 42 }));
+    const bar = within(notice()).getByRole('progressbar', { name: 'Download progress' }) as HTMLProgressElement;
+    expect(bar.value).toBe(42);
+    expect(within(notice()).getByText('42%')).toBeTruthy();
+
+    act(() => fake.pushAppUpdateStage({ kind: 'downloading', version: '0.2.0', percent: 43 }));
+    expect(bar.value).toBe(43);
+    expect(within(notice()).getByText('43%')).toBeTruthy();
+    expect(within(notice()).getByRole('status').textContent).toBe('Downloading mboard 0.2.0…');
+
+    act(() => fake.pushAppUpdateStage({ kind: 'installing', version: '0.2.0' }));
+    expect(within(notice()).queryByRole('progressbar')).toBeNull();
+  });
+
   it('opens the release notes', async () => {
     const { user, fake } = await renderBoard({
       appUpdateStatus: {

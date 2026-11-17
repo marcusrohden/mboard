@@ -83,7 +83,7 @@ export type AppUpdateStage =
   | { kind: 'checking' }
   | { kind: 'upToDate'; checkedAt: LocalDateTime }
   | { kind: 'available'; version: string; installBlocker: string | null }
-  | { kind: 'downloading'; version: string }
+  | { kind: 'downloading'; version: string; percent: number }
   | { kind: 'installing'; version: string }
   | { kind: 'failed'; message: string; version: string | null };
 
