@@ -81,6 +81,14 @@
   align-items: center;
 }
 
+.comments {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .archive {
   position: absolute;
   display: inline-flex;

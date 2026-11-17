@@ -14,6 +14,7 @@ import { TASK_ID_ATTRIBUTE } from '../state/use-task-shortcuts';
 import { AgeChip } from '../ui/AgeChip';
 import { ProjectLabel } from '../ui/ProjectLabel';
 import { useSortableTask } from './board-dnd';
+import { CommentCount } from './CommentCount';
 import styles from './TaskCard.module.css';
 
 interface TaskCardProps {
@@ -28,7 +29,8 @@ interface TaskCardProps {
 /**
  * One task on the board: title, project in its colour, then the due, created and updated dates on lines of their own.
  * A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
- * staleness tier also colours the left edge. The whole card is the drag handle. Clicking it, or pressing
+ * staleness tier also colours the left edge. A task with comments shows their count at the end of the updated
+ * line. The whole card is the drag handle. Clicking it, or pressing
  * Enter on it, opens the detail drawer, and the task shortcuts act on it while it has focus.
  */
 export function TaskCard({ task, index, status, today, onOpen, onArchive }: TaskCardProps) {
@@ -79,6 +81,7 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
         <div className={styles.dateLine}>
           <span>Updated {formatCompactDate(localDateOf(task.updated), today)}</span>
           <AgeChip task={task} today={today} />
+          <CommentCount count={task.comments.length} />
         </div>
       </div>
       {task.status === 'Done' && (
