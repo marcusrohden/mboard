@@ -1,8 +1,10 @@
 import { useId, useState, type KeyboardEvent } from 'react';
+import type { TaskComment } from '../../shared/contract';
 import { Button } from '../ui/Button';
 import { AUTOFOCUS_ATTRIBUTE, Modal } from '../ui/Modal';
 import fields from '../ui/fields.module.css';
 import styles from './CommentDialog.module.css';
+import { CommentList } from './CommentList';
 
 interface CommentDialogProps {
   title: string;
@@ -15,6 +17,8 @@ interface CommentDialogProps {
   /** Does what the comment is for and resolves whether it worked. */
   onSubmit: (comment: string | null) => Promise<boolean>;
   onCancel: () => void;
+  /** The task's comments so far, listed under the buttons in the order given. Nothing is shown when there are none. */
+  previousComments?: readonly TaskComment[];
 }
 
 function isPlainEnter(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
@@ -31,7 +35,8 @@ function isPlainEnter(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
 /**
  * Asks for a comment in a dialog, for a move and for a comment on its own. Enter in the box, ⌘↵ or the confirm
  * button sends it, and Shift+Enter starts a new line. ⌘., Esc or **Cancel** closes it without doing anything.
- * The dialog stays open while the comment is saved, and if saving fails, so nothing typed is lost.
+ * The dialog stays open while the comment is saved, and if saving fails, so nothing typed is lost. Any
+ * `previousComments` are listed under the buttons, in a list that scrolls on its own.
  */
 export function CommentDialog({
   title,
@@ -42,8 +47,10 @@ export function CommentDialog({
   isRequired,
   onSubmit,
   onCancel,
+  previousComments = [],
 }: CommentDialogProps) {
   const commentId = useId();
+  const previousHeadingId = useId();
   const [comment, setComment] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const isEmpty = comment.trim() === '';
@@ -91,6 +98,14 @@ export function CommentDialog({
             {confirmLabel}
           </Button>
         </div>
+        {previousComments.length > 0 && (
+          <section aria-labelledby={previousHeadingId} className={styles.previous}>
+            <h3 id={previousHeadingId} className={styles.previousHeading}>
+              Previous comments
+            </h3>
+            <CommentList comments={previousComments} className={styles.previousList} />
+          </section>
+        )}
       </div>
     </Modal>
   );

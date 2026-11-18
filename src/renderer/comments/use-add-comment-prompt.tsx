@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import type { Task, TaskId } from '../../domain';
+import { newestCommentsFirst } from '../lib/comment-order';
 import { CommentDialog } from './CommentDialog';
 
 export interface AddCommentPrompt {
@@ -9,26 +10,34 @@ export interface AddCommentPrompt {
   dialog: ReactNode;
 }
 
+function findLiveTask(tasks: readonly Task[], id: TaskId): Task | undefined {
+  return tasks.find((candidate) => candidate.id === id && !candidate.isArchived);
+}
+
 /**
  * The Add comment dialog a card's speech bubble, and ⇧⌘C, open: the same dialog as a move's comment, except that
- * the comment can't be empty. It closes once the comment is saved, and stays open with the text if saving fails.
+ * the comment can't be empty, and the task's previous comments are listed under it, newest first. The task is
+ * read from `tasks` on every render, so the list follows changes made while the dialog is open, and the dialog
+ * closes if the task is archived or goes away. It closes once the comment is saved, and stays open with the text
+ * if saving fails.
  */
 export function useAddCommentPrompt(
   tasks: readonly Task[],
   addComment: (id: TaskId, text: string) => Promise<boolean>,
 ): AddCommentPrompt {
-  const [task, setTask] = useState<Task | null>(null);
+  const [taskId, setTaskId] = useState<TaskId | null>(null);
+  const task = taskId === null ? undefined : findLiveTask(tasks, taskId);
+  if (taskId !== null && task === undefined) setTaskId(null);
 
   const open = useCallback(
     (id: TaskId) => {
-      const found = tasks.find((candidate) => candidate.id === id);
-      if (found !== undefined && !found.isArchived) setTask(found);
+      if (findLiveTask(tasks, id) !== undefined) setTaskId(id);
     },
     [tasks],
   );
 
   const dialog =
-    task === null ? null : (
+    task === undefined ? null : (
       <CommentDialog
         key={task.id}
         title="Add comment"
@@ -37,12 +46,13 @@ export function useAddCommentPrompt(
         placeholder="Enter adds the comment. Shift+Enter starts a new line."
         confirmLabel="Add comment"
         isRequired
+        previousComments={newestCommentsFirst(task.comments)}
         onSubmit={async (comment) => {
           const added = comment !== null && (await addComment(task.id, comment));
-          if (added) setTask(null);
+          if (added) setTaskId(null);
           return added;
         }}
-        onCancel={() => setTask(null)}
+        onCancel={() => setTaskId(null)}
       />
     );
 

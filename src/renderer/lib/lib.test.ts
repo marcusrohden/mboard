@@ -8,6 +8,7 @@ import {
   topOfColumnBeforeId,
   type ColumnArrangement,
 } from './board-view';
+import { newestCommentsFirst } from './comment-order';
 import { filterReducer } from './filters';
 import { describeAge, formatDate, formatDateTime, formatLogTime } from './format';
 import { buildTask, TEST_TODAY } from '../testing/builders';
@@ -233,5 +234,33 @@ describe('formatting', () => {
         DEFAULT_AGE_THRESHOLDS,
       ),
     ).toBe('Created 30 Dec 2025 08:00 · Updated 16 Nov 09:00 — 0 working days, Complete');
+  });
+});
+
+describe('newestCommentsFirst', () => {
+  it('puts the newest comment first, the later of two from the same minute first, and undated ones last', () => {
+    const comments = [
+      { at: '2026-11-12 10:00', text: 'Middle' },
+      { at: '', text: 'Undated' },
+      { at: '2026-11-14 09:00', text: 'Newest, added first' },
+      { at: '2026-11-10 08:00', text: 'Oldest' },
+      { at: '2026-11-14 09:00', text: 'Newest, added second' },
+    ];
+    expect(newestCommentsFirst(comments).map((comment) => comment.text)).toEqual([
+      'Newest, added second',
+      'Newest, added first',
+      'Middle',
+      'Oldest',
+      'Undated',
+    ]);
+  });
+
+  it('leaves the comments it was given in their order', () => {
+    const comments = [
+      { at: '2026-11-10 08:00', text: 'Older' },
+      { at: '2026-11-12 10:00', text: 'Newer' },
+    ];
+    newestCommentsFirst(comments);
+    expect(comments.map((comment) => comment.text)).toEqual(['Older', 'Newer']);
   });
 });
