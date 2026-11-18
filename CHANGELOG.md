@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.0](https://github.com/marcusrohden/mboard/compare/v0.5.0...v0.6.0) (2026-11-18)
+
+### Features
+
+* list previous comments in the Add comment dialog ([#30](https://github.com/marcusrohden/mboard/pull/30)) ([a992301](https://github.com/marcusrohden/mboard/commit/a992301a49a210a3027af4d76b2d456f6ef088a0))
+
 ## [0.5.0](https://github.com/marcusrohden/mboard/compare/v0.4.0...v0.5.0) (2026-11-18)
 
 ### Features
