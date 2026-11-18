@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.0](https://github.com/marcusrohden/mboard/compare/v0.4.0...v0.5.0) (2026-11-18)
+
+### Features
+
+* comment on column moves and open your AI agent from the board ([#29](https://github.com/marcusrohden/mboard/pull/29)) ([f92d7fc](https://github.com/marcusrohden/mboard/commit/f92d7fc47175cd2c54fb18e5ef34e762896a8df2))
+
 ## [0.4.0](https://github.com/marcusrohden/mboard/compare/v0.3.0...v0.4.0) (2026-11-17)
 
 ### Features
