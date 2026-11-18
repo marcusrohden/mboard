@@ -365,6 +365,18 @@ describe('A comment on a move', () => {
     ).toEqual(['Sent the monthly report']);
   });
 
+  it('does not list the previous comments in the move dialog', async () => {
+    const { user } = await renderBoard({
+      tasks: [
+        buildTask({ title: 'Report', status: 'Internal', comments: [{ at: '2026-11-12 10:00', text: 'Earlier' }] }),
+      ],
+    });
+    await user.click(completeButtonOf('Report'));
+    const dialog = await moveCommentDialog('Done');
+    expect(within(dialog).queryByRole('region', { name: 'Previous comments' })).toBeNull();
+    expect(within(dialog).queryByText('Earlier')).toBeNull();
+  });
+
   it('moves without a comment when the box is left empty', async () => {
     const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report', status: 'Internal' })] });
     await user.click(completeButtonOf('Report'));
@@ -430,6 +442,7 @@ describe('Adding a comment from a card', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Add comment' });
     expect(within(dialog).getByText('On “Report”.')).toBeTruthy();
+    expect(within(dialog).queryByRole('region', { name: 'Previous comments' })).toBeNull();
     expect(screen.queryByRole('complementary', { name: 'Task details' })).toBeNull();
     expect((within(dialog).getByRole('button', { name: 'Add comment' }) as HTMLButtonElement).disabled).toBe(true);
     await user.keyboard('{Enter}');
@@ -441,6 +454,68 @@ describe('Adding a comment from a card', () => {
     expect(
       within(screen.getByRole('article', { name: 'Report' })).getByRole('button', { name: 'Add comment, 1 comment' }),
     ).toBeTruthy();
+  });
+
+  it('lists the previous comments under the box, newest first, and still adds with Enter', async () => {
+    const { user, fake } = await renderBoard({
+      tasks: [
+        buildTask({
+          title: 'Report',
+          comments: [
+            { at: '2026-11-12 10:00', text: 'Asked for the figures' },
+            { at: '2026-11-14 09:30', text: 'Figures arrived' },
+            { at: '2026-11-10 08:00', text: 'Started the draft' },
+          ],
+        }),
+      ],
+    });
+    await user.click(
+      within(screen.getByRole('article', { name: 'Report' })).getByRole('button', { name: 'Add comment, 3 comments' }),
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add comment' });
+    const previous = within(dialog).getByRole('region', { name: 'Previous comments' });
+    expect(
+      within(previous)
+        .getAllByRole('listitem')
+        .map((item) => item.querySelector('p')?.textContent),
+    ).toEqual(['Figures arrived', 'Asked for the figures', 'Started the draft']);
+    expect(within(previous).getByText('14 Nov 2026, 09:30')).toBeTruthy();
+    expect(document.activeElement).toBe(within(dialog).getByLabelText('Comment'));
+
+    await user.keyboard('Sent to the client{Enter}');
+    expect(fake.api.addComment).toHaveBeenCalledWith('tasks/Report.md', 'Sent to the client');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('keeps the previous comments up to date while the dialog is open, and closes when the task is archived', async () => {
+    const { user, fake } = await renderBoard({
+      tasks: [buildTask({ title: 'Report', comments: [{ at: '2026-11-12 10:00', text: 'First' }] })],
+    });
+    await user.click(
+      within(screen.getByRole('article', { name: 'Report' })).getByRole('button', { name: 'Add comment, 1 comment' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Add comment' });
+    await user.keyboard('Half typed');
+
+    const [report] = fake.tasks();
+    act(() =>
+      fake.setTasks([
+        { ...report!, comments: [...report!.comments, { at: '2026-11-13 11:00', text: 'From Obsidian' }] },
+      ]),
+    );
+    const previous = within(dialog).getByRole('region', { name: 'Previous comments' });
+    await waitFor(() =>
+      expect(
+        within(previous)
+          .getAllByRole('listitem')
+          .map((item) => item.querySelector('p')?.textContent),
+      ).toEqual(['From Obsidian', 'First']),
+    );
+    expect((within(dialog).getByLabelText('Comment') as HTMLTextAreaElement).value).toBe('Half typed');
+
+    act(() => fake.setTasks([{ ...fake.tasks()[0]!, isArchived: true }]));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('opens it with ⇧⌘C on the focused card, and cancels with Esc', async () => {

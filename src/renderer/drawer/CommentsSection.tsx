@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { TaskComment } from '../../shared/contract';
-import { formatLogTime } from '../lib/format';
+import { CommentList } from '../comments/CommentList';
 import { Button } from '../ui/Button';
 import fields from '../ui/fields.module.css';
 import styles from './Drawer.module.css';
@@ -31,18 +31,7 @@ export function CommentsSection({ comments, readOnly, onAdd }: CommentsSectionPr
   return (
     <section aria-label="Comments" className={styles.section}>
       <h3 className={styles.sectionHeading}>Comments</h3>
-      {comments.length === 0 ? (
-        <p className={styles.muted}>No comments yet.</p>
-      ) : (
-        <ol className={styles.list}>
-          {comments.map((comment, index) => (
-            <li key={`${comment.at}-${index}`} className={styles.comment}>
-              {comment.at !== '' && <time className={styles.muted}>{formatLogTime(comment.at)}</time>}
-              <p className={styles.commentText}>{comment.text}</p>
-            </li>
-          ))}
-        </ol>
-      )}
+      {comments.length === 0 ? <p className={styles.muted}>No comments yet.</p> : <CommentList comments={comments} />}
       {!readOnly && (
         <div className={fields.field}>
           <textarea
