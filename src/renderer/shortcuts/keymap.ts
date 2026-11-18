@@ -19,9 +19,11 @@ export interface ShortcutDefinition {
 
 const COLUMN_COUNT = 5;
 const REMINDER_LINK_COUNT = 9;
+const SETTINGS_TAB_COUNT = 4;
 
 type ColumnShortcutId = `moveToColumn${1 | 2 | 3 | 4 | 5}`;
 type ReminderShortcutId = `openReminder${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`;
+type SettingsTabShortcutId = `settingsTab${1 | 2 | 3 | 4}`;
 
 function letter(key: string, modifiers: Omit<Chord, 'code'> = {}): Chord {
   return { code: `Key${key}`, ...modifiers };
@@ -47,6 +49,7 @@ const NAMED = {
   newTask: { chord: letter('N'), scopes: ['board'] },
   focusSearch: { chord: letter('F'), scopes: ['board'] },
   toggleArchived: { chord: letter('E', { shift: true }), scopes: ['board'] },
+  openAgent: { chord: letter('O', { shift: true }), scopes: ['board'] },
   projectFilter: { chord: letter('P', { shift: true }), scopes: ['board'] },
   dueFilter: { chord: letter('D', { shift: true }), scopes: ['board'] },
   staleOnly: { chord: letter('S', { shift: true }), scopes: ['board'] },
@@ -60,6 +63,7 @@ const NAMED = {
   archiveTask: { chord: letter('A', { shift: true }), scopes: ['task'] },
   restoreTask: { chord: letter('R', { shift: true }), scopes: ['task'] },
   openInObsidian: { chord: letter('O'), scopes: ['task'] },
+  commentOnTask: { chord: letter('C', { shift: true }), scopes: ['task'] },
   deleteTask: { chord: { code: 'Backspace', shift: true }, scopes: ['task'] },
   toggleHistory: { chord: letter('H', { shift: true }), scopes: ['task'] },
   revertToHere: { chord: letter('U', { shift: true }), scopes: ['task'] },
@@ -73,6 +77,7 @@ const NAMED = {
   checkForUpdates: { chord: letter('U'), scopes: ['dialog'] },
   toggleOpenAtLogin: { chord: letter('L'), scopes: ['dialog'] },
   resetAgeColours: { chord: letter('R'), scopes: ['dialog'] },
+  nextTerminal: { chord: letter('T'), scopes: ['dialog'] },
 
   tryAgain: { chord: letter('R'), scopes: ['screen'] },
 } as const satisfies Record<string, ShortcutDefinition>;
@@ -93,13 +98,23 @@ export const SHORTCUTS: Readonly<Record<ShortcutId, ShortcutDefinition>> = {
     (n) => `openReminder${n}` as ReminderShortcutId,
     (n) => ({ chord: { code: `Digit${n}`, alt: true }, scopes: ['board'] }),
   ),
+  ...numbered<SettingsTabShortcutId>(
+    SETTINGS_TAB_COUNT,
+    (n) => `settingsTab${n}` as SettingsTabShortcutId,
+    (n) => ({ chord: { code: `Digit${n}`, alt: true }, scopes: ['dialog'] }),
+  ),
 };
 
-export type ShortcutId = keyof typeof NAMED | ColumnShortcutId | ReminderShortcutId;
+export type ShortcutId = keyof typeof NAMED | ColumnShortcutId | ReminderShortcutId | SettingsTabShortcutId;
 
 /** The shortcut that moves a task to the column at `position` (1 to 5), left to right. */
 export function columnShortcut(position: number): ColumnShortcutId {
   return `moveToColumn${position}` as ColumnShortcutId;
+}
+
+/** The shortcut that shows the Settings tab at `position` (1 to 4), left to right. */
+export function settingsTabShortcut(position: number): SettingsTabShortcutId {
+  return `settingsTab${position}` as SettingsTabShortcutId;
 }
 
 /** The shortcut that opens the reminder at `position` (1 to 9), or `null` beyond the ninth. */

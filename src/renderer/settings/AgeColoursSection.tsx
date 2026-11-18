@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import {
   AGE_THRESHOLD_RANGE,
   DEFAULT_AGE_THRESHOLDS,
@@ -12,11 +12,12 @@ import { useRunCommand } from '../state/use-run-command';
 import { Button } from '../ui/Button';
 import fields from '../ui/fields.module.css';
 import styles from './SettingsDialog.module.css';
-import { SettingsSection } from './SettingsSection';
+import { SettingsRow, SettingsSection } from './SettingsSection';
 
 type ThresholdKey = keyof AgeThresholds;
 type Drafts = Record<ThresholdKey, string>;
 type AdjustableLevel = 'amber' | 'orange' | 'red';
+type Level = AdjustableLevel | 'green' | 'grey';
 
 const ADJUSTABLE_TIERS: ReadonlyArray<{ key: ThresholdKey; level: AdjustableLevel }> = [
   { key: 'nudgeFrom', level: 'amber' },
@@ -53,14 +54,19 @@ interface ThresholdRowProps {
   onCommit: () => void;
 }
 
+function TierLabel({ level, children }: { level: Level; children: ReactNode }) {
+  return (
+    <span className={styles.tierLabel}>
+      <span className={styles.swatch} data-level={level} aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
 function ThresholdRow({ level, value, onChange, onCommit }: ThresholdRowProps) {
   const id = useId();
   return (
-    <li className={styles.legendRow}>
-      <span className={styles.swatch} data-level={level} aria-hidden="true" />
-      <label htmlFor={id} className={styles.tier}>
-        {tierName(level)} from
-      </label>
+    <SettingsRow label={<TierLabel level={level}>{tierName(level)} from</TierLabel>} labelFor={id}>
       <input
         id={id}
         type="number"
@@ -79,8 +85,8 @@ function ThresholdRow({ level, value, onChange, onCommit }: ThresholdRowProps) {
           }
         }}
       />
-      <span>working days</span>
-    </li>
+      <span className={styles.unit}>working days</span>
+    </SettingsRow>
   );
 }
 
@@ -117,36 +123,39 @@ export function AgeColoursSection() {
   const isAtDefaults = sameAgeThresholds(saved, DEFAULT_AGE_THRESHOLDS) && problem === null;
 
   return (
-    <SettingsSection title="Age colours">
-      <p className={styles.muted}>A task changes colour as working days pass without an update.</p>
-      <ul className={styles.legend}>
-        <li className={styles.legendRow}>
-          <span className={styles.swatch} data-level="green" aria-hidden="true" />
-          <span className={styles.tier}>{tierName('green')}</span>
-          <span>{onTrackRange(saved.nudgeFrom)}</span>
-        </li>
-        {ADJUSTABLE_TIERS.map(({ key, level }) => (
-          <ThresholdRow
-            key={key}
-            level={level}
-            value={drafts[key]}
-            onChange={(value) => setDrafts((current) => ({ ...current, [key]: value }))}
-            onCommit={() => void save(thresholdsOf(drafts))}
-          />
-        ))}
-        <li className={styles.legendRow}>
-          <span className={styles.swatch} data-level="grey" aria-hidden="true" />
-          <span>Tasks in Done and archived tasks are always grey.</span>
-        </li>
-      </ul>
-      {problem !== null && (
-        <p role="alert" className={fields.error}>
-          {problem}
-        </p>
-      )}
-      <Button disabled={isAtDefaults} shortcut="resetAgeColours" onClick={resetToDefaults}>
-        Reset to defaults
-      </Button>
+    <SettingsSection
+      title="Age colours"
+      note={
+        problem === null ? (
+          'A task changes colour as working days pass without an update.'
+        ) : (
+          <p role="alert" className={fields.error}>
+            {problem}
+          </p>
+        )
+      }
+    >
+      <SettingsRow label={<TierLabel level="green">{tierName('green')}</TierLabel>}>
+        <span className={styles.unit}>{onTrackRange(saved.nudgeFrom)}</span>
+      </SettingsRow>
+      {ADJUSTABLE_TIERS.map(({ key, level }) => (
+        <ThresholdRow
+          key={key}
+          level={level}
+          value={drafts[key]}
+          onChange={(value) => setDrafts((current) => ({ ...current, [key]: value }))}
+          onCommit={() => void save(thresholdsOf(drafts))}
+        />
+      ))}
+      <SettingsRow
+        label={<TierLabel level="grey">Done and archived</TierLabel>}
+        description="Tasks in Done and archived tasks are always grey."
+      />
+      <SettingsRow label="Back to 2, 4 and 6 working days">
+        <Button disabled={isAtDefaults} shortcut="resetAgeColours" onClick={resetToDefaults}>
+          Reset to defaults
+        </Button>
+      </SettingsRow>
     </SettingsSection>
   );
 }

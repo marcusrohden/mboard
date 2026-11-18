@@ -10,6 +10,11 @@ export const AUTOFOCUS_ATTRIBUTE = 'data-autofocus';
 
 interface ModalProps {
   role?: 'dialog' | 'alertdialog';
+  /**
+   * `wide` is a taller, wider panel with no padding of its own, laid out as a column, for a dialog with its own
+   * header, scrolling body and footer.
+   */
+  size?: 'regular' | 'wide';
   label: string;
   onClose: () => void;
   children: ReactNode;
@@ -39,7 +44,7 @@ function keepFocusInside(event: KeyboardEvent<HTMLElement>): void {
  * shortcuts form a layer of their own, so the page's shortcuts are off while it is open.
  * Focus starts on the element marked `data-autofocus`, otherwise the first focusable element.
  */
-export function Modal({ role = 'dialog', label, onClose, children }: ModalProps) {
+export function Modal({ role = 'dialog', size = 'regular', label, onClose, children }: ModalProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +78,7 @@ export function Modal({ role = 'dialog', label, onClose, children }: ModalProps)
         role={role}
         aria-modal="true"
         aria-label={label}
-        className={styles.panel}
+        className={size === 'wide' ? `${styles.panel} ${styles.wide}` : styles.panel}
         onKeyDown={handleKeyDown}
       >
         <ShortcutLayer>{children}</ShortcutLayer>

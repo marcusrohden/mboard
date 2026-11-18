@@ -1,7 +1,10 @@
 import { vi, type Mock } from 'vitest';
 import {
   DEFAULT_AGE_THRESHOLDS,
+  DEFAULT_AGENT_SETTINGS,
   ageThresholdsProblem,
+  agentSettingsProblem,
+  normaliseAgentSettings,
   columnTasks,
   normaliseProject,
   projectFolderName,
@@ -14,6 +17,7 @@ import {
 } from '../../domain';
 import type {
   AgeThresholds,
+  AgentSettings,
   AppState,
   AppUpdateStage,
   AppUpdateStatus,
@@ -41,6 +45,7 @@ export interface FakeMboardOptions {
   banner?: ReminderBannerItem[];
   preferences?: Preferences;
   ageThresholds?: AgeThresholds;
+  agentSettings?: AgentSettings;
   projectColours?: ProjectColours;
   appUpdateStatus?: AppUpdateStatus;
   /** Whether the menu asked to open Settings before the app mounted. */
@@ -104,6 +109,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   let banner = [...(options.banner ?? [])];
   let preferences = options.preferences ?? { openAtLogin: true, notificationsAvailable: true };
   let ageThresholds = options.ageThresholds ?? { ...DEFAULT_AGE_THRESHOLDS };
+  let agentSettings = options.agentSettings ?? { ...DEFAULT_AGENT_SETTINGS };
   let projectColours: Record<string, ProjectColour> = { ...options.projectColours };
   let appUpdateStatus = options.appUpdateStatus ?? { currentVersion: '0.1.0', stage: { kind: 'idle' } };
   let isSettingsRequested = options.pendingSettingsRequest ?? false;
@@ -116,6 +122,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   const bannerListeners: Listeners<ReminderBannerItem[]> = new Set();
   const preferencesListeners: Listeners<Preferences> = new Set();
   const ageThresholdsListeners: Listeners<AgeThresholds> = new Set();
+  const agentSettingsListeners: Listeners<AgentSettings> = new Set();
   const appUpdateListeners: Listeners<AppUpdateStatus> = new Set();
   const openSettingsListeners: Listeners<void> = new Set();
 
@@ -231,8 +238,12 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       const comment = { at: logStamp, text: text.trim() };
       return replace(id, recorded(task, 'Comment added', { comments: [...task.comments, comment] }));
     }),
-    moveTask: vi.fn(async (id, status, beforeId) => {
+    moveTask: vi.fn(async (id, status, beforeId, comment) => {
       const task = find(id);
+      const moveComments =
+        comment === null || comment.trim() === ''
+          ? task.comments
+          : [...task.comments, { at: logStamp, text: comment.trim() }];
       const targetIds = columnTasks(tasks, status)
         .map((candidate) => candidate.id)
         .filter((candidateId) => candidateId !== id);
@@ -240,7 +251,9 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       if (insertAt === -1) throw new Error("That task isn't in the column any more.");
       targetIds.splice(insertAt, 0, id);
       const moved =
-        status === task.status ? task : recorded(task, `Moved from ${task.status} to ${status}`, { status });
+        status === task.status
+          ? task
+          : recorded(task, `Moved from ${task.status} to ${status}`, { status, comments: moveComments });
       tasks = tasks.map((candidate) => (candidate.id === id ? moved : candidate));
       renumberColumn(targetIds);
       publish();
@@ -322,6 +335,15 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       emitAll(ageThresholdsListeners, ageThresholds);
       return ageThresholds;
     }),
+    getAgentSettings: vi.fn(async () => ({ ...agentSettings })),
+    setAgentSettings: vi.fn(async (next) => {
+      const problem = agentSettingsProblem(next);
+      if (problem !== null) throw new Error(problem);
+      agentSettings = normaliseAgentSettings(next);
+      emitAll(agentSettingsListeners, { ...agentSettings });
+      return { ...agentSettings };
+    }),
+    openAgent: vi.fn(async () => undefined),
     getReminderBanner: vi.fn(async () => banner),
     dismissReminderBanner: vi.fn(async () => {
       banner = [];
@@ -348,6 +370,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     onReminderBanner: vi.fn((listener) => subscribe(bannerListeners, listener)),
     onPreferences: vi.fn((listener) => subscribe(preferencesListeners, listener)),
     onAgeThresholds: vi.fn((listener) => subscribe(ageThresholdsListeners, listener)),
+    onAgentSettings: vi.fn((listener) => subscribe(agentSettingsListeners, listener)),
     onAppUpdateStatus: vi.fn((listener) => subscribe(appUpdateListeners, listener)),
     onOpenSettings: vi.fn((listener) => subscribe(openSettingsListeners, listener)),
   };

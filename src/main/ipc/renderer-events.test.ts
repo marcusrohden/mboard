@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_AGENT_SETTINGS } from '../../domain';
 import type {
   AgeThresholds,
+  AgentSettings,
   AppState,
   AppUpdateStatus,
   BoardSnapshot,
@@ -33,6 +35,7 @@ describe('bridgeRendererEvents', () => {
     const banner = listenerSlot<ReminderBannerItem[]>();
     const preferences = listenerSlot<Preferences>();
     const ageThresholds = listenerSlot<AgeThresholds>();
+    const agent = listenerSlot<AgentSettings>();
     const appUpdates = listenerSlot<AppUpdateStatus>();
     let minute = 0;
     const snapshotAt = (): BoardSnapshot => ({
@@ -47,6 +50,7 @@ describe('bridgeRendererEvents', () => {
       setup: { onStateChange: appState.subscribe },
       platform: { onBannerChange: banner.subscribe, onPreferencesChange: preferences.subscribe },
       ageThresholds: { onChange: ageThresholds.subscribe },
+      agent: { onSettingsChange: agent.subscribe },
       appUpdates: { onChange: appUpdates.subscribe },
     };
     const send = vi.fn();
@@ -57,6 +61,7 @@ describe('bridgeRendererEvents', () => {
     banner.emit([]);
     preferences.emit({ openAtLogin: true, notificationsAvailable: false });
     ageThresholds.emit({ nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 });
+    agent.emit({ ...DEFAULT_AGENT_SETTINGS, columns: ['In progress', 'Done'] });
     appUpdates.emit({ currentVersion: '0.1.0', stage: { kind: 'checking' } });
     minute = 1;
     vi.advanceTimersByTime(SNAPSHOT_REFRESH_INTERVAL_MS);
@@ -67,14 +72,15 @@ describe('bridgeRendererEvents', () => {
       ['reminderBanner', []],
       ['preferences', { openAtLogin: true, notificationsAvailable: false }],
       ['ageThresholds', { nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 }],
+      ['agentSettings', { ...DEFAULT_AGENT_SETTINGS, columns: ['In progress', 'Done'] }],
       ['appUpdateStatus', { currentVersion: '0.1.0', stage: { kind: 'checking' } }],
       ['snapshot', expect.objectContaining({ now: 'minute 1' })],
     ]);
 
     stop();
     vi.advanceTimersByTime(SNAPSHOT_REFRESH_INTERVAL_MS * 3);
-    expect(send).toHaveBeenCalledTimes(7);
-    const counts = [board, appState, banner, preferences, ageThresholds, appUpdates].map((slot) => slot.count);
-    expect(counts).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(send).toHaveBeenCalledTimes(8);
+    const counts = [board, appState, banner, preferences, ageThresholds, agent, appUpdates].map((slot) => slot.count);
+    expect(counts).toEqual([0, 0, 0, 0, 0, 0, 0]);
   });
 });

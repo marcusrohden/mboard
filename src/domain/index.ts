@@ -1,3 +1,4 @@
+export * from './agent';
 export * from './changes';
 export * from './due';
 export * from './fileName';

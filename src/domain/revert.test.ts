@@ -135,6 +135,16 @@ describe('revertDocument', () => {
     ]);
   });
 
+  it('undoes a move that came with a comment as one change: the column and the comment both go back', () => {
+    const start = commented(created(), 'Kept');
+    const movedWithComment = moveToColumn(start, 'With client', 1, nextMoment(), 'Sent the quote').document;
+    const result = revert(movedWithComment, 1);
+
+    expect(result.status).toBe('To do');
+    expect(texts(result.comments)).toEqual(['Kept']);
+    expect(result.history[result.history.length - 1]?.text).toMatch(/— 1 change discarded$/);
+  });
+
   it('skips a comment that was already deleted outside the app', () => {
     const document = commented(commented(created(), 'Keep'), 'Gone');
     const withoutGone = {

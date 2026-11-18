@@ -1,4 +1,4 @@
-import type { LocalDate, NewTaskInput, Status, TaskDocument, TaskEdit } from './model';
+import type { LocalDate, NewTaskInput, Status, TaskComment, TaskDocument, TaskEdit } from './model';
 import { buildLedger, initialLedger, type CommentsDelta } from './ledger';
 import { COLUMNS, isStatus } from './model';
 import { canonicalProject } from './projects';
@@ -173,33 +173,72 @@ export function applyEdit(document: TaskDocument, edit: TaskEdit, context: Chang
   }
 }
 
+function normaliseCommentText(text: string): string {
+  return text.replace(/\r\n?/g, '\n').trim();
+}
+
+function newComment(text: string, now: Date): TaskComment {
+  const trimmed = normaliseCommentText(text);
+  if (trimmed === '') throw new Error("A comment can't be empty.");
+  assertSafeBodyText(trimmed, 'comment');
+  return { at: formatLogTimestamp(now), text: trimmed };
+}
+
+function commentAdded(document: TaskDocument, comment: TaskComment): Partial<TaskDocument> {
+  return { comments: [...document.comments, comment] };
+}
+
+function onlyAdded(comment: TaskComment): CommentsDelta {
+  return { added: [comment], removed: [] };
+}
+
+function recordComment(document: TaskDocument, comment: TaskComment, now: Date): TaskDocument {
+  return recordUpdate(document, commentAdded(document, comment), 'Comment added', now, onlyAdded(comment)).document;
+}
+
 /**
  * Appends a comment dated `now` and records `Comment added`. The text is trimmed.
  *
  * @throws Error with a user-presentable message when the text is empty.
  */
 export function addComment(document: TaskDocument, text: string, now: Date): TaskDocument {
-  const trimmed = text.replace(/\r\n?/g, '\n').trim();
-  if (trimmed === '') throw new Error("A comment can't be empty.");
-  assertSafeBodyText(trimmed, 'comment');
-  const comment = { at: formatLogTimestamp(now), text: trimmed };
-  const comments = { added: [comment], removed: [] };
-  return recordUpdate(document, { comments: [...document.comments, comment] }, 'Comment added', now, comments).document;
+  return recordComment(document, newComment(text, now), now);
 }
 
 /**
- * Puts a task in a column at `order`. Changing column is an update that records
- * `Moved from <old> to <new>`. Staying in the same column only changes `order`, which is not an update.
+ * Whether moving a task between these columns asks the person for a comment. Every move to another column
+ * does, apart from starting work: To do to In progress. Reordering within a column never does.
  */
-export function moveToColumn(document: TaskDocument, status: Status, order: number | null, now: Date): ChangeResult {
+export function asksForMoveComment(from: Status, to: Status): boolean {
+  return from !== to && !(from === 'To do' && to === 'In progress');
+}
+
+/**
+ * Puts a task in a column at `order`. Changing column is an update that records `Moved from <old> to <new>`,
+ * and the `comment`, when there is one, is added by that same update, so the one history entry and its
+ * revert cover both. Staying in the same column only changes `order`, which is not an update, unless a
+ * comment comes with it: that is recorded as `Comment added`. A comment that is empty once trimmed counts
+ * as none.
+ *
+ * @throws Error with a user-presentable message when the column doesn't exist or the comment can't be stored.
+ */
+export function moveToColumn(
+  document: TaskDocument,
+  status: Status,
+  order: number | null,
+  now: Date,
+  comment: string | null = null,
+): ChangeResult {
   const target = validateStatus(status);
-  if (target === document.status) return setOrder(document, order);
-  return recordUpdate(
-    document,
-    { status: target, rawStatus: null, order },
-    `Moved from ${document.status} to ${target}`,
-    now,
-  );
+  const added = comment === null || normaliseCommentText(comment) === '' ? null : newComment(comment, now);
+  if (target === document.status) {
+    const reordered = setOrder(document, order);
+    return added === null ? reordered : { changed: true, document: recordComment(reordered.document, added, now) };
+  }
+  const moved: Partial<TaskDocument> = { status: target, rawStatus: null, order };
+  const historyText = `Moved from ${document.status} to ${target}`;
+  if (added === null) return recordUpdate(document, moved, historyText, now);
+  return recordUpdate(document, { ...moved, ...commentAdded(document, added) }, historyText, now, onlyAdded(added));
 }
 
 /** Sets `order` without recording an update. Used for reordering and for renumbering a column. */

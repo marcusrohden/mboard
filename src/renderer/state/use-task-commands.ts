@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react';
+import { asksForMoveComment } from '../../domain';
 import type {
   MboardApi,
   NewTaskInput,
@@ -10,6 +11,7 @@ import type {
   TaskId,
 } from '../../shared/contract';
 import { topOfColumnBeforeId } from '../lib/board-view';
+import type { AskForMoveComment } from '../move-comment/use-move-comment-prompt';
 import type { TaskSelection } from './use-task-selection';
 import { useRunCommand } from './use-run-command';
 
@@ -30,14 +32,22 @@ export interface TaskCommands {
 
 /**
  * Every task command the UI issues. Each runs through the toast-on-rejection runner and keeps the
- * drawer's selection pointing at the task's new id when a command renames or moves its file.
+ * drawer's selection pointing at the task's new id when a command renames or moves its file. A move to
+ * another column that asks for a comment (every one but To do to In progress) waits for `askForMoveComment`,
+ * and resolves `false` when the person cancels it.
  */
-export function useTaskCommands(tasks: readonly Task[], selection: TaskSelection): TaskCommands {
+export function useTaskCommands(
+  tasks: readonly Task[],
+  selection: TaskSelection,
+  askForMoveComment: AskForMoveComment,
+): TaskCommands {
   const run = useRunCommand();
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
+  const askRef = useRef(askForMoveComment);
+  askRef.current = askForMoveComment;
 
   return useMemo<TaskCommands>(() => {
     async function change(id: TaskId, command: (api: MboardApi) => Promise<Task>): Promise<boolean> {
@@ -51,15 +61,20 @@ export function useTaskCommands(tasks: readonly Task[], selection: TaskSelection
       return (await run(command)).ok;
     }
 
+    function move(id: TaskId, status: Status, beforeIdAtMove: () => TaskId | null): Promise<boolean> {
+      const moveWith = (comment: string | null): Promise<boolean> =>
+        change(id, (api) => api.moveTask(id, status, beforeIdAtMove(), comment));
+      const task = tasksRef.current.find((candidate) => candidate.id === id);
+      if (task === undefined || !asksForMoveComment(task.status, status)) return moveWith(null);
+      return askRef.current({ task, to: status, move: moveWith });
+    }
+
     return {
       create: (input) => simple((api) => api.createTask(input)),
       edit: (id, edit) => change(id, (api) => api.editTask(id, edit)),
       addComment: (id, text) => change(id, (api) => api.addComment(id, text)),
-      moveToTopOf: (id, status) => {
-        const beforeId = topOfColumnBeforeId(tasksRef.current, status, id);
-        return change(id, (api) => api.moveTask(id, status, beforeId));
-      },
-      drop: (id, status, beforeId) => change(id, (api) => api.moveTask(id, status, beforeId)),
+      moveToTopOf: (id, status) => move(id, status, () => topOfColumnBeforeId(tasksRef.current, status, id)),
+      drop: (id, status, beforeId) => move(id, status, () => beforeId),
       archive: (id) => change(id, (api) => api.archiveTask(id)),
       restore: (id) => change(id, (api) => api.restoreTask(id)),
       revert: (id, toEntryIndex, expected) => change(id, (api) => api.revertTask(id, toEntryIndex, expected)),

@@ -1,5 +1,5 @@
 import type { AppState, EventName, MboardEventPayloads } from '../../shared/contract';
-import type { AgeThresholdsSetting, AppUpdates, BoardService, Platform } from '../ports';
+import type { AgeThresholdsSetting, AgentLauncher, AppUpdates, BoardService, Platform } from '../ports';
 
 /** Sends one push event to the renderer. */
 export type RendererEventSender = <Event extends EventName>(event: Event, payload: MboardEventPayloads[Event]) => void;
@@ -10,6 +10,7 @@ export interface RendererEventSources {
   setup: { onStateChange(listener: (state: AppState) => void): () => void };
   platform: Pick<Platform, 'onBannerChange' | 'onPreferencesChange'>;
   ageThresholds: Pick<AgeThresholdsSetting, 'onChange'>;
+  agent: Pick<AgentLauncher, 'onSettingsChange'>;
   appUpdates: Pick<AppUpdates, 'onChange'>;
 }
 
@@ -18,8 +19,8 @@ export const SNAPSHOT_REFRESH_INTERVAL_MS = 60_000;
 
 /**
  * Forwards every change the renderer must hear about: a snapshot after each board scan or write, the app
- * state after each setup change, the platform's reminder banner and preferences, the age-colour thresholds
- * and the app update status.
+ * state after each setup change, the platform's reminder banner and preferences, the age-colour thresholds,
+ * the agent settings and the app update status.
  * It also pushes a fresh snapshot every minute, carrying the main process's clock, so the board rolls over
  * at midnight.
  *
@@ -36,6 +37,7 @@ export function bridgeRendererEvents(
     sources.platform.onBannerChange((items) => send('reminderBanner', items)),
     sources.platform.onPreferencesChange((preferences) => send('preferences', preferences)),
     sources.ageThresholds.onChange((thresholds) => send('ageThresholds', thresholds)),
+    sources.agent.onSettingsChange((settings) => send('agentSettings', settings)),
     sources.appUpdates.onChange((status) => send('appUpdateStatus', status)),
   ];
   const refreshTimer = setInterval(() => send('snapshot', sources.board.snapshot()), refreshIntervalMs);

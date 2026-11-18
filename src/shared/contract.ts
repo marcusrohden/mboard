@@ -1,5 +1,6 @@
 import type {
   AgeThresholds,
+  AgentSettings,
   LocalDate,
   LocalDateTime,
   NewTaskInput,
@@ -15,6 +16,8 @@ import type {
 
 export type {
   AgeThresholds,
+  AgentSettings,
+  AgentTerminal,
   HistoryEntry,
   HistoryLedger,
   LedgerChange,
@@ -107,7 +110,11 @@ export interface MboardInvokeApi {
   createTask(input: NewTaskInput): Promise<Task>;
   editTask(id: TaskId, edit: TaskEdit): Promise<Task>;
   addComment(id: TaskId, text: string): Promise<Task>;
-  moveTask(id: TaskId, status: Status, beforeId: TaskId | null): Promise<Task>;
+  /**
+   * Puts a task in `status` above `beforeId`, or at the end with `null`. A `comment` that isn't empty is
+   * added by the same update as the move.
+   */
+  moveTask(id: TaskId, status: Status, beforeId: TaskId | null, comment: string | null): Promise<Task>;
   archiveTask(id: TaskId): Promise<Task>;
   archiveAllDone(): Promise<number>;
   restoreTask(id: TaskId): Promise<Task>;
@@ -125,6 +132,12 @@ export interface MboardInvokeApi {
   getAgeThresholds(): Promise<AgeThresholds>;
   /** Saves new age-colour thresholds. Rejects thresholds that `ageThresholdsProblem` finds a problem with. */
   setAgeThresholds(thresholds: AgeThresholds): Promise<AgeThresholds>;
+
+  getAgentSettings(): Promise<AgentSettings>;
+  /** Saves how **Open agent** starts the agent. Rejects settings that `agentSettingsProblem` finds a problem with. */
+  setAgentSettings(settings: AgentSettings): Promise<AgentSettings>;
+  /** Opens the agent in the chosen terminal, in the board folder, with the configured prompt and the tasks in Done. */
+  openAgent(): Promise<void>;
 
   getAppUpdateStatus(): Promise<AppUpdateStatus>;
   checkForAppUpdate(): Promise<AppUpdateStatus>;
@@ -144,6 +157,7 @@ export interface MboardEventApi {
   onReminderBanner(listener: (items: ReminderBannerItem[]) => void): () => void;
   onPreferences(listener: (preferences: Preferences) => void): () => void;
   onAgeThresholds(listener: (thresholds: AgeThresholds) => void): () => void;
+  onAgentSettings(listener: (settings: AgentSettings) => void): () => void;
   onAppUpdateStatus(listener: (status: AppUpdateStatus) => void): () => void;
   /** Signals that the menu asked to open Settings; claim the request with `takeOpenSettingsRequest`. */
   onOpenSettings(listener: () => void): () => void;
@@ -162,6 +176,7 @@ export interface MboardEventPayloads {
   reminderBanner: ReminderBannerItem[];
   preferences: Preferences;
   ageThresholds: AgeThresholds;
+  agentSettings: AgentSettings;
   appUpdateStatus: AppUpdateStatus;
   openSettings: void;
 }
@@ -176,6 +191,7 @@ export const EVENT_SUBSCRIBERS = {
   reminderBanner: 'onReminderBanner',
   preferences: 'onPreferences',
   ageThresholds: 'onAgeThresholds',
+  agentSettings: 'onAgentSettings',
   appUpdateStatus: 'onAppUpdateStatus',
   openSettings: 'onOpenSettings',
 } as const satisfies Record<EventName, keyof MboardEventApi>;
@@ -208,6 +224,9 @@ export const IPC = {
     dismissReminderBanner: 'platform:dismissReminderBanner',
     getAgeThresholds: 'settings:getAgeThresholds',
     setAgeThresholds: 'settings:setAgeThresholds',
+    getAgentSettings: 'settings:getAgentSettings',
+    setAgentSettings: 'settings:setAgentSettings',
+    openAgent: 'agent:openAgent',
     getAppUpdateStatus: 'app:getAppUpdateStatus',
     checkForAppUpdate: 'app:checkForAppUpdate',
     installAppUpdate: 'app:installAppUpdate',
@@ -221,6 +240,7 @@ export const IPC = {
     reminderBanner: 'platform:reminderBanner',
     preferences: 'platform:preferences',
     ageThresholds: 'settings:ageThresholds',
+    agentSettings: 'settings:agentSettings',
     appUpdateStatus: 'app:appUpdateStatus',
     openSettings: 'app:openSettings',
   },

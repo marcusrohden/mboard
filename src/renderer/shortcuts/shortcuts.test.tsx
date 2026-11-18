@@ -6,6 +6,7 @@ import { App } from '../App';
 import { buildTask } from '../testing/builders';
 import { useDomEnvironment } from '../testing/dom-environment';
 import { createFakeMboard } from '../testing/fake-mboard';
+import { answerMoveComment } from '../testing/move-comment';
 import { renderBoard } from '../testing/render-board';
 
 useDomEnvironment();
@@ -167,9 +168,11 @@ describe('Task shortcuts in the drawer', () => {
       'Meta+5',
     );
     await user.keyboard('{Meta>}3{/Meta}');
-    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Internal', null);
+    await answerMoveComment(user, 'Internal');
+    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Internal', null, null);
     await user.keyboard('{Meta>}5{/Meta}');
-    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Done', 'tasks/Finished.md');
+    await answerMoveComment(user, 'Done', 'Fixed');
+    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Done', 'tasks/Finished.md', 'Fixed');
   });
 
   it('opens in Obsidian with ⌘O, and asks before deleting with ⇧⌘⌫, confirmed with ⌘↵', async () => {
@@ -234,7 +237,8 @@ describe('Task shortcuts on the focused card', () => {
     const { user, fake } = await renderBoard(BUSY_BOARD());
     screen.getByRole('article', { name: 'Fix login' }).focus();
     await user.keyboard('{Meta>}2{/Meta}');
-    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'In progress', null);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'In progress', null, null);
     await waitFor(() => expect(columnOf('Fix login')).toBe('In progress'));
 
     screen.getByRole('article', { name: 'Fix login' }).focus();

@@ -3,6 +3,7 @@ import {
   addComment,
   applyEdit,
   archiveDocument,
+  asksForMoveComment,
   createTaskDocument,
   moveToColumn,
   restoreDocument,
@@ -253,6 +254,54 @@ describe('moveToColumn', () => {
     const result = moveToColumn(makeDocument({ rawStatus: 'Blocked' }), 'Done', 1, NOW);
     expect(result.document.rawStatus).toBeNull();
   });
+
+  it('adds a comment in the same update as the move, with one history entry', () => {
+    const document = makeDocument({ status: 'In progress' });
+    const result = moveToColumn(document, 'With client', 1, NOW, '  Sent the quote.\r\n');
+    expect(result.document).toMatchObject({ status: 'With client', order: 1, updated: NOW_FIELD });
+    expect(result.document.comments).toEqual([{ at: NOW_LOG, text: 'Sent the quote.' }]);
+    expect(result.document.history).toHaveLength(document.history.length + 1);
+    expect(lastHistoryText(result.document)).toBe('Moved from In progress to With client');
+  });
+
+  it.each([null, '', '  \n '])('moves without a comment when it is %j', (comment) => {
+    const result = moveToColumn(makeDocument(), 'Done', 1, NOW, comment);
+    expect(result.document.status).toBe('Done');
+    expect(result.document.comments).toEqual([]);
+  });
+
+  it('records a comment that comes with a reorder as "Comment added", without moving', () => {
+    const result = moveToColumn(makeDocument({ order: 3 }), 'To do', 1, NOW, 'Still waiting');
+    expect(result.document).toMatchObject({ status: 'To do', order: 1, updated: NOW_FIELD });
+    expect(result.document.comments).toEqual([{ at: NOW_LOG, text: 'Still waiting' }]);
+    expect(lastHistoryText(result.document)).toBe('Comment added');
+  });
+
+  it('rejects a move comment the file would read back differently, and moves nothing', () => {
+    expect(() => moveToColumn(makeDocument(), 'Done', 1, NOW, 'ok\n## History')).toThrow(/comment/);
+  });
+});
+
+describe('asksForMoveComment', () => {
+  it.each([
+    ['To do', 'Internal'],
+    ['To do', 'Done'],
+    ['In progress', 'To do'],
+    ['In progress', 'With client'],
+    ['Internal', 'In progress'],
+    ['With client', 'Done'],
+    ['Done', 'In progress'],
+  ] as const)('asks when a task moves from %s to %s', (from, to) => {
+    expect(asksForMoveComment(from, to)).toBe(true);
+  });
+
+  it('does not ask when work starts, from To do to In progress', () => {
+    expect(asksForMoveComment('To do', 'In progress')).toBe(false);
+  });
+
+  it.each(['To do', 'In progress', 'Done'] as const)('does not ask for a reorder within %s', (status) => {
+    expect(asksForMoveComment(status, status)).toBe(false);
+  });
 });
 
 describe('setOrder', () => {
@@ -406,6 +455,13 @@ describe('ledger data on every update', () => {
   it('a move records the column', () => {
     expect(lastLedger(moveToColumn(base, 'Done', 1, NOW).document)?.changes).toEqual([
       { field: 'status', from: 'To do', to: 'Done' },
+    ]);
+  });
+
+  it('a move with a comment records the column and the comment, so one revert undoes both', () => {
+    expect(lastLedger(moveToColumn(base, 'Done', 1, NOW, 'Shipped').document)?.changes).toEqual([
+      { field: 'status', from: 'To do', to: 'Done' },
+      { field: 'comments', added: [{ at: NOW_LOG, text: 'Shipped' }], removed: [] },
     ]);
   });
 

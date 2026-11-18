@@ -19,3 +19,13 @@
   background: var(--color-surface-raised);
   box-shadow: var(--shadow-popover);
 }
+
+.wide {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, calc(100vw - 2 * var(--space-4)));
+  height: min(640px, 82vh);
+  max-height: 82vh;
+  padding: 0;
+  overflow: hidden;
+}

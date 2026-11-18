@@ -29,11 +29,12 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 
 - **Date created**: the local date and time the task was created.
 - **Date updated**: the local date and time of the task's last **update**.
-- **Update**: an in-app change that bumps date updated and adds one history entry: creating, editing a field, moving to another column, adding a comment, archiving, restoring or reverting. Reordering within a column is not an update.
+- **Update**: an in-app change that bumps date updated and adds one history entry: creating, editing a field, moving to another column (with its move comment, if any), adding a comment, archiving, restoring or reverting. Reordering within a column is not an update.
 - **History log**: the task's list of updates, one line each, oldest first. Append-only, except that a revert removes the entries after the one it reverts to.
 - **Ledger**: the data kept with each history entry, as a hidden comment on its line, recording exactly what that update changed and when, to the second. It is what makes an update revertible. Entries without it are **legacy entries**.
 - **Revert**: returning a task to its state right after an earlier history entry, by undoing the later updates from their ledger. Fields those updates didn't touch keep their current value, and the later entries are replaced by one revert entry. _Avoid_: undo, rollback.
 - **Comment**: a dated note added to a task. Append-only in the app, except that a revert removes the comments added after the entry it reverts to.
+- **Move comment**: the optional comment asked for when a task moves to another column, other than from To do to In progress (ADR 0010). It is added by the move's own update, so the move and its comment are one history entry. _Avoid_: move note, reason.
 - **Staleness**: how many working days (Monday to Friday, by local date) have passed since the task's date updated, and the **age tier** that follows from it: On track (green), Needs a nudge (amber), Stalling (orange) and Stale (red). Complete and archived tasks are grey and keep their count.
 - **Age thresholds**: the working days from which Needs a nudge, Stalling and Stale start, set in Settings under **Age colours**. The defaults are 2, 4 and 6, so On track is 0–1, Needs a nudge 2–3, Stalling 4–5 and Stale 6 or more. _Avoid_: legend (the Settings section that shows them), limits.
 - **Age chip**: the `Nd` working-day count on every task, coloured by its age tier.
@@ -48,7 +49,11 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 ## App
 
 - **Shortcut**: a Command key chord, sometimes with Shift or Option, that does what a button or control does. Every control shows its shortcut, faded, at its bottom right. _Avoid_: hotkey, accelerator (that's a native menu item's key).
-- **Settings**: the dialog that holds mboard's own settings: the board folder, open at login, notifications and app updates. Opened with the header's gear, **Settings…** in the app and tray menus, or Cmd+,.
+- **Settings**: the dialog that holds mboard's own settings: the board folder, open at login, age colours, the agent, notifications and app updates, in four tabs: General, Board, Agent and Updates. Opened with the header's gear, **Settings…** in the app and tray menus, or Cmd+,.
+- **Agent**: the person's own AI coding agent, such as Claude Code or Codex, started by a shell command they set in Settings. mboard doesn't include one. _Avoid_: assistant, bot.
+- **Open agent**: the header action that opens the chosen terminal in the board folder and starts the agent with the **agent prompt** (ADR 0011).
+- **Agent prompt**: what the agent starts with: the prompt from Settings, then every live task in the **agent's columns**, grouped by project. _Avoid_: context file.
+- **Agent's columns**: the columns, chosen in Settings, whose tasks go into the agent prompt. Done unless changed.
 - **Release**: a published version of mboard: a `vX.Y.Z` tag and its GitHub release, with the macOS zip attached. Every feature or fix merged into `main` makes one (ADR 0008).
 - **New version**: a release newer than the running copy of mboard.
 - **App update**: replacing the running copy of mboard with a new version, from inside the app. _Avoid_: update (that's a task update), upgrade.

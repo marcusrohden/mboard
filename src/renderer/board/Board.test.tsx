@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useDomEnvironment } from '../testing/dom-environment';
 import { buildTask } from '../testing/builders';
+import { answerMoveComment, moveCommentDialog } from '../testing/move-comment';
 import { renderBoard } from '../testing/render-board';
 
 useDomEnvironment();
@@ -46,20 +47,28 @@ describe('Board', () => {
     expect(within(column('To do')).getByText('2')).toBeTruthy();
   });
 
-  it('shows a comment count on tasks that have comments, and nothing on tasks without', async () => {
+  it('always shows a comment button with the count, and a Complete or Archive button, in the top right', async () => {
     const comment = (text: string) => ({ at: '2026-11-12 10:00', text });
     await renderBoard({
       tasks: [
         buildTask({ title: 'Discussed', comments: [comment('One'), comment('Two'), comment('Three')] }),
         buildTask({ title: 'Noted', comments: [comment('Only')] }),
         buildTask({ title: 'Quiet' }),
+        buildTask({ title: 'Shipped', status: 'Done' }),
       ],
     });
     const card = (title: string) => screen.getByRole('article', { name: title });
-    expect(within(card('Discussed')).getByText('3 comments').parentElement?.getAttribute('title')).toBe('3 comments');
-    expect(within(card('Discussed')).getByText('3').getAttribute('aria-hidden')).toBe('true');
-    expect(within(card('Noted')).getByText('1 comment')).toBeTruthy();
-    expect(within(card('Quiet')).queryByText(/comments?$/)).toBeNull();
+    const discussed = within(card('Discussed')).getByRole('button', { name: 'Add comment, 3 comments' });
+    expect(discussed.textContent).toBe('3');
+    expect(discussed.getAttribute('title')).toBe('3 comments · Add comment (⇧⌘C)');
+    expect(discussed.getAttribute('aria-keyshortcuts')).toBe('Shift+Meta+C');
+    expect(within(card('Noted')).getByRole('button', { name: 'Add comment, 1 comment' })).toBeTruthy();
+    const quiet = within(card('Quiet')).getByRole('button', { name: 'Add comment' });
+    expect(quiet.textContent).toBe('');
+    expect(within(card('Quiet')).getByRole('button', { name: 'Complete' }).getAttribute('title')).toBe('Complete (⌘5)');
+    expect(within(card('Shipped')).getByRole('button', { name: 'Archive' }).getAttribute('title')).toBe(
+      'Archive (⇧⌘A)',
+    );
   });
 
   it('keeps the article role on a task even with drag and drop attached', async () => {
@@ -270,6 +279,23 @@ describe('Done tasks', () => {
     expect(within(column('Done')).getByRole('button', { name: 'Archive' })).toBeTruthy();
   });
 
+  it('offers Complete, with the ⌘5 hint, on every card that is not in Done', async () => {
+    await renderBoard({
+      tasks: [
+        buildTask({ title: 'Waiting', status: 'To do' }),
+        buildTask({ title: 'Team', status: 'Internal' }),
+        buildTask({ title: 'Shipped', status: 'Done' }),
+      ],
+    });
+    for (const title of ['Waiting', 'Team']) {
+      const complete = within(screen.getByRole('article', { name: title })).getByRole('button', { name: 'Complete' });
+      expect(complete.getAttribute('aria-keyshortcuts')).toBe('Meta+5');
+    }
+    expect(
+      within(screen.getByRole('article', { name: 'Shipped' })).queryByRole('button', { name: 'Complete' }),
+    ).toBeNull();
+  });
+
   it('marks a task in With client complete', async () => {
     const { user, fake } = await renderBoard({
       tasks: [
@@ -279,7 +305,13 @@ describe('Done tasks', () => {
     });
     await user.click(screen.getByRole('article', { name: 'Signed' }));
     await user.click(screen.getByRole('button', { name: 'Mark complete' }));
-    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Signed.md', 'Done', 'tasks/Already done.md');
+    await answerMoveComment(user, 'Done', 'Client signed off');
+    expect(fake.api.moveTask).toHaveBeenCalledWith(
+      'tasks/Signed.md',
+      'Done',
+      'tasks/Already done.md',
+      'Client signed off',
+    );
     expect(titlesIn('Done')).toEqual(['Signed', 'Already done']);
     expect(titlesIn('With client')).toEqual([]);
   });
@@ -290,7 +322,147 @@ describe('Done tasks', () => {
     });
     await user.click(screen.getByRole('article', { name: 'Doing' }));
     await user.click(screen.getByRole('button', { name: 'Mark complete' }));
-    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Doing.md', 'Done', 'tasks/Already done.md');
+    await answerMoveComment(user, 'Done');
+    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Doing.md', 'Done', 'tasks/Already done.md', null);
     expect(titlesIn('Done')).toEqual(['Doing', 'Already done']);
+  });
+});
+
+describe('A comment on a move', () => {
+  function completeButtonOf(title: string): HTMLElement {
+    return within(screen.getByRole('article', { name: title })).getByRole('button', { name: 'Complete' });
+  }
+
+  it('asks for a comment when Complete is pressed, then moves the task to the top of Done with it', async () => {
+    const { user, fake } = await renderBoard({
+      tasks: [
+        buildTask({ title: 'Already done', status: 'Done', order: 1 }),
+        buildTask({ title: 'Report', status: 'In progress' }),
+      ],
+    });
+    await user.click(completeButtonOf('Report'));
+
+    const dialog = await moveCommentDialog('Done');
+    expect(within(dialog).getByText('“Report” moves from In progress to Done.')).toBeTruthy();
+    expect(document.activeElement).toBe(within(dialog).getByLabelText('Comment (optional)'));
+    expect(screen.queryByRole('complementary', { name: 'Task details' })).toBeNull();
+    expect(fake.api.moveTask).not.toHaveBeenCalled();
+
+    await user.keyboard('Sent the monthly report{Enter}');
+    expect(fake.api.moveTask).toHaveBeenCalledWith(
+      'tasks/Report.md',
+      'Done',
+      'tasks/Already done.md',
+      'Sent the monthly report',
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(titlesIn('Done')).toEqual(['Report', 'Already done']);
+    expect(
+      fake
+        .tasks()
+        .find((task) => task.title === 'Report')
+        ?.comments.map((comment) => comment.text),
+    ).toEqual(['Sent the monthly report']);
+  });
+
+  it('moves without a comment when the box is left empty', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report', status: 'Internal' })] });
+    await user.click(completeButtonOf('Report'));
+    await user.click(within(await moveCommentDialog('Done')).getByRole('button', { name: 'Move' }));
+    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Report.md', 'Done', null, null);
+  });
+
+  it('starts a new line with Shift+Enter instead of moving', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report', status: 'With client' })] });
+    await user.click(completeButtonOf('Report'));
+    await moveCommentDialog('Done');
+    await user.keyboard('First line{Shift>}{Enter}{/Shift}Second line');
+    expect(fake.api.moveTask).not.toHaveBeenCalled();
+    await user.keyboard('{Meta>}{Enter}{/Meta}');
+    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Report.md', 'Done', null, 'First line\nSecond line');
+  });
+
+  it.each([
+    ['Esc', '{Escape}'],
+    ['⌘.', '{Meta>}[Period]{/Meta}'],
+  ])('leaves the task where it was when cancelled with %s', async (_name, keys) => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report', status: 'In progress' })] });
+    await user.click(completeButtonOf('Report'));
+    await moveCommentDialog('Done');
+    await user.keyboard(`Half typed${keys}`);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(fake.api.moveTask).not.toHaveBeenCalled();
+    expect(titlesIn('In progress')).toEqual(['Report']);
+  });
+
+  it('leaves the task where it was when Cancel is pressed', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report', status: 'In progress' })] });
+    await user.click(completeButtonOf('Report'));
+    await user.click(within(await moveCommentDialog('Done')).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(fake.api.moveTask).not.toHaveBeenCalled();
+  });
+
+  it('keeps the dialog and the comment when the move fails, so it can be tried again', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report', status: 'In progress' })] });
+    fake.api.moveTask.mockRejectedValueOnce(new Error('The file is locked.'));
+    await user.click(completeButtonOf('Report'));
+    const dialog = await moveCommentDialog('Done');
+    await user.keyboard('Shipped{Enter}');
+
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      expect.stringContaining('The file is locked.'),
+    );
+    expect((within(dialog).getByLabelText('Comment (optional)') as HTMLTextAreaElement).value).toBe('Shipped');
+    await user.click(within(dialog).getByRole('button', { name: 'Move' }));
+    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Report.md', 'Done', null, 'Shipped');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});
+
+describe('Adding a comment from a card', () => {
+  it('opens a comment dialog from the speech bubble, and adds the comment with Enter', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report', status: 'Internal' })] });
+    await user.click(
+      within(screen.getByRole('article', { name: 'Report' })).getByRole('button', { name: 'Add comment' }),
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add comment' });
+    expect(within(dialog).getByText('On “Report”.')).toBeTruthy();
+    expect(screen.queryByRole('complementary', { name: 'Task details' })).toBeNull();
+    expect((within(dialog).getByRole('button', { name: 'Add comment' }) as HTMLButtonElement).disabled).toBe(true);
+    await user.keyboard('{Enter}');
+    expect(fake.api.addComment).not.toHaveBeenCalled();
+
+    await user.keyboard('Waiting on Sam{Shift>}{Enter}{/Shift}for the figures{Enter}');
+    expect(fake.api.addComment).toHaveBeenCalledWith('tasks/Report.md', 'Waiting on Sam\nfor the figures');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(
+      within(screen.getByRole('article', { name: 'Report' })).getByRole('button', { name: 'Add comment, 1 comment' }),
+    ).toBeTruthy();
+  });
+
+  it('opens it with ⇧⌘C on the focused card, and cancels with Esc', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report' })] });
+    screen.getByRole('article', { name: 'Report' }).focus();
+    await user.keyboard('{Meta>}{Shift>}c{/Shift}{/Meta}');
+    await screen.findByRole('dialog', { name: 'Add comment' });
+    await user.keyboard('Never mind{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(fake.api.addComment).not.toHaveBeenCalled();
+  });
+
+  it('keeps the dialog and the text when the comment fails, so it can be tried again', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report' })] });
+    fake.api.addComment.mockRejectedValueOnce(new Error('The file is locked.'));
+    await user.click(
+      within(screen.getByRole('article', { name: 'Report' })).getByRole('button', { name: 'Add comment' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Add comment' });
+    await user.keyboard('Called the client{Enter}');
+
+    expect((await screen.findByRole('alert')).textContent).toContain('The file is locked.');
+    expect((within(dialog).getByLabelText('Comment') as HTMLTextAreaElement).value).toBe('Called the client');
   });
 });
