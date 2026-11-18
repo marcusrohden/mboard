@@ -176,3 +176,38 @@ describe('Keyboard shortcuts', () => {
     expect(screen.getByRole('button', { name: 'Archived' }).getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+describe('Open agent', () => {
+  function openAgentButton(): HTMLButtonElement {
+    return screen.getByRole('button', { name: 'Open agent' }) as HTMLButtonElement;
+  }
+
+  it('opens the agent from the header, showing ⇧⌘O', async () => {
+    const { user, fake } = await renderBoard({ tasks: TASKS() });
+    expect(openAgentButton().getAttribute('aria-keyshortcuts')).toBe('Shift+Meta+O');
+    await user.click(openAgentButton());
+    expect(fake.api.openAgent).toHaveBeenCalledOnce();
+  });
+
+  it('opens the agent with ⇧⌘O', async () => {
+    const { user, fake } = await renderBoard({ tasks: TASKS() });
+    await user.keyboard('{Meta>}{Shift>}o{/Shift}{/Meta}');
+    expect(fake.api.openAgent).toHaveBeenCalledOnce();
+  });
+
+  it('is off while there is nothing in Done', async () => {
+    const { user, fake } = await renderBoard({ tasks: TASKS().filter((task) => task.status !== 'Done') });
+    expect(openAgentButton().disabled).toBe(true);
+    expect(openAgentButton().title).toBe('No tasks in Done yet');
+    await user.keyboard('{Meta>}{Shift>}o{/Shift}{/Meta}');
+    expect(fake.api.openAgent).not.toHaveBeenCalled();
+  });
+
+  it('shows why the agent could not open', async () => {
+    const { user, fake } = await renderBoard({ tasks: TASKS() });
+    fake.api.openAgent.mockRejectedValueOnce(new Error("mboard couldn't open Ghostty."));
+    await user.click(openAgentButton());
+    expect((await screen.findByRole('alert')).textContent).toContain("mboard couldn't open Ghostty.");
+    expect(openAgentButton().disabled).toBe(false);
+  });
+});

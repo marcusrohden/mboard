@@ -1,8 +1,13 @@
+import os from 'node:os';
 import path from 'node:path';
 import { app, dialog, session, shell } from 'electron';
 import type { TaskId } from '../shared/contract';
+import { TerminalAgentLauncher } from './agent/agent-launcher';
+import { loginShell } from './agent/login-shell';
+import { createTerminalOpener } from './agent/terminal-opener';
 import { registerAppSchemeAsPrivileged, serveRendererBundle } from './app-protocol';
 import { createAppUpdateService } from './app-update';
+import { runCommand } from './app-update/child-processes';
 import { FileBoardService } from './board/board-service';
 import { createClock } from './clock';
 import { createInvokeHandlers } from './ipc/invoke-handlers';
@@ -58,7 +63,7 @@ function applyLaunchConfig(config: LaunchConfig): void {
 }
 
 /**
- * The composition root: builds the clock, settings, board, setup, platform and app updates, wires IPC, push
+ * The composition root: builds the clock, settings, board, setup, platform, agent launcher and app updates, wires IPC, push
  * events, the app menu and the window, then resolves the launch state before showing the window.
  */
 async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSource): Promise<void> {
@@ -77,6 +82,18 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
     board,
     launchBoardPath: launchConfig.boardPath,
     onFirstSetup: async () => platform.setOpenAtLogin((await settings.read()).openAtLogin),
+  });
+  const agent = new TerminalAgentLauncher({
+    settings,
+    board,
+    boardPath: async () => {
+      const state = await setup.getAppState();
+      return state.kind === 'ready' ? state.boardPath : null;
+    },
+    shell: loginShell(process.env['SHELL'], os.userInfo().shell),
+    temporaryFolder: os.tmpdir(),
+    openInTerminal: createTerminalOpener(runCommand),
+    clock,
   });
   const windows = new MainWindowController({
     rendererSource,
@@ -105,13 +122,17 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
       board,
       platform,
       ageThresholds,
+      agent,
       appUpdates,
       settingsRequests,
       pickBoardFolder: () => dialogs.pickBoardFolder(),
       openInObsidian: (absolutePath) => shell.openExternal(obsidianOpenUrl(absolutePath)),
     }),
   );
-  const stopRendererEvents = bridgeRendererEvents({ board, setup, platform, ageThresholds, appUpdates }, windows.send);
+  const stopRendererEvents = bridgeRendererEvents(
+    { board, setup, platform, ageThresholds, agent, appUpdates },
+    windows.send,
+  );
   installAppMenu({ openSettings, changeBoardFolder });
   handleAppLifecycle(windows, showWindow, () => {
     stopRendererEvents();

@@ -1,4 +1,4 @@
-import { DEFAULT_AGE_THRESHOLDS } from '../../../domain';
+import { DEFAULT_AGE_THRESHOLDS, DEFAULT_AGENT_SETTINGS } from '../../../domain';
 import type { BoardSnapshot, Task } from '../../../shared/contract';
 import type { Clock, NotificationRequest, Notifier, PlatformDependencies, Settings } from '../../ports';
 import type {
@@ -60,7 +60,13 @@ export class FakeSettings {
   readonly updates: Array<Partial<Settings>> = [];
 
   constructor(initial: Partial<Settings> = {}) {
-    this.value = { boardPath: '/vault/board', openAtLogin: true, ageThresholds: DEFAULT_AGE_THRESHOLDS, ...initial };
+    this.value = {
+      boardPath: '/vault/board',
+      openAtLogin: true,
+      ageThresholds: DEFAULT_AGE_THRESHOLDS,
+      agent: DEFAULT_AGENT_SETTINGS,
+      ...initial,
+    };
   }
 
   read = async (): Promise<Settings> => ({ ...this.value });

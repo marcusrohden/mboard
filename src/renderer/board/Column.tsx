@@ -12,13 +12,25 @@ interface ColumnProps {
   today: LocalDate;
   onOpen: (id: TaskId) => void;
   onArchive: (id: TaskId) => void;
+  onComplete: (id: TaskId) => void;
+  onComment: (id: TaskId) => void;
   onArchiveAll: () => void;
 }
 
 /**
  * One board column: its name, its "shown of total" count and its tasks. The Done column also offers Archive all.
  */
-export function Column({ view, tasks, isFiltered, today, onOpen, onArchive, onArchiveAll }: ColumnProps) {
+export function Column({
+  view,
+  tasks,
+  isFiltered,
+  today,
+  onOpen,
+  onArchive,
+  onComplete,
+  onComment,
+  onArchiveAll,
+}: ColumnProps) {
   const { ref, isDropTarget } = useColumnDropZone(view.status);
   const emptyText = isFiltered && view.total > 0 ? 'No matching tasks' : 'No tasks';
 
@@ -49,6 +61,8 @@ export function Column({ view, tasks, isFiltered, today, onOpen, onArchive, onAr
             today={today}
             onOpen={onOpen}
             onArchive={onArchive}
+            onComplete={onComplete}
+            onComment={onComment}
           />
         ))}
         {tasks.length === 0 && <p className={styles.empty}>{emptyText}</p>}

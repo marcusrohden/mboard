@@ -13,16 +13,20 @@ interface HeaderProps {
   projects: readonly string[];
   isArchivedView: boolean;
   isFilterActive: boolean;
+  canOpenAgent: boolean;
+  /** The agent's columns as a phrase, such as `In progress and Done`, or `null` while they load. */
+  agentColumns: string | null;
   searchRef: Ref<HTMLInputElement>;
   dispatch: (action: FilterAction) => void;
   onToggleArchived: () => void;
+  onOpenAgent: () => void;
   onNewTask: () => void;
   onOpenSettings: () => void;
 }
 
 /**
- * The board header: name, search, filters, Clear, the Archived toggle, New task and the Settings gear,
- * each showing its Command shortcut.
+ * The board header: name, search, filters, Clear, the Archived toggle, Open agent, New task and the Settings
+ * gear, each showing its Command shortcut. Open agent is off while the agent's columns have no tasks to give it.
  */
 export function Header({
   boardName,
@@ -30,9 +34,12 @@ export function Header({
   projects,
   isArchivedView,
   isFilterActive,
+  canOpenAgent,
+  agentColumns,
   searchRef,
   dispatch,
   onToggleArchived,
+  onOpenAgent,
   onNewTask,
   onOpenSettings,
 }: HeaderProps) {
@@ -69,6 +76,18 @@ export function Header({
       <div className={styles.actions}>
         <Button aria-pressed={isArchivedView} shortcut="toggleArchived" onClick={onToggleArchived}>
           Archived
+        </Button>
+        <Button
+          disabled={!canOpenAgent}
+          title={
+            canOpenAgent
+              ? `Open your agent in a terminal with the tasks in ${agentColumns ?? 'its columns'}`
+              : `No tasks in ${agentColumns ?? 'the agent’s columns'} yet`
+          }
+          shortcut="openAgent"
+          onClick={onOpenAgent}
+        >
+          Open agent
         </Button>
         <Button variant="primary" shortcut="newTask" onClick={onNewTask}>
           New task

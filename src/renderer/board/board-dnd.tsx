@@ -31,8 +31,10 @@ interface BoardDndProps {
 /**
  * The only place the board touches the drag-and-drop library. It shows the dragged task moving between
  * the columns as it happens, and calls `onMove` once, when it is dropped, with the column it landed in
- * and the task it now sits above (`null` for the end). The optimistic arrangement is dropped as soon as
- * the next snapshot changes the columns, or when the move is rejected.
+ * and the task it now sits above (`null` for the end). The dropped task stays where it landed while `onMove`
+ * is pending, which includes a comment dialog for the move. The optimistic arrangement is dropped as soon as
+ * the next snapshot changes the columns, shortly after the move succeeds, or when the move is rejected or
+ * cancelled.
  */
 export function BoardDnd({ columns, onMove, children }: BoardDndProps) {
   const [optimistic, setOptimistic] = useState<ColumnIds | null>(null);
@@ -72,9 +74,9 @@ export function BoardDnd({ columns, onMove, children }: BoardDndProps) {
           clearOptimistic();
           return;
         }
-        window.setTimeout(clearOptimistic, OPTIMISTIC_VIEW_LIFETIME_MS);
         void onMove(id, drop.status, drop.beforeId).then((moved) => {
-          if (!moved) clearOptimistic();
+          if (moved) window.setTimeout(clearOptimistic, OPTIMISTIC_VIEW_LIFETIME_MS);
+          else clearOptimistic();
         });
       }}
     >

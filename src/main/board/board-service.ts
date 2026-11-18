@@ -204,7 +204,7 @@ export class FileBoardService implements BoardService {
     });
   }
 
-  moveTask(id: TaskId, status: Status, beforeId: TaskId | null): Promise<Task> {
+  moveTask(id: TaskId, status: Status, beforeId: TaskId | null, comment: string | null = null): Promise<Task> {
     return this.mutate(async (board) => {
       const location = this.locateLiveTask(board, id);
       const target = requireStatus(status);
@@ -215,7 +215,7 @@ export class FileBoardService implements BoardService {
         placement.kind === 'single'
           ? placement.order
           : await this.renumberColumn(board, placement.assignments, location);
-      const result = moveToColumn(current.document, target, order, this.now());
+      const result = moveToColumn(current.document, target, order, this.now(), comment);
       if (!result.changed) return taskAt(current.document, location);
       const destination = placementOf(location.folder, result.document, location.fileName);
       const saved = await board.files.save(location, current, result.document, destination);

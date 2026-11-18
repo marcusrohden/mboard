@@ -8,6 +8,8 @@ import type {
   Task,
 } from '../../shared/contract';
 import { IPC } from '../../shared/contract';
+import { DEFAULT_AGENT_SETTINGS } from '../../domain';
+import type { AgentSettings } from '../../shared/contract';
 import type { BoardService, BoardSetupService } from '../ports';
 import { createInvokeHandlers, type InvokeHandlerDependencies } from './invoke-handlers';
 
@@ -72,18 +74,25 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     get: vi.fn(() => THRESHOLDS),
     set: vi.fn(async (next: AgeThresholds) => next),
   };
+  const agent = {
+    settings: vi.fn(async () => DEFAULT_AGENT_SETTINGS),
+    saveSettings: vi.fn(async (next: AgentSettings) => next),
+    open: vi.fn(async () => undefined),
+    onSettingsChange: vi.fn(() => () => undefined),
+  };
   const dependencies: InvokeHandlerDependencies = {
     board: board as unknown as BoardService,
     setup: setup as unknown as BoardSetupService,
     platform,
     ageThresholds,
+    agent,
     appUpdates,
     settingsRequests,
     pickBoardFolder: vi.fn(async () => '/Vault/Board'),
     openInObsidian: vi.fn(async () => undefined),
     ...overrides,
   };
-  return { dependencies, board, setup, platform, ageThresholds, appUpdates, settingsRequests };
+  return { dependencies, board, setup, platform, ageThresholds, agent, appUpdates, settingsRequests };
 }
 
 describe('createInvokeHandlers', () => {
@@ -98,7 +107,8 @@ describe('createInvokeHandlers', () => {
 
     await expect(handlers.createTask(NEW_TASK)).resolves.toBe(TASK);
     await handlers.editTask('tasks/A.md', { field: 'project', value: null });
-    await handlers.moveTask('tasks/A.md', 'Done', null);
+    await handlers.moveTask('tasks/A.md', 'Done', null, null);
+    await handlers.moveTask('tasks/A.md', 'With client', 'tasks/B.md', 'Sent the quote');
     await expect(handlers.archiveAllDone()).resolves.toBe(2);
     await expect(handlers.getSnapshot()).resolves.toBe(SNAPSHOT);
     await handlers.revertTask('tasks/A.md', 2, EXPECTED);
@@ -107,7 +117,8 @@ describe('createInvokeHandlers', () => {
 
     expect(board.createTask).toHaveBeenCalledWith(NEW_TASK);
     expect(board.editTask).toHaveBeenCalledWith('tasks/A.md', { field: 'project', value: null });
-    expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'Done', null);
+    expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'Done', null, null);
+    expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'With client', 'tasks/B.md', 'Sent the quote');
     expect(board.revertTask).toHaveBeenCalledWith('tasks/A.md', 2, EXPECTED);
     expect(board.setProjectColour).toHaveBeenNthCalledWith(1, 'Acme', 'teal');
     expect(board.setProjectColour).toHaveBeenNthCalledWith(2, 'Acme', null);
@@ -119,9 +130,9 @@ describe('createInvokeHandlers', () => {
 
     for (const status of ['To do', 'In progress', 'Internal', 'With client', 'Done'] as const) {
       await handlers.createTask({ ...NEW_TASK, status });
-      await handlers.moveTask('tasks/A.md', status, null);
+      await handlers.moveTask('tasks/A.md', status, null, null);
       expect(board.createTask).toHaveBeenLastCalledWith({ ...NEW_TASK, status });
-      expect(board.moveTask).toHaveBeenLastCalledWith('tasks/A.md', status, null);
+      expect(board.moveTask).toHaveBeenLastCalledWith('tasks/A.md', status, null, null);
     }
   });
 
@@ -135,10 +146,12 @@ describe('createInvokeHandlers', () => {
       'editTask',
       ['tasks/A.md', { field: 'responsibility', value: 'Client' }],
     ],
-    ['moveTask to a column in another case', 'moveTask', ['tasks/A.md', 'with client', null]],
+    ['moveTask to a column in another case', 'moveTask', ['tasks/A.md', 'with client', null, null]],
     ['editTask with an unknown field', 'editTask', ['tasks/A.md', { field: 'status', value: 'Done' }]],
     ['editTask with a wrongly typed value', 'editTask', ['tasks/A.md', { field: 'title', value: 7 }]],
-    ['moveTask with a numeric neighbour', 'moveTask', ['tasks/A.md', 'Done', 3]],
+    ['moveTask with a numeric neighbour', 'moveTask', ['tasks/A.md', 'Done', 3, null]],
+    ['moveTask without a comment argument', 'moveTask', ['tasks/A.md', 'Done', null]],
+    ['moveTask with a numeric comment', 'moveTask', ['tasks/A.md', 'Done', null, 7]],
     ['addComment without text', 'addComment', ['tasks/A.md']],
     ['deleteTask with an object id', 'deleteTask', [{ id: 'tasks/A.md' }]],
     ['setOpenAtLogin with text', 'setOpenAtLogin', ['yes']],
@@ -147,6 +160,22 @@ describe('createInvokeHandlers', () => {
     ['setProjectColour with a numeric project', 'setProjectColour', [7, 'red']],
     ['setAgeThresholds without one threshold', 'setAgeThresholds', [{ nudgeFrom: 3, stallingFrom: 5 }]],
     ['setAgeThresholds with an extra key', 'setAgeThresholds', [{ ...THRESHOLDS, greenFrom: 0 }]],
+    ['setAgentSettings without a prompt', 'setAgentSettings', [{ terminal: 'Ghostty', command: 'claude' }]],
+    ['setAgentSettings with an extra key', 'setAgentSettings', [{ ...DEFAULT_AGENT_SETTINGS, cwd: '/' }]],
+    [
+      'setAgentSettings with an unknown terminal',
+      'setAgentSettings',
+      [{ ...DEFAULT_AGENT_SETTINGS, terminal: 'xterm' }],
+    ],
+    ['setAgentSettings with a numeric command', 'setAgentSettings', [{ ...DEFAULT_AGENT_SETTINGS, command: 7 }]],
+    ['setAgentSettings with a column as text', 'setAgentSettings', [{ ...DEFAULT_AGENT_SETTINGS, columns: 'Done' }]],
+    [
+      'setAgentSettings with an unknown column',
+      'setAgentSettings',
+      [{ ...DEFAULT_AGENT_SETTINGS, columns: ['Pending'] }],
+    ],
+    ['openAgent with a command', 'openAgent', ['rm -rf ~']],
+    ['getAgentSettings with an argument', 'getAgentSettings', [DEFAULT_AGENT_SETTINGS]],
     ['getAgeThresholds with an argument', 'getAgeThresholds', [THRESHOLDS]],
     ['getSnapshot with an argument', 'getSnapshot', [1]],
     ['installAppUpdate with a version', 'installAppUpdate', ['0.2.0']],
@@ -165,16 +194,52 @@ describe('createInvokeHandlers', () => {
     ],
     ['revertTask with a wrongly typed entry text', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, text: null }]],
   ] as const)('rejects %s before it reaches a service', async (_description, method, args) => {
-    const { dependencies, board, platform, ageThresholds, appUpdates } = fakeDependencies();
+    const { dependencies, board, platform, ageThresholds, agent, appUpdates } = fakeDependencies();
     const handlers = createInvokeHandlers(dependencies);
 
     await expect((handlers[method] as (...values: unknown[]) => Promise<unknown>)(...args)).rejects.toThrow(
       /^That request wasn't valid: /,
     );
-    const services = [board, platform, ageThresholds, appUpdates];
+    const services = [board, platform, ageThresholds, agent, appUpdates];
     for (const spy of services.flatMap((service) => Object.values(service))) {
       if (spy !== board.snapshot) expect(spy).not.toHaveBeenCalled();
     }
+  });
+
+  it('reads and saves the agent settings, and opens the agent', async () => {
+    const { dependencies, agent } = fakeDependencies();
+    const handlers = createInvokeHandlers(dependencies);
+    const next: AgentSettings = {
+      terminal: 'Terminal',
+      command: 'claude-personal',
+      prompt: 'List my work.',
+      columns: ['In progress', 'Done'],
+    };
+
+    await expect(handlers.getAgentSettings()).resolves.toEqual(DEFAULT_AGENT_SETTINGS);
+    await expect(handlers.setAgentSettings(next)).resolves.toEqual(next);
+    await handlers.openAgent();
+
+    expect(agent.saveSettings).toHaveBeenCalledWith(next);
+    expect(agent.open).toHaveBeenCalledOnce();
+  });
+
+  it('rejects agent settings without a column, in plain words, without saving', async () => {
+    const { dependencies, agent } = fakeDependencies();
+
+    await expect(
+      createInvokeHandlers(dependencies).setAgentSettings({ ...DEFAULT_AGENT_SETTINGS, columns: [] }),
+    ).rejects.toThrow('Choose at least one column whose tasks the agent gets.');
+    expect(agent.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it('rejects an agent command over two lines with the reason in plain words, without saving', async () => {
+    const { dependencies, agent } = fakeDependencies();
+
+    await expect(
+      createInvokeHandlers(dependencies).setAgentSettings({ ...DEFAULT_AGENT_SETTINGS, command: 'claude\ncurl evil' }),
+    ).rejects.toThrow('The agent command must fit on one line.');
+    expect(agent.saveSettings).not.toHaveBeenCalled();
   });
 
   it('reads and saves the age thresholds', async () => {

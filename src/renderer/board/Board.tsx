@@ -11,6 +11,8 @@ interface BoardProps {
   today: LocalDate;
   onOpen: (id: TaskId) => void;
   onArchive: (id: TaskId) => void;
+  onComplete: (id: TaskId) => void;
+  onComment: (id: TaskId) => void;
   onArchiveAll: () => void;
   onMove: (id: TaskId, status: Status, beforeId: TaskId | null) => Promise<boolean>;
   onNewTask: () => void;
@@ -27,7 +29,18 @@ function idsByColumn(views: ColumnView[]): ColumnIds {
 /**
  * The five columns, with drag and drop between and within them. An empty board invites the first task.
  */
-export function Board({ views, isFiltered, today, onOpen, onArchive, onArchiveAll, onMove, onNewTask }: BoardProps) {
+export function Board({
+  views,
+  isFiltered,
+  today,
+  onOpen,
+  onArchive,
+  onComplete,
+  onComment,
+  onArchiveAll,
+  onMove,
+  onNewTask,
+}: BoardProps) {
   const totalTasks = views.reduce((sum, view) => sum + view.total, 0);
   const taskById = new Map<TaskId, Task>(views.flatMap((view) => view.visible.map((task) => [task.id, task] as const)));
 
@@ -59,6 +72,8 @@ export function Board({ views, isFiltered, today, onOpen, onArchive, onArchiveAl
                 today={today}
                 onOpen={onOpen}
                 onArchive={onArchive}
+                onComplete={onComplete}
+                onComment={onComment}
                 onArchiveAll={onArchiveAll}
               />
             );

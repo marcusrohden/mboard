@@ -1,4 +1,4 @@
-import { COLUMNS, type Status, type Task } from '../../domain';
+import { COLUMNS, type Status, type Task, type TaskId } from '../../domain';
 import { columnShortcut, type ShortcutId } from '../shortcuts/keymap';
 import { useShortcuts } from '../shortcuts/shortcuts';
 import type { TaskCommands } from './use-task-commands';
@@ -14,9 +14,15 @@ function focusedTask(tasks: readonly Task[]): Task | null {
 /**
  * The task shortcuts that act on the task open in the drawer, or else on the task whose card or archived
  * row has focus: ⌘1 to ⌘5 move it to the top of that column, ⇧⌘A archives a task in Done, ⇧⌘R restores an
- * archived task and ⌘O opens it in Obsidian. Each does nothing for a task it doesn't apply to.
+ * archived task, ⌘O opens it in Obsidian and ⇧⌘C asks for a comment on a live task. Each does nothing for a
+ * task it doesn't apply to.
  */
-export function useTaskShortcuts(selectedTask: Task | null, tasks: readonly Task[], commands: TaskCommands): void {
+export function useTaskShortcuts(
+  selectedTask: Task | null,
+  tasks: readonly Task[],
+  commands: TaskCommands,
+  onComment: (id: TaskId) => void,
+): void {
   const target = (): Task | null => selectedTask ?? focusedTask(tasks);
 
   function moveTo(status: Status): void {
@@ -38,6 +44,13 @@ export function useTaskShortcuts(selectedTask: Task | null, tasks: readonly Task
       () => {
         const task = target();
         if (task?.isArchived === true) void commands.restore(task.id);
+      },
+    ],
+    [
+      'commentOnTask',
+      () => {
+        const task = target();
+        if (task !== null && !task.isArchived) onComment(task.id);
       },
     ],
     [

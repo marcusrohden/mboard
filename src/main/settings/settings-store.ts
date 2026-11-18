@@ -1,6 +1,11 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { DEFAULT_AGE_THRESHOLDS, sanitiseAgeThresholds } from '../../domain';
+import {
+  DEFAULT_AGE_THRESHOLDS,
+  DEFAULT_AGENT_SETTINGS,
+  sanitiseAgeThresholds,
+  sanitiseAgentSettings,
+} from '../../domain';
 import { AtomicFileWriter } from '../fs/atomic-file-writer';
 import { isNotFound } from '../fs/fs-errors';
 import { SerialQueue } from '../fs/serial-queue';
@@ -13,6 +18,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   boardPath: null,
   openAtLogin: true,
   ageThresholds: DEFAULT_AGE_THRESHOLDS,
+  agent: DEFAULT_AGENT_SETTINGS,
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -49,6 +55,7 @@ export function sanitiseSettings(raw: unknown): Settings {
     boardPath: readBoardPath(source['boardPath']),
     openAtLogin: readOpenAtLogin(source['openAtLogin']),
     ageThresholds: sanitiseAgeThresholds(source['ageThresholds']),
+    agent: sanitiseAgentSettings(source['agent']),
   };
   const windowBounds = readWindowBounds(source['windowBounds']);
   if (windowBounds !== undefined) settings.windowBounds = windowBounds;

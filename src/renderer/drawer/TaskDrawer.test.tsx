@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { HistoryEntry, LedgerChange } from '../../shared/contract';
 import { useDomEnvironment } from '../testing/dom-environment';
 import { buildTask } from '../testing/builders';
+import { answerMoveComment } from '../testing/move-comment';
 import { renderBoard } from '../testing/render-board';
 
 useDomEnvironment();
@@ -149,7 +150,13 @@ describe('Task detail drawer fields', () => {
     });
     const drawer = await openTask(user, 'Fix login');
     await user.selectOptions(within(drawer).getByLabelText('Column'), 'With client');
-    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Fix login.md', 'With client', 'tasks/Quote.md');
+    await answerMoveComment(user, 'With client', 'Sent for review');
+    expect(fake.api.moveTask).toHaveBeenCalledWith(
+      'tasks/Fix login.md',
+      'With client',
+      'tasks/Quote.md',
+      'Sent for review',
+    );
     const withClient = screen.getByRole('region', { name: 'With client' });
     await waitFor(() =>
       expect(
@@ -160,7 +167,8 @@ describe('Task detail drawer fields', () => {
     );
 
     await user.selectOptions(within(drawer).getByLabelText('Column'), 'Internal');
-    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Internal', null);
+    await answerMoveComment(user, 'Internal');
+    expect(fake.api.moveTask).toHaveBeenLastCalledWith('tasks/Fix login.md', 'Internal', null, null);
     const internal = screen.getByRole('region', { name: 'Internal' });
     await waitFor(() =>
       expect(
@@ -183,7 +191,8 @@ describe('Task detail drawer fields', () => {
     });
     const drawer = await openTask(user, 'Fix login');
     await user.selectOptions(within(drawer).getByLabelText('Column'), 'In progress');
-    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Fix login.md', 'In progress', 'tasks/Busy.md');
+    expect(screen.queryByRole('dialog', { name: 'Move to In progress' })).toBeNull();
+    expect(fake.api.moveTask).toHaveBeenCalledWith('tasks/Fix login.md', 'In progress', 'tasks/Busy.md', null);
     const inProgress = screen.getByRole('region', { name: 'In progress' });
     expect(
       within(inProgress)

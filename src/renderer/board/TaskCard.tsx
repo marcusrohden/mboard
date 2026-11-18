@@ -1,5 +1,6 @@
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import {
+  COLUMNS,
   dueChip,
   formatCompactDate,
   localDateOf,
@@ -8,13 +9,16 @@ import {
   type Status,
   type Task,
 } from '../../domain';
+import { columnShortcut, formatShortcut, type ShortcutId } from '../shortcuts/keymap';
+import { shortcutAttributes } from '../shortcuts/shortcuts';
 import { useAgeThresholds } from '../state/age-thresholds';
-import { ShortcutHint, shortcutAttributes } from '../shortcuts/shortcuts';
 import { TASK_ID_ATTRIBUTE } from '../state/use-task-shortcuts';
 import { AgeChip } from '../ui/AgeChip';
+import { ArchiveIcon } from '../ui/ArchiveIcon';
+import { CheckIcon } from '../ui/CheckIcon';
+import { CommentIcon } from '../ui/CommentIcon';
 import { ProjectLabel } from '../ui/ProjectLabel';
 import { useSortableTask } from './board-dnd';
-import { CommentCount } from './CommentCount';
 import styles from './TaskCard.module.css';
 
 interface TaskCardProps {
@@ -24,19 +28,61 @@ interface TaskCardProps {
   today: LocalDate;
   onOpen: (id: Task['id']) => void;
   onArchive: (id: Task['id']) => void;
+  onComplete: (id: Task['id']) => void;
+  onComment: (id: Task['id']) => void;
+}
+
+interface CardIconButtonProps {
+  label: string;
+  tooltip: string;
+  shortcut: ShortcutId;
+  action: 'comment' | 'complete' | 'archive';
+  onPress: () => void;
+  children: ReactNode;
 }
 
 /**
- * One task on the board: title, project in its colour, then the due, created and updated dates on lines of their own.
- * A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
- * staleness tier also colours the left edge. A task with comments shows their count at the end of the updated
- * line. The whole card is the drag handle. Clicking it, or pressing
- * Enter on it, opens the detail drawer, and the task shortcuts act on it while it has focus.
+ * An icon button in a card's top right corner. It names itself for assistive technology and shows its
+ * shortcut in its tooltip, because the card has no room for a key hint. Pressing it never opens the drawer.
  */
-export function TaskCard({ task, index, status, today, onOpen, onArchive }: TaskCardProps) {
+function CardIconButton({ label, tooltip, shortcut, action, onPress, children }: CardIconButtonProps) {
+  return (
+    <button
+      type="button"
+      className={styles.iconButton}
+      data-action={action}
+      aria-label={label}
+      title={`${tooltip} (${formatShortcut(shortcut)})`}
+      {...shortcutAttributes(shortcut)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onPress();
+      }}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {children}
+    </button>
+  );
+}
+
+function describeComments(count: number): string {
+  return count === 1 ? '1 comment' : `${count} comments`;
+}
+
+/**
+ * One task on the board: title, project in its colour, then the due, created and updated dates on lines of their
+ * own. A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
+ * staleness tier also colours the left edge. The top right corner always shows two icon buttons: a speech bubble
+ * with the comment count, which adds a comment, and a tick that completes the task (moving it to Done after the
+ * move comment), or, in Done, an archive box. The whole card is the drag handle. Clicking it, or pressing Enter on
+ * it, opens the detail drawer, and the task shortcuts act on it while it has focus.
+ */
+export function TaskCard({ task, index, status, today, onOpen, onArchive, onComplete, onComment }: TaskCardProps) {
   const { ref, isDragging } = useSortableTask(task.id, index, status);
   const staleness = stalenessOf(task, today, useAgeThresholds());
   const due = dueChip(task, today);
+  const commentCount = task.comments.length;
+  const comments = describeComments(commentCount);
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>): void {
     if (event.key === 'Enter' && event.target === event.currentTarget) {
@@ -58,7 +104,42 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
       onClick={() => onOpen(task.id)}
       onKeyDown={handleKeyDown}
     >
-      <p className={styles.title}>{task.title}</p>
+      <div className={styles.top}>
+        <p className={styles.title}>{task.title}</p>
+        <div className={styles.actions}>
+          <CardIconButton
+            label={commentCount === 0 ? 'Add comment' : `Add comment, ${comments}`}
+            tooltip={commentCount === 0 ? 'Add comment' : `${comments} · Add comment`}
+            shortcut="commentOnTask"
+            action="comment"
+            onPress={() => onComment(task.id)}
+          >
+            <CommentIcon />
+            {commentCount > 0 && <span className={styles.count}>{commentCount}</span>}
+          </CardIconButton>
+          {task.status === 'Done' ? (
+            <CardIconButton
+              label="Archive"
+              tooltip="Archive"
+              shortcut="archiveTask"
+              action="archive"
+              onPress={() => onArchive(task.id)}
+            >
+              <ArchiveIcon />
+            </CardIconButton>
+          ) : (
+            <CardIconButton
+              label="Complete"
+              tooltip="Complete"
+              shortcut={columnShortcut(COLUMNS.indexOf('Done') + 1)}
+              action="complete"
+              onPress={() => onComplete(task.id)}
+            >
+              <CheckIcon />
+            </CardIconButton>
+          )}
+        </div>
+      </div>
       {task.project !== null && (
         <p className={styles.project}>
           <ProjectLabel project={task.project} />
@@ -81,24 +162,8 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive }: Task
         <div className={styles.dateLine}>
           <span>Updated {formatCompactDate(localDateOf(task.updated), today)}</span>
           <AgeChip task={task} today={today} />
-          <CommentCount count={task.comments.length} />
         </div>
       </div>
-      {task.status === 'Done' && (
-        <button
-          type="button"
-          className={styles.archive}
-          {...shortcutAttributes('archiveTask')}
-          onClick={(event) => {
-            event.stopPropagation();
-            onArchive(task.id);
-          }}
-          onKeyDown={(event) => event.stopPropagation()}
-        >
-          Archive
-          <ShortcutHint id="archiveTask" />
-        </button>
-      )}
     </article>
   );
 }

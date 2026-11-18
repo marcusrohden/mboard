@@ -1,15 +1,24 @@
 import type { FolderChoice, InvokeMethod, MboardInvokeApi } from '../../shared/contract';
 import { isFileSystemError } from '../fs/fs-errors';
-import type { AgeThresholdsSetting, AppUpdates, BoardService, BoardSetupService, Platform } from '../ports';
+import type {
+  AgeThresholdsSetting,
+  AgentLauncher,
+  AppUpdates,
+  BoardService,
+  BoardSetupService,
+  Platform,
+} from '../ports';
 import { userFacingMessage } from '../user-facing-error';
 import {
   expectArguments,
   readAgeThresholds,
+  readAgentSettings,
   readBoolean,
   readFolderPath,
   readNewTaskInput,
   readEntryIndex,
   readOptionalTaskId,
+  readOptionalText,
   readProjectColour,
   readProjectName,
   readRevertExpectation,
@@ -25,6 +34,7 @@ export interface InvokeHandlerDependencies {
   board: BoardService;
   platform: Pick<Platform, 'preferences' | 'setOpenAtLogin' | 'reminderBanner' | 'dismissReminderBanner'>;
   ageThresholds: Pick<AgeThresholdsSetting, 'get' | 'set'>;
+  agent: AgentLauncher;
   appUpdates: AppUpdates;
   /** Claims a pending request from the menu to open Settings. */
   settingsRequests: { take(): boolean };
@@ -74,8 +84,13 @@ function boardHandlers(dependencies: InvokeHandlerDependencies) {
       return board.addComment(readTaskId(id), readText(text, 'the comment'));
     },
     moveTask: async (...args: unknown[]) => {
-      const [id, status, beforeId] = expectArguments(args, 3);
-      return board.moveTask(readTaskId(id), readStatus(status), readOptionalTaskId(beforeId));
+      const [id, status, beforeId, comment] = expectArguments(args, 4);
+      return board.moveTask(
+        readTaskId(id),
+        readStatus(status),
+        readOptionalTaskId(beforeId),
+        readOptionalText(comment, 'the comment'),
+      );
     },
     archiveTask: async (...args: unknown[]) => board.archiveTask(readTaskId(expectArguments(args, 1)[0])),
     archiveAllDone: withoutArguments(() => board.archiveAllDone()),
@@ -118,10 +133,18 @@ function platformHandlers({ platform }: InvokeHandlerDependencies) {
   };
 }
 
-function settingsHandlers({ ageThresholds }: InvokeHandlerDependencies) {
+function settingsHandlers({ ageThresholds, agent }: InvokeHandlerDependencies) {
   return {
     getAgeThresholds: withoutArguments(() => ageThresholds.get()),
     setAgeThresholds: async (...args: unknown[]) => ageThresholds.set(readAgeThresholds(expectArguments(args, 1)[0])),
+    getAgentSettings: withoutArguments(() => agent.settings()),
+    setAgentSettings: async (...args: unknown[]) => agent.saveSettings(readAgentSettings(expectArguments(args, 1)[0])),
+  };
+}
+
+function agentHandlers({ agent }: InvokeHandlerDependencies) {
+  return {
+    openAgent: withoutArguments(() => agent.open()),
   };
 }
 
@@ -146,6 +169,7 @@ export function createInvokeHandlers(dependencies: InvokeHandlerDependencies): I
     ...boardHandlers(dependencies),
     ...platformHandlers(dependencies),
     ...settingsHandlers(dependencies),
+    ...agentHandlers(dependencies),
     ...appHandlers(dependencies),
   };
   return allPresentable(handlers);

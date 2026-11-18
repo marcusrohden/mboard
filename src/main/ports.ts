@@ -1,5 +1,6 @@
 import type {
   AgeThresholds,
+  AgentSettings,
   AppState,
   AppUpdateStatus,
   BoardSnapshot,
@@ -34,6 +35,7 @@ export interface Settings {
   boardPath: string | null;
   openAtLogin: boolean;
   ageThresholds: AgeThresholds;
+  agent: AgentSettings;
   windowBounds?: WindowBounds;
 }
 
@@ -72,7 +74,7 @@ export interface BoardService {
   createTask(input: NewTaskInput): Promise<Task>;
   editTask(id: TaskId, edit: TaskEdit): Promise<Task>;
   addComment(id: TaskId, text: string): Promise<Task>;
-  moveTask(id: TaskId, status: Status, beforeId: TaskId | null): Promise<Task>;
+  moveTask(id: TaskId, status: Status, beforeId: TaskId | null, comment?: string | null): Promise<Task>;
   archiveTask(id: TaskId): Promise<Task>;
   archiveAllDone(): Promise<number>;
   restoreTask(id: TaskId): Promise<Task>;
@@ -80,6 +82,29 @@ export interface BoardService {
   deleteTask(id: TaskId): Promise<void>;
   setProjectColour(project: string, colour: ProjectColour | null): Promise<void>;
   absolutePath(id: TaskId): string;
+}
+
+/**
+ * Opens the person's AI agent in their terminal, in the board folder, with their prompt and the tasks in
+ * Done, and keeps the settings for it in `settings.json` (ADR 0011).
+ */
+export interface AgentLauncher {
+  settings(): Promise<AgentSettings>;
+  /**
+   * Saves new agent settings and resolves with them as saved.
+   *
+   * @throws Error with a user-presentable message when `agentSettingsProblem` finds a problem with them.
+   */
+  saveSettings(next: AgentSettings): Promise<AgentSettings>;
+  /** Tells `listener` the settings each time they are saved. Returns a function that stops listening. */
+  onSettingsChange(listener: (settings: AgentSettings) => void): () => void;
+  /**
+   * Opens the agent. Resolves once the terminal has been asked to start it.
+   *
+   * @throws Error with a user-presentable message when no board is open, the agent's columns are empty or the
+   * terminal can't open.
+   */
+  open(): Promise<void>;
 }
 
 /** Moves a deleted task's file somewhere recoverable: the macOS Trash, or a test folder. */

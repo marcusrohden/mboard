@@ -1,6 +1,16 @@
-import { COLUMNS, PROJECT_COLOURS, ageThresholdsProblem, isProjectColour, isStatus } from '../../domain';
+import {
+  AGENT_TERMINALS,
+  COLUMNS,
+  PROJECT_COLOURS,
+  ageThresholdsProblem,
+  agentSettingsProblem,
+  isAgentTerminal,
+  isProjectColour,
+  isStatus,
+} from '../../domain';
 import type {
   AgeThresholds,
+  AgentSettings,
   LocalDate,
   NewTaskInput,
   ProjectColour,
@@ -16,6 +26,7 @@ const NEW_TASK_KEYS = ['description', 'due', 'project', 'status', 'title'] as co
 const TASK_EDIT_KEYS = ['field', 'value'] as const;
 const REVERT_EXPECTATION_KEYS = ['at', 'historyLength', 'text'] as const;
 const AGE_THRESHOLD_KEYS = ['nudgeFrom', 'staleFrom', 'stallingFrom'] as const;
+const AGENT_SETTINGS_KEYS = ['columns', 'command', 'prompt', 'terminal'] as const;
 
 /** Builds the error for a request from the renderer that doesn't have the shape the contract describes. */
 export function invalidRequest(detail: string): Error {
@@ -76,6 +87,11 @@ function readDue(value: unknown): LocalDate | null {
 /** Free text, such as a comment. */
 export function readText(value: unknown, what: string): string {
   return readString(value, what);
+}
+
+/** Free text or `null`, such as the comment that may come with a move. */
+export function readOptionalText(value: unknown, what: string): string | null {
+  return readNullableString(value, what);
 }
 
 function readCount(value: unknown, what: string): number {
@@ -175,4 +191,28 @@ export function readProjectName(value: unknown): string {
 export function readProjectColour(value: unknown): ProjectColour | null {
   if (value === null || isProjectColour(value)) return value;
   throw invalidRequest(`the colour must be one of ${PROJECT_COLOURS.join(', ')}, or null`);
+}
+
+/**
+ * Agent settings, with exactly `terminal`, `command`, `prompt` and `columns`.
+ *
+ * @throws Error naming the problem in plain words when they can't be saved.
+ */
+export function readAgentSettings(value: unknown): AgentSettings {
+  if (!isPlainObject(value) || !hasExactKeys(value, AGENT_SETTINGS_KEYS)) {
+    throw invalidRequest(`agent settings need exactly ${AGENT_SETTINGS_KEYS.join(', ')}`);
+  }
+  const terminal = value['terminal'];
+  if (!isAgentTerminal(terminal)) throw invalidRequest(`the terminal must be one of ${AGENT_TERMINALS.join(', ')}`);
+  const columns = value['columns'];
+  if (!Array.isArray(columns)) throw invalidRequest("the agent's columns must be a list");
+  const settings: AgentSettings = {
+    terminal,
+    command: readString(value['command'], 'the agent command'),
+    prompt: readString(value['prompt'], 'the prompt'),
+    columns: columns.map(readStatus),
+  };
+  const problem = agentSettingsProblem(settings);
+  if (problem !== null) throw new Error(problem);
+  return settings;
 }

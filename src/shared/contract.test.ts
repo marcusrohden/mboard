@@ -25,7 +25,12 @@ describe('IPC channels', () => {
 describe('channel types', () => {
   it('tie invoke channels to argument and result types', () => {
     expectTypeOf<InvokeChannelMap['board:moveTask']['args']>().toEqualTypeOf<
-      [id: string, status: 'To do' | 'In progress' | 'Internal' | 'With client' | 'Done', beforeId: string | null]
+      [
+        id: string,
+        status: 'To do' | 'In progress' | 'Internal' | 'With client' | 'Done',
+        beforeId: string | null,
+        comment: string | null,
+      ]
     >();
     expectTypeOf<InvokeChannelMap['board:moveTask']['result']>().toEqualTypeOf<Task>();
     expectTypeOf<InvokeChannelMap['board:deleteTask']['result']>().toEqualTypeOf<void>();

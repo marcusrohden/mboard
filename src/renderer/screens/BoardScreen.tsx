@@ -2,24 +2,30 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   EMPTY_FILTER,
   columnTasks,
+  describeColumns,
+  tasksForAgent,
   filterArchivedTasks,
   isFilterActive,
   projectSuggestions,
   type FilterCriteria,
 } from '../../domain';
+import { useOpenAgent } from '../agent/use-open-agent';
 import { ArchivedView } from '../archived/ArchivedView';
 import { Board } from '../board/Board';
+import { useAddCommentPrompt } from '../comments/use-add-comment-prompt';
 import { TaskDrawer } from '../drawer/TaskDrawer';
 import { Header } from '../header/Header';
 import { buildColumnViews } from '../lib/board-view';
 import { filterReducer } from '../lib/filters';
 import { getMboardApi } from '../mboard-api';
+import { useMoveCommentPrompt } from '../move-comment/use-move-comment-prompt';
 import { ReminderBanner } from '../notices/ReminderBanner';
 import { UnreadableNotice } from '../notices/UnreadableNotice';
 import { useSettingsDialog } from '../settings/SettingsProvider';
 import { useAgeThresholds } from '../state/age-thresholds';
 import { ProjectColoursProvider } from '../state/project-colours';
 import { useBoardData } from '../state/use-board-data';
+import { useLoadedAndPushed } from '../state/use-loaded-and-pushed';
 import { useTaskCommands } from '../state/use-task-commands';
 import { useTaskSelection } from '../state/use-task-selection';
 import { useTaskShortcuts } from '../state/use-task-shortcuts';
@@ -34,7 +40,7 @@ function archivedCriteria(criteria: FilterCriteria): FilterCriteria {
 
 /**
  * The board screen: header, notices, the board or the archived view, the task detail drawer and the
- * New task and Archive all dialogs, all sharing the board's project colours. Search and filters live here, in memory, and reset on launch.
+ * New task, comment and Archive all dialogs, all sharing the board's project colours. Search and filters live here, in memory, and reset on launch.
  */
 export function BoardScreen({ boardName }: { boardName: string }) {
   const { snapshot, banner, preferences, dismissBanner } = useBoardData();
@@ -44,10 +50,15 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   const [isConfirmingArchiveAll, setIsConfirmingArchiveAll] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const settings = useSettingsDialog();
+  const agent = useOpenAgent();
+  const api = getMboardApi();
+  const agentSettings = useLoadedAndPushed(api.getAgentSettings, api.onAgentSettings);
 
   const selection = useTaskSelection(snapshot);
   const tasks = useMemo(() => snapshot?.tasks ?? [], [snapshot]);
-  const commands = useTaskCommands(tasks, selection);
+  const movePrompt = useMoveCommentPrompt();
+  const commands = useTaskCommands(tasks, selection, movePrompt.ask);
+  const commentPrompt = useAddCommentPrompt(tasks, commands.addComment);
   const { open: openTask } = selection;
 
   useEffect(() => getMboardApi().onOpenTask(openTask), [openTask]);
@@ -56,7 +67,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
     searchRef.current?.focus();
     searchRef.current?.select();
   });
-  useTaskShortcuts(selection.selectedTask, tasks, commands);
+  useTaskShortcuts(selection.selectedTask, tasks, commands, commentPrompt.open);
 
   const today = snapshot?.today ?? '';
   const thresholds = useAgeThresholds();
@@ -78,6 +89,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   );
   const activeCriteria = isArchivedView ? archivedCriteria(criteria) : criteria;
   const doneCount = columnTasks(tasks, 'Done').length;
+  const agentTaskCount = agentSettings === null ? 0 : tasksForAgent(tasks, agentSettings.columns).length;
 
   function dismissReminders(): void {
     dismissBanner();
@@ -105,9 +117,12 @@ export function BoardScreen({ boardName }: { boardName: string }) {
           projects={projectOptions}
           isArchivedView={isArchivedView}
           isFilterActive={isFilterActive(activeCriteria)}
+          canOpenAgent={agentTaskCount > 0 && !agent.isOpening}
+          agentColumns={agentSettings === null ? null : describeColumns(agentSettings.columns)}
           searchRef={searchRef}
           dispatch={dispatch}
           onToggleArchived={() => setIsArchivedView((current) => !current)}
+          onOpenAgent={agent.open}
           onNewTask={() => setIsNewTaskOpen(true)}
           onOpenSettings={settings.open}
         />
@@ -138,6 +153,8 @@ export function BoardScreen({ boardName }: { boardName: string }) {
                 today={snapshot.today}
                 onOpen={openTask}
                 onArchive={(id) => void commands.archive(id)}
+                onComplete={(id) => void commands.moveToTopOf(id, 'Done')}
+                onComment={commentPrompt.open}
                 onArchiveAll={() => setIsConfirmingArchiveAll(true)}
                 onMove={commands.drop}
                 onNewTask={() => setIsNewTaskOpen(true)}
@@ -153,6 +170,8 @@ export function BoardScreen({ boardName }: { boardName: string }) {
             onClose={() => setIsNewTaskOpen(false)}
           />
         )}
+        {movePrompt.dialog}
+        {commentPrompt.dialog}
         {isConfirmingArchiveAll && (
           <ConfirmDialog
             title="Archive all done tasks?"

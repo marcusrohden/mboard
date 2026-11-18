@@ -391,6 +391,19 @@ describe('moving and reordering', () => {
     expect(columnIds('To do')).toEqual(['tasks/A.md', 'tasks/C.md']);
   });
 
+  it('writes a comment that comes with a move in the same update, and the file reads back with it', async () => {
+    const task = await service.moveTask('tasks/B.md', 'Done', null, ' Shipped to production ');
+
+    expect(task.comments).toEqual([{ at: '2026-11-16 10:00', text: 'Shipped to production' }]);
+    expect(task.history.map((entry) => entry.text)).toEqual(['Moved from To do to Done']);
+    expect(task.history[0]?.ledger?.changes).toEqual([
+      { field: 'status', from: 'To do', to: 'Done' },
+      { field: 'comments', added: [{ at: '2026-11-16 10:00', text: 'Shipped to production' }], removed: [] },
+    ]);
+    expect(await read('tasks/B.md')).toContain('### 2026-11-16 10:00\n\nShipped to production\n');
+    expect(taskIn(service.snapshot(), 'tasks/B.md')?.comments).toEqual(task.comments);
+  });
+
   it('moves a task to the end of a column when there is no task below it', async () => {
     const task = await service.moveTask('tasks/A.md', 'Done', null);
 
