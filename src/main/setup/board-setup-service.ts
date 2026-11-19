@@ -179,7 +179,7 @@ export class FileBoardSetupService implements BoardSetupService {
   private async settle(state: AppState): Promise<AppState> {
     if (state.kind !== 'ready') await this.options.board.close();
     this.state = state;
-    for (const listener of [...this.listeners]) {
+    for (const listener of Array.from(this.listeners)) {
       try {
         listener(state);
       } catch (error) {
