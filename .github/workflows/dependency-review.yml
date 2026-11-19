@@ -1,0 +1,26 @@
+# Fails a pull request that adds a dependency, or moves one to a version, with a known vulnerability.
+# It diffs the PR against main through GitHub's dependency graph, which must be on in the repo settings.
+# Advisories already on main don't fail it; Dependabot alerts cover those.
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+# No token permissions by default; the job asks only for what it needs.
+permissions: {}
+
+jobs:
+  review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Works from the PR's base and head commits through the API, so no checkout is needed.
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          # Block high and critical advisories; lower ones are still listed in the job summary.
+          fail-on-severity: high
+          # Check devDependencies too: electron and the build toolchain are devDependencies but end up in the app.
+          fail-on-scopes: runtime, development, unknown
