@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { COLUMNS, normaliseProject, type LocalDate, type Status, type Task } from '../../domain';
+import { DeleteTaskDialog } from '../delete-task/DeleteTaskDialog';
 import { formatDateTime } from '../lib/format';
 import type { TaskCommands } from '../state/use-task-commands';
 import { AgeChip } from '../ui/AgeChip';
@@ -7,7 +8,6 @@ import { Button } from '../ui/Button';
 import { COLUMN_SHORTCUTS_ARIA, COLUMN_SHORTCUTS_HINT, columnShortcut } from '../shortcuts/keymap';
 import { ShortcutHint } from '../shortcuts/shortcuts';
 import { CloseIcon } from '../ui/CloseIcon';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
 import fields from '../ui/fields.module.css';
 import { useLightDismiss } from '../ui/use-light-dismiss';
 import { CommentsSection } from './CommentsSection';
@@ -208,10 +208,8 @@ function TaskDrawerPanel({
         />
       </div>
       {isConfirmingDelete && (
-        <ConfirmDialog
-          title="Delete task?"
-          message={`"${task.title}" will be moved to the Trash.`}
-          confirmLabel="Delete"
+        <DeleteTaskDialog
+          task={task}
           onConfirm={() => void confirmDelete()}
           onCancel={() => setIsConfirmingDelete(false)}
         />

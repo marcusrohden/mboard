@@ -15,6 +15,7 @@ interface ColumnProps {
   onArchive: (id: TaskId) => void;
   onComplete: (id: TaskId) => void;
   onComment: (id: TaskId) => void;
+  onDelete: (id: TaskId) => void;
   onArchiveAll: () => void;
 }
 
@@ -32,6 +33,7 @@ export function Column({
   onArchive,
   onComplete,
   onComment,
+  onDelete,
   onArchiveAll,
 }: ColumnProps) {
   const { ref } = useColumnDropZone(view.status);
@@ -66,6 +68,7 @@ export function Column({
             onArchive={onArchive}
             onComplete={onComplete}
             onComment={onComment}
+            onDelete={onDelete}
           />
         ))}
         {tasks.length === 0 && <p className={styles.empty}>{emptyText}</p>}

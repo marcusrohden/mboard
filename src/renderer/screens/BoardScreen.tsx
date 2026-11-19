@@ -13,6 +13,7 @@ import { useOpenAgent } from '../agent/use-open-agent';
 import { ArchivedView } from '../archived/ArchivedView';
 import { Board } from '../board/Board';
 import { useAddCommentPrompt } from '../comments/use-add-comment-prompt';
+import { useDeleteTaskPrompt } from '../delete-task/use-delete-task-prompt';
 import { TaskDrawer } from '../drawer/TaskDrawer';
 import { Header } from '../header/Header';
 import { buildColumnViews } from '../lib/board-view';
@@ -48,7 +49,7 @@ function renamedMessage(from: string, rename: ProjectRename): string {
 
 /**
  * The board screen: header, notices, the board or the archived view, the task detail drawer and the
- * New task, comment, Edit project and Archive all dialogs, all sharing the board's project colours. Search and
+ * New task, comment, Edit project, Delete task and Archive all dialogs, all sharing the board's project colours. Search and
  * filters live here, in memory, and reset on launch; renaming a project carries it over in the filter.
  */
 export function BoardScreen({ boardName }: { boardName: string }) {
@@ -70,6 +71,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   const movePrompt = useMoveCommentPrompt();
   const commands = useTaskCommands(tasks, selection, movePrompt.ask);
   const commentPrompt = useAddCommentPrompt(tasks, commands.addComment);
+  const deletePrompt = useDeleteTaskPrompt(tasks, commands.remove);
   const { open: openTask } = selection;
 
   useEffect(() => getMboardApi().onOpenTask(openTask), [openTask]);
@@ -78,7 +80,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
     searchRef.current?.focus();
     searchRef.current?.select();
   });
-  useTaskShortcuts(selection.selectedTask, tasks, commands, commentPrompt.open);
+  useTaskShortcuts(selection.selectedTask, tasks, commands, commentPrompt.open, deletePrompt.open);
 
   const today = snapshot?.today ?? '';
   const thresholds = useAgeThresholds();
@@ -172,6 +174,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
                 onArchive={(id) => void commands.archive(id)}
                 onComplete={(id) => void commands.moveToTopOf(id, 'Done')}
                 onComment={commentPrompt.open}
+                onDelete={deletePrompt.open}
                 onArchiveAll={() => setIsConfirmingArchiveAll(true)}
                 onMove={commands.drop}
                 onNewTask={() => setIsNewTaskOpen(true)}
@@ -200,6 +203,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
         )}
         {movePrompt.dialog}
         {commentPrompt.dialog}
+        {deletePrompt.dialog}
         {isConfirmingArchiveAll && (
           <ConfirmDialog
             title="Archive all done tasks?"

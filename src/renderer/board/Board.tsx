@@ -14,6 +14,7 @@ interface BoardProps {
   onArchive: (id: TaskId) => void;
   onComplete: (id: TaskId) => void;
   onComment: (id: TaskId) => void;
+  onDelete: (id: TaskId) => void;
   onArchiveAll: () => void;
   onMove: (id: TaskId, status: Status, beforeId: TaskId | null) => Promise<boolean>;
   onNewTask: () => void;
@@ -39,6 +40,7 @@ export function Board({
   onArchive,
   onComplete,
   onComment,
+  onDelete,
   onArchiveAll,
   onMove,
   onNewTask,
@@ -82,6 +84,7 @@ export function Board({
                 onArchive={onArchive}
                 onComplete={onComplete}
                 onComment={onComment}
+                onDelete={onDelete}
                 onArchiveAll={onArchiveAll}
               />
             );
