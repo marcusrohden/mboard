@@ -1,0 +1,28 @@
+# Dependabot: https://docs.github.com/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+#
+# Security updates only. `open-pull-requests-limit: 0` turns off routine version bumps, but Dependabot
+# still opens a PR when a dependency has a known vulnerability. Raise the limit to get version updates too.
+version: 2
+
+updates:
+  # npm packages from package.json and pnpm-lock.yaml (pnpm is covered by the npm ecosystem).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    # Gives titles like "chore(deps): bump x from 1.0.0 to 1.0.1", which pass the Conventional PR title
+    # check and don't cut a release. Retitle to "fix(deps): …" before merging when the fix should ship.
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # Actions used in .github/workflows, which are pinned to commit SHAs.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: chore
+      include: scope
