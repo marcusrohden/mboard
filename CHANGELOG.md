@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.0](https://github.com/marcusrohden/mboard/compare/v0.6.1...v0.7.0) (2026-11-19)
+
+### Features
+
+* edit and rename projects, and change an archived task's project ([#32](https://github.com/marcusrohden/mboard/pull/32)) ([06a6846](https://github.com/marcusrohden/mboard/commit/06a6846e119b3beafe01c1f47d5fb599ab78dbcc))
+
 ## [0.6.1](https://github.com/marcusrohden/mboard/compare/v0.6.0...v0.6.1) (2026-11-19)
 
 ### Bug Fixes
