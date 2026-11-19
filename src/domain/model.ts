@@ -98,12 +98,17 @@ export interface UnknownFrontmatterEntry {
  *
  * `rawStatus` holds the file's own spelling when it isn't one the app recognises exactly (for example
  * `in progress` or an unknown value). It is written back until the status changes.
+ *
+ * `rawProject` holds the file's own `project` value, a plain name or an Obsidian link, while it still names
+ * `project`. An update keeps a link and drops a plain name, and `null` writes mboard's link to the project's
+ * note.
  */
 export interface TaskDocument {
   title: string;
   status: Status;
   rawStatus: string | null;
   project: string | null;
+  rawProject: string | null;
   due: LocalDate | null;
   created: LocalDateTime;
   updated: LocalDateTime;

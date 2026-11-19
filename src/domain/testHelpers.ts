@@ -1,4 +1,5 @@
 import type { Task, TaskDocument } from './model';
+import { projectValueToWrite } from './projectLink';
 import type { FileFallback } from './taskFile';
 
 export const FALLBACK: FileFallback = {
@@ -13,6 +14,7 @@ export function makeDocument(overrides: Partial<TaskDocument> = {}): TaskDocumen
     status: 'To do',
     rawStatus: null,
     project: null,
+    rawProject: null,
     due: null,
     created: '2026-11-16T09:30:00',
     updated: '2026-11-16T09:30:00',
@@ -24,6 +26,11 @@ export function makeDocument(overrides: Partial<TaskDocument> = {}): TaskDocumen
     unknownFrontmatter: [],
     ...overrides,
   };
+}
+
+/** `document` as it reads back from the file mboard writes for it outside a vault, project spelling included. */
+export function asReadBack(document: TaskDocument): TaskDocument {
+  return { ...document, rawProject: projectValueToWrite(document.project, document.rawProject, null) };
 }
 
 let nextId = 1;

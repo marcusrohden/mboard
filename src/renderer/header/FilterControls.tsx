@@ -1,6 +1,8 @@
 import type { DueFilter, FilterCriteria } from '../../domain';
 import type { FilterAction } from '../lib/filters';
 import { ShortcutHint, shortcutAttributes, useShortcut } from '../shortcuts/shortcuts';
+import { Button } from '../ui/Button';
+import { PencilIcon } from '../ui/PencilIcon';
 import { FilterPopover } from './FilterPopover';
 import styles from './Header.module.css';
 
@@ -17,13 +19,21 @@ interface FilterControlsProps {
   projects: readonly string[];
   showBoardOnlyFilters: boolean;
   dispatch: (action: FilterAction) => void;
+  onEditProject: (project: string) => void;
 }
 
 /**
  * The header's Project, Due and Stale only controls. Due and Stale only apply to the
- * board, so the archived view hides them.
+ * board, so the archived view hides them. Each project in the Project list has a pencil that opens it in
+ * the Edit project dialog.
  */
-export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispatch }: FilterControlsProps) {
+export function FilterControls({
+  criteria,
+  projects,
+  showBoardOnlyFilters,
+  dispatch,
+  onEditProject,
+}: FilterControlsProps) {
   useShortcut(
     'staleOnly',
     () => dispatch({ type: 'setStaleOnly', staleOnly: !criteria.staleOnly }),
@@ -47,14 +57,25 @@ export function FilterControls({ criteria, projects, showBoardOnlyFilters, dispa
           No project
         </label>
         {projects.map((project) => (
-          <label key={project}>
-            <input
-              type="checkbox"
-              checked={criteria.projects.has(project)}
-              onChange={() => dispatch({ type: 'toggleProject', project })}
-            />
-            {project}
-          </label>
+          <div key={project} className={styles.projectOption}>
+            <label>
+              <input
+                type="checkbox"
+                checked={criteria.projects.has(project)}
+                onChange={() => dispatch({ type: 'toggleProject', project })}
+              />
+              {project}
+            </label>
+            <Button
+              variant="quiet"
+              className={styles.iconButton}
+              aria-label={`Edit ${project}`}
+              title={`Edit ${project}`}
+              onClick={() => onEditProject(project)}
+            >
+              <PencilIcon />
+            </Button>
+          </div>
         ))}
       </FilterPopover>
       {showBoardOnlyFilters && (

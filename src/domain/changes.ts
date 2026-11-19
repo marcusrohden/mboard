@@ -1,6 +1,7 @@
 import type { LocalDate, NewTaskInput, Status, TaskComment, TaskDocument, TaskEdit } from './model';
 import { buildLedger, initialLedger, type CommentsDelta } from './ledger';
 import { COLUMNS, isStatus } from './model';
+import { projectSpellingAfterUpdate } from './projectLink';
 import { canonicalProject } from './projects';
 import { trimBlankLines } from './taskFile';
 import { formatLocalDateTime, formatLogTimestamp, normaliseLogTimestamp, parseLocalDate } from './time';
@@ -30,6 +31,18 @@ function unchanged(document: TaskDocument): ChangeResult {
   return { changed: false, document };
 }
 
+function withHistoryEntry(
+  document: TaskDocument,
+  changes: Partial<TaskDocument>,
+  historyText: string,
+  now: Date,
+  comments: CommentsDelta | null,
+): TaskDocument {
+  const changed = { ...document, rawProject: projectSpellingAfterUpdate(document.rawProject), ...changes };
+  const ledger = buildLedger(document, changed, now, comments);
+  return { ...changed, history: [...document.history, { at: formatLogTimestamp(now), text: historyText, ledger }] };
+}
+
 function recordUpdate(
   document: TaskDocument,
   changes: Partial<TaskDocument>,
@@ -37,16 +50,8 @@ function recordUpdate(
   now: Date,
   comments: CommentsDelta | null = null,
 ): ChangeResult {
-  const changed = { ...document, ...changes };
-  const ledger = buildLedger(document, changed, now, comments);
-  return {
-    changed: true,
-    document: {
-      ...changed,
-      updated: formatLocalDateTime(now),
-      history: [...document.history, { at: formatLogTimestamp(now), text: historyText, ledger }],
-    },
-  };
+  const updated = withHistoryEntry(document, changes, historyText, now, comments);
+  return { changed: true, document: { ...updated, updated: formatLocalDateTime(now) } };
 }
 
 function normaliseTitle(raw: string): string {
@@ -109,6 +114,7 @@ export function createTaskDocument(input: NewTaskInput, context: CreateContext):
     status,
     rawStatus: null,
     project: canonicalProject(input.project, context.knownProjects),
+    rawProject: null,
     due: validateDue(input.due),
     created: timestamp,
     updated: timestamp,
@@ -140,11 +146,15 @@ function editDescription(document: TaskDocument, value: string, now: Date): Chan
   return recordUpdate(document, { description }, 'Description edited', now);
 }
 
+function projectChangeText(verb: 'changed' | 'renamed', from: string | null, to: string | null): string {
+  return `Project ${verb} from ${describeProject(from)} to ${describeProject(to)}`;
+}
+
 function editProject(document: TaskDocument, value: string | null, context: ChangeContext): ChangeResult {
   const project = canonicalProject(value, context.knownProjects);
   if (project === document.project) return unchanged(document);
-  const text = `Project changed from ${describeProject(document.project)} to ${describeProject(project)}`;
-  return recordUpdate(document, { project }, text, context.now);
+  const text = projectChangeText('changed', document.project, project);
+  return recordUpdate(document, { project, rawProject: null }, text, context.now);
 }
 
 function editDue(document: TaskDocument, value: LocalDate | null, now: Date): ChangeResult {
@@ -171,6 +181,31 @@ export function applyEdit(document: TaskDocument, edit: TaskEdit, context: Chang
     case 'due':
       return editDue(document, edit.value, context.now);
   }
+}
+
+/** Why a task's project changes without an update: its whole project was renamed, or it is archived. */
+export type QuietProjectChange = 'renamed' | 'changed';
+
+/**
+ * Changes a task's project with a history entry and its ledger, but leaves `updated` as it was, so the
+ * task's age doesn't change. Used when a project is renamed, which isn't work on its tasks, and when an
+ * archived task's project changes. The entry reads `Project renamed from A to B` or
+ * `Project changed from A to B`. A value that leaves the project as it was changes nothing. The name takes
+ * the spelling of a project in `context.knownProjects` that matches it ignoring case.
+ */
+export function changeProjectQuietly(
+  document: TaskDocument,
+  value: string | null,
+  context: ChangeContext,
+  reason: QuietProjectChange,
+): ChangeResult {
+  const project = canonicalProject(value, context.knownProjects);
+  if (project === document.project) return unchanged(document);
+  const text = projectChangeText(reason, document.project, project);
+  return {
+    changed: true,
+    document: withHistoryEntry(document, { project, rawProject: null }, text, context.now, null),
+  };
 }
 
 function normaliseCommentText(text: string): string {

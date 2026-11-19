@@ -38,17 +38,34 @@ export type {
 } from '../domain';
 
 /**
- * A file that couldn't be read, with a plain-words reason. It is never written. Usually a task file, or
- * the board's `projects.md`.
+ * A file that couldn't be read, with a plain-words reason. It is never written. Usually a task file, a
+ * project note in `projects/`, or the board's `projects.md`.
  */
 export interface UnreadableFile {
   id: TaskId;
   reason: string;
 }
 
+/** A task whose file moved, so its id changed: the id before and the id after. */
+export interface TaskIdMove {
+  from: TaskId;
+  to: TaskId;
+}
+
 /**
- * Everything the renderer needs to draw the board, including each coloured project's colour from
- * `projects.md`. It carries the main process's clock: the renderer never computes "now" or "today" itself.
+ * What renaming a project did: the project's name now, which is an existing project's spelling after a
+ * merge, how many tasks changed, and the tasks whose id changed because their file moved.
+ */
+export interface ProjectRename {
+  project: string;
+  renamed: number;
+  moves: TaskIdMove[];
+}
+
+/**
+ * Everything the renderer needs to draw the board, including each coloured project's colour from its
+ * project note, or from `projects.md`. It carries the main process's clock: the renderer never computes "now"
+ * or "today" itself.
  */
 export interface BoardSnapshot {
   tasks: Task[];
@@ -121,8 +138,16 @@ export interface MboardInvokeApi {
   revertTask(id: TaskId, toEntryIndex: number, expected: RevertExpectation): Promise<Task>;
   deleteTask(id: TaskId): Promise<void>;
   openInObsidian(id: TaskId): Promise<void>;
-  /** Gives a project a colour in `projects.md`, or removes it with `null`. */
+  /** Gives a project a colour in its project note, or removes it with `null`. */
   setProjectColour(project: string, colour: ProjectColour | null): Promise<void>;
+  /**
+   * Renames a project on every task that has it, live and archived, and renames its note. A new name that
+   * matches another project ignoring case merges the two. Not an update: each task gains a history entry,
+   * but its date updated stays as it was.
+   */
+  renameProject(from: string, to: string): Promise<ProjectRename>;
+  /** Opens a project's note in Obsidian, creating the note first when the project has none. */
+  openProjectNote(project: string): Promise<void>;
 
   getPreferences(): Promise<Preferences>;
   setOpenAtLogin(enabled: boolean): Promise<Preferences>;
@@ -218,6 +243,8 @@ export const IPC = {
     deleteTask: 'board:deleteTask',
     openInObsidian: 'board:openInObsidian',
     setProjectColour: 'board:setProjectColour',
+    renameProject: 'board:renameProject',
+    openProjectNote: 'board:openProjectNote',
     getPreferences: 'platform:getPreferences',
     setOpenAtLogin: 'platform:setOpenAtLogin',
     getReminderBanner: 'platform:getReminderBanner',

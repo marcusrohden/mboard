@@ -31,7 +31,8 @@ interface TaskDrawerProps {
  * It takes keyboard focus while open and gives it back on close. Fields save as they are edited and
  * refresh from new snapshots, except the one being edited. Under the project, its colour can be picked. Save commits the field still being edited and
  * closes the drawer once that save succeeds. The close button, Esc, or a press on the page outside the
- * drawer closes it without saving that field. An archived task is read-only apart from Restore and Delete.
+ * drawer closes it without saving that field. An archived task is read-only apart from its project and its
+ * project's colour, Restore and Delete.
  */
 export function TaskDrawer(props: TaskDrawerProps) {
   const pendingSaves = usePendingFieldSaves();
@@ -76,7 +77,7 @@ function TaskDrawerPanel({
   }
 
   function renderProjectColour(project: string | null): ReactNode {
-    if (project === null || readOnly) return null;
+    if (project === null) return null;
     return (
       <ProjectColourField project={project} onChange={(name, colour) => void commands.setProjectColour(name, colour)} />
     );
@@ -141,7 +142,7 @@ function TaskDrawerPanel({
           label="Project"
           kind="project"
           value={task.project ?? ''}
-          readOnly={readOnly}
+          readOnly={false}
           suggestions={projectSuggestions}
           onSave={(next) => commands.edit(task.id, { field: 'project', value: next === '' ? null : next })}
           renderBelow={(displayed) => renderProjectColour(normaliseProject(displayed))}

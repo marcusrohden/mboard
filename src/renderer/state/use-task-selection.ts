@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { BoardSnapshot, Task, TaskId } from '../../shared/contract';
+import type { BoardSnapshot, Task, TaskId, TaskIdMove } from '../../shared/contract';
 import { useToasts } from '../notices/ToastProvider';
 
 export type CommandOutcome = { kind: 'unchanged' } | { kind: 'moved'; id: TaskId } | { kind: 'removed' };
@@ -11,6 +11,8 @@ export interface TaskSelection {
   close: () => void;
   beginCommand: () => void;
   endCommand: (id: TaskId, outcome: CommandOutcome) => void;
+  /** Ends a command that moved many tasks' files, such as a project rename, following the selected task. */
+  endCommandWithMoves: (moves: readonly TaskIdMove[]) => void;
 }
 
 const MISSING_TASK_NOTICE = 'That task is no longer on the board, so its details were closed.';
@@ -55,6 +57,10 @@ export function useTaskSelection(snapshot: BoardSnapshot | null): TaskSelection 
       return outcome.kind === 'moved' ? outcome.id : null;
     });
   }, []);
+  const endCommandWithMoves = useCallback((moves: readonly TaskIdMove[]) => {
+    setCommandsInFlight((count) => count - 1);
+    setSelectedId((current) => moves.find((move) => move.from === current)?.to ?? current);
+  }, []);
 
-  return { selectedId, selectedTask, open, close, beginCommand, endCommand };
+  return { selectedId, selectedTask, open, close, beginCommand, endCommand, endCommandWithMoves };
 }

@@ -4,6 +4,7 @@ import type {
   MboardApi,
   NewTaskInput,
   ProjectColour,
+  ProjectRename,
   RevertExpectation,
   Status,
   Task,
@@ -28,6 +29,9 @@ export interface TaskCommands {
   remove: (id: TaskId) => Promise<boolean>;
   openInObsidian: (id: TaskId) => Promise<boolean>;
   setProjectColour: (project: string, colour: ProjectColour | null) => Promise<boolean>;
+  /** Renames a project on all its tasks, resolving with what changed, or `null` when it failed. */
+  renameProject: (from: string, to: string) => Promise<ProjectRename | null>;
+  openProjectNote: (project: string) => Promise<boolean>;
 }
 
 /**
@@ -91,6 +95,13 @@ export function useTaskCommands(
       },
       openInObsidian: (id) => simple((api) => api.openInObsidian(id)),
       setProjectColour: (project, colour) => simple((api) => api.setProjectColour(project, colour)),
+      renameProject: async (from, to) => {
+        selectionRef.current.beginCommand();
+        const result = await run((api) => api.renameProject(from, to));
+        selectionRef.current.endCommandWithMoves(result.ok ? result.value.moves : []);
+        return result.ok ? result.value : null;
+      },
+      openProjectNote: (project) => simple((api) => api.openProjectNote(project)),
     };
   }, [run]);
 }

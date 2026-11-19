@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { columnTasks, revertExpectationFor } from '../../domain';
+import { columnTasks, projectColourIndex, revertExpectationFor } from '../../domain';
 import type { BoardSnapshot, NewTaskInput, Task } from '../../shared/contract';
 import {
   FakeClock,
@@ -14,6 +14,7 @@ import {
 } from '../test-support/board-test-kit';
 import { canWatchFoldersRecursively, inertFolderWatch } from '../test-support/folder-watching';
 import { createTemporaryFolder, listFilesRecursively, removeTemporaryFolder } from '../test-support/temporary-folder';
+import { AtomicFileWriter } from '../fs/atomic-file-writer';
 import { FolderTrash } from '../trash/folder-trash';
 import { BoardMessage } from './board-messages';
 import { FileBoardService } from './board-service';
@@ -31,6 +32,7 @@ const NEW_TASK: NewTaskInput = {
 };
 
 const BROKEN_YAML = '---\ntitle: [unclosed\n---\nBody\n';
+const ACME_NOTE = 'projects/Acme website.md';
 
 let root: string;
 let boardPath: string;
@@ -155,7 +157,7 @@ describe('creating a task', () => {
         '---',
         'title: "Fix login bug"',
         'status: In progress',
-        'project: Acme website',
+        'project: "[[Acme website]]"',
         'due: 2026-11-20',
         'created: 2026-11-16T09:30:00',
         'updated: 2026-11-16T09:30:00',
@@ -207,7 +209,7 @@ describe('creating a task', () => {
     await openBoard();
     await service.createTask(NEW_TASK);
 
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix login bug.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([ACME_NOTE, 'tasks/Acme website/Fix login bug.md']);
   });
 
   it('rejects invalid input without writing anything', async () => {
@@ -250,7 +252,7 @@ describe('editing a task', () => {
 
     expect(task.id).toBe('tasks/Acme website/Fix sign-in bug.md');
     expect(task.history.at(-1)?.text).toBe('Title changed from "Fix login bug" to "Fix: sign-in bug?"');
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix sign-in bug.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([ACME_NOTE, 'tasks/Acme website/Fix sign-in bug.md']);
     expect(await read('tasks/Acme website/Fix sign-in bug.md')).toContain('title: "Fix: sign-in bug?"');
     expect(service.snapshot().tasks.map((snapshotTask) => snapshotTask.id)).toEqual([
       'tasks/Acme website/Fix sign-in bug.md',
@@ -264,7 +266,7 @@ describe('editing a task', () => {
     });
 
     expect(task.id).toBe('tasks/Acme website/Fix Login Bug.md');
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix Login Bug.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([ACME_NOTE, 'tasks/Acme website/Fix Login Bug.md']);
   });
 
   it('numbers the new name when another file already has it', async () => {
@@ -529,7 +531,20 @@ describe('archiving and restoring', () => {
     expect(columnIds('Done')).toEqual(['tasks/Shipped.md', 'tasks/Released.md']);
   });
 
-  it('keeps archived tasks read-only apart from restore and delete', async () => {
+  it("changes an archived task's project, moving its file within archive/ and keeping its age", async () => {
+    await service.archiveTask('tasks/Shipped.md');
+    const archived = taskIn(service.snapshot(), 'archive/Shipped.md');
+
+    const task = await service.editTask('archive/Shipped.md', { field: 'project', value: 'Globex' });
+
+    expect(task).toMatchObject({ id: 'archive/Globex/Shipped.md', project: 'Globex', isArchived: true });
+    expect(task.updated).toBe(archived?.updated);
+    expect(task.history.at(-1)?.text).toBe('Project changed from (none) to Globex');
+    expect(await read('archive/Globex/Shipped.md')).toContain('project: "[[Globex]]"\n');
+    expect(existsSync(boardFile('projects/Globex.md'))).toBe(true);
+  });
+
+  it('keeps archived tasks read-only apart from their project, restore and delete', async () => {
     await service.archiveTask('tasks/Shipped.md');
     const archived = await fileState(boardFile('archive/Shipped.md'));
 
@@ -565,7 +580,7 @@ describe('reverting', () => {
     clock.advanceMinutes(5);
     await service.editTask('tasks/Acme website/Fix sign in.md', { field: 'due', value: '2026-12-01' });
     const editedOutside = (await read('tasks/Acme website/Fix sign in.md')).replace(
-      'project: Acme website',
+      'project: "[[Acme website]]"',
       'project: Edited in Obsidian',
     );
     await writeBoardFile(boardPath, 'tasks/Acme website/Fix sign in.md', editedOutside);
@@ -586,7 +601,11 @@ describe('reverting', () => {
       'Created in In progress',
       'Reverted to 16 Nov 09:30 — 2 changes discarded',
     ]);
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Edited in Obsidian/Fix login bug.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([
+      ACME_NOTE,
+      'projects/Edited in Obsidian.md',
+      'tasks/Edited in Obsidian/Fix login bug.md',
+    ]);
     const content = await read('tasks/Edited in Obsidian/Fix login bug.md');
     expect(content).toContain(
       '- 2026-11-16 09:50 — Reverted to 16 Nov 09:30 — 2 changes discarded <!-- mboard-ledger {',
@@ -645,7 +664,7 @@ describe('deleting', () => {
     await service.createTask(NEW_TASK);
     await service.deleteTask('tasks/Acme website/Fix login bug.md');
 
-    expect(await listFilesRecursively(boardPath)).toEqual([]);
+    expect(await listFilesRecursively(boardPath)).toEqual([ACME_NOTE]);
     expect(await listFilesRecursively(trashPath)).toEqual(['Fix login bug.md']);
     expect(service.snapshot().tasks).toEqual([]);
   });
@@ -858,7 +877,7 @@ describe('project colours', () => {
     expect(existsSync(boardFile('projects.md'))).toBe(false);
   });
 
-  it('creates projects.md on the first colour, in the spelling the tasks use, without touching any task', async () => {
+  it("keeps a colour in the project's note, in the spelling the tasks use, without touching any task", async () => {
     await openBoard();
     await service.createTask(NEW_TASK);
     const task = await fileState(boardFile('tasks/Acme website/Fix login bug.md'));
@@ -867,32 +886,65 @@ describe('project colours', () => {
 
     await service.setProjectColour('  acme   WEBSITE ', 'teal');
 
-    expect(await read('projects.md')).toMatch(/^---\ncolours:\n {2}Acme website: teal\n---\n/);
+    expect(await read(ACME_NOTE)).toMatch(/^---\ncolour: teal\n---\n# Acme website\n/);
+    expect(existsSync(boardFile('projects.md'))).toBe(false);
     expect(service.snapshot().projectColours).toEqual({ 'Acme website': 'teal' });
     expect(snapshots.at(-1)?.projectColours).toEqual({ 'Acme website': 'teal' });
     expect(await fileState(boardFile('tasks/Acme website/Fix login bug.md'))).toEqual(task);
   });
 
-  it('changes and removes a colour, keeping the rest of the file', async () => {
+  it("moves a colour out of projects.md into the project's note, keeping the rest of the file", async () => {
     await seed('projects.md', '---\nowner: me\ncolours:\n  Acme: red\n  Beta: blue\n---\n\nNotes.\n');
     await openBoard();
     await service.setProjectColour('acme', 'green');
     await service.setProjectColour('Beta', null);
     expect(service.snapshot().projectColours).toEqual({ acme: 'green' });
+    expect(await read('projects/acme.md')).toMatch(/^---\ncolour: green\n---\n/);
+    expect(existsSync(boardFile('projects/Beta.md'))).toBe(false);
     const text = await read('projects.md');
     expect(text).toContain('owner: me');
+    expect(text).not.toMatch(/Acme|Beta/);
     expect(text.endsWith('\nNotes.\n')).toBe(true);
   });
 
-  it('lists an unreadable projects.md, and never writes it', async () => {
+  it("takes a project note's colour over its projects.md entry", async () => {
+    await seed('projects.md', '---\ncolours:\n  Acme website: red\n  Beta: blue\n---\n');
+    await seed(ACME_NOTE, '---\ncolour: teal\n---\n# Acme website\n');
+    await seedTask('tasks/Acme website/Task.md', { title: 'Task', status: 'To do', project: 'acme website' });
+    await openBoard();
+    const colours = projectColourIndex(service.snapshot().projectColours);
+    expect(colours.get('acme website')).toBe('teal');
+    expect(colours.get('beta')).toBe('blue');
+  });
+
+  it("keeps the colour of a project whose name can't be a note's in projects.md", async () => {
+    await openBoard();
+    await service.setProjectColour('???', 'pink');
+    expect(await read('projects.md')).toMatch(/^---\ncolours:\n {2}\?\?\?: pink\n---\n/);
+    expect(service.snapshot().projectColours).toEqual({ '???': 'pink' });
+  });
+
+  it('lists an unreadable projects.md and never writes it, but still colours a project in its note', async () => {
     await seed('projects.md', '---\ncolours: [unclosed\n---\n');
     await openBoard();
     const before = await fileState(boardFile('projects.md'));
 
     expect(service.snapshot().projectColours).toEqual({});
     expect(service.snapshot().unreadable.map((file) => file.id)).toEqual(['projects.md']);
-    await expect(service.setProjectColour('Acme', 'red')).rejects.toThrow(BoardMessage.projectsFileUnreadable);
+    await service.setProjectColour('Acme', 'red');
+    await expect(service.setProjectColour('???', 'red')).rejects.toThrow(BoardMessage.projectsFileUnreadable);
     expect(await fileState(boardFile('projects.md'))).toEqual(before);
+    expect(service.snapshot().projectColours).toEqual({ Acme: 'red' });
+  });
+
+  it('lists an unreadable project note, gives it no colour and never writes it', async () => {
+    await seed('projects/Acme.md', '---\ncolour: [unclosed\n---\n');
+    await openBoard();
+    const before = await fileState(boardFile('projects/Acme.md'));
+
+    expect(service.snapshot().unreadable.map((file) => file.id)).toEqual(['projects/Acme.md']);
+    await expect(service.setProjectColour('acme', 'red')).rejects.toThrow(BoardMessage.projectNoteUnreadable);
+    expect(await fileState(boardFile('projects/Acme.md'))).toEqual(before);
   });
 
   it('refuses a colour for an empty project name', async () => {
@@ -932,7 +984,11 @@ describe('project folders', () => {
 
     expect(grouped.id).toBe('tasks/Acme website/Fix login bug.md');
     expect(loose.id).toBe('tasks/Loose.md');
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Fix login bug.md', 'tasks/Loose.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([
+      ACME_NOTE,
+      'tasks/Acme website/Fix login bug.md',
+      'tasks/Loose.md',
+    ]);
   });
 
   it('names the folder after the project made safe for a file name, and leaves a name with nothing safe in tasks/', async () => {
@@ -955,7 +1011,7 @@ describe('project folders', () => {
     const cleared = await service.editTask(moved.id, { field: 'project', value: null });
     expect(cleared.id).toBe('tasks/Fix login bug.md');
     expect(folderExists(path.join('tasks', 'Beta'))).toBe(false);
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Fix login bug.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([ACME_NOTE, 'projects/Beta.md', 'tasks/Fix login bug.md']);
     expect(service.snapshot().tasks.map((task) => task.id)).toEqual(['tasks/Fix login bug.md']);
   });
 
@@ -1014,7 +1070,7 @@ describe('project folders', () => {
     const task = await service.addComment('tasks/Legacy.md', 'Filed at last');
 
     expect(task.id).toBe('tasks/Acme website/Legacy.md');
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/Acme website/Legacy.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([ACME_NOTE, 'tasks/Acme website/Legacy.md']);
     expect(service.snapshot().tasks.map((snapshotTask) => snapshotTask.id)).toEqual(['tasks/Acme website/Legacy.md']);
   });
 
@@ -1028,7 +1084,13 @@ describe('project folders', () => {
 
     expect(task.id).toBe('tasks/Beta/C.md');
     expect(await read('tasks/B.md')).toContain('order: 3\n');
-    expect(await listFilesRecursively(boardPath)).toEqual(['tasks/A.md', 'tasks/B.md', 'tasks/Beta/C.md']);
+    expect(await listFilesRecursively(boardPath)).toEqual([
+      'projects/Beta.md',
+      'tasks/A.md',
+      'tasks/B.md',
+      'tasks/Beta/C.md',
+    ]);
+    expect(await read('tasks/B.md')).toContain('project: Acme website\n');
   });
 
   it('removes a project folder that deleting its last task left empty', async () => {
@@ -1089,7 +1151,200 @@ describe('safe writes', () => {
     await service.moveTask('tasks/Acme website/Another.md', 'Done', 'tasks/Acme website/Renamed.md');
 
     const files = await listFilesRecursively(boardPath);
-    expect(files).toEqual(['tasks/Acme website/Another.md', 'tasks/Acme website/Renamed.md']);
+    expect(files).toEqual([ACME_NOTE, 'tasks/Acme website/Another.md', 'tasks/Acme website/Renamed.md']);
     expect(files.some((file) => file.includes('mboard-tmp'))).toBe(false);
+  });
+});
+
+describe('renaming a project', () => {
+  beforeEach(async () => {
+    await seedTask('tasks/Acme/A.md', { title: 'A', status: 'To do', project: 'Acme' });
+    await seedTask('tasks/Acme/B.md', { title: 'B', status: 'Done', project: 'Acme' });
+    await seedTask('archive/Acme/Old.md', {
+      title: 'Old',
+      status: 'Done',
+      project: 'Acme',
+      archived: '2026-11-10T10:00:00',
+    });
+    await seedTask('tasks/Other.md', { title: 'Other', status: 'To do', project: 'Beta' });
+    await seed('projects/Acme.md', '---\ncolour: teal\n---\n# Acme\n\nMy notes.\n');
+  });
+
+  it("renames it on every live and archived task, moving their files and keeping each task's age", async () => {
+    await openBoard();
+    const result = await service.renameProject('acme', 'Globex');
+
+    expect(result).toEqual({
+      project: 'Globex',
+      renamed: 3,
+      moves: [
+        { from: 'archive/Acme/Old.md', to: 'archive/Globex/Old.md' },
+        { from: 'tasks/Acme/A.md', to: 'tasks/Globex/A.md' },
+        { from: 'tasks/Acme/B.md', to: 'tasks/Globex/B.md' },
+      ],
+    });
+    expect(await listFilesRecursively(boardPath)).toEqual([
+      'archive/Globex/Old.md',
+      'projects/Globex.md',
+      'tasks/Globex/A.md',
+      'tasks/Globex/B.md',
+      'tasks/Other.md',
+    ]);
+    const renamed = taskIn(service.snapshot(), 'tasks/Globex/A.md');
+    expect(renamed).toMatchObject({ project: 'Globex', updated: '2026-11-01T09:00:00' });
+    expect(renamed?.history.at(-1)?.text).toBe('Project renamed from Acme to Globex');
+    expect(taskIn(service.snapshot(), 'archive/Globex/Old.md')).toMatchObject({ project: 'Globex', isArchived: true });
+    expect(await read('tasks/Globex/A.md')).toContain('project: "[[Globex]]"\n');
+    expect(await read('projects/Globex.md')).toBe('---\ncolour: teal\n---\n# Globex\n\nMy notes.\n');
+    expect(service.snapshot().projectColours).toEqual({ Globex: 'teal' });
+  });
+
+  it('respells a project whose name changes only in case, with its folders and note', async () => {
+    await openBoard();
+    const result = await service.renameProject('Acme', 'ACME');
+
+    expect(result.renamed).toBe(3);
+    expect(result.moves).toEqual([
+      { from: 'archive/Acme/Old.md', to: 'archive/ACME/Old.md' },
+      { from: 'tasks/Acme/A.md', to: 'tasks/ACME/A.md' },
+      { from: 'tasks/Acme/B.md', to: 'tasks/ACME/B.md' },
+    ]);
+    expect(await listFilesRecursively(boardPath)).toEqual([
+      'archive/ACME/Old.md',
+      'projects/ACME.md',
+      'tasks/ACME/A.md',
+      'tasks/ACME/B.md',
+      'tasks/Other.md',
+    ]);
+    expect(service.snapshot().tasks.filter((task) => task.project === 'ACME')).toHaveLength(3);
+    expect(await read('projects/ACME.md')).toContain('# ACME\n');
+  });
+
+  it('merges into a project that already has the new name, which keeps its spelling, note and colour', async () => {
+    await seed('projects/Beta.md', '---\ncolour: blue\n---\n# Beta\n');
+    await openBoard();
+    const result = await service.renameProject('Acme', 'beta');
+
+    expect(result).toMatchObject({ project: 'Beta', renamed: 3 });
+    expect(await listFilesRecursively(boardPath)).toEqual([
+      'archive/Beta/Old.md',
+      'projects/Beta.md',
+      'tasks/Beta/A.md',
+      'tasks/Beta/B.md',
+      'tasks/Other.md',
+    ]);
+    expect(await listFilesRecursively(trashPath)).toEqual(['Acme.md']);
+    expect(service.snapshot().projectColours).toEqual({ Beta: 'blue' });
+  });
+
+  it("carries a colour from projects.md into the renamed project's note", async () => {
+    await rm(boardFile('projects/Acme.md'));
+    await seed('projects.md', '---\ncolours:\n  Acme: red\n---\n');
+    await openBoard();
+    await service.renameProject('Acme', 'Globex');
+
+    expect(await read('projects/Globex.md')).toMatch(/^---\ncolour: red\n---\n# Globex\n/);
+    expect(await read('projects.md')).not.toContain('Acme');
+    expect(service.snapshot().projectColours).toEqual({ Globex: 'red' });
+  });
+
+  it("refuses before writing anything when the project's note can't be read", async () => {
+    await seed('projects/Globex.md', '---\ncolour: [unclosed\n---\n');
+    await openBoard();
+    const before = await fileState(boardFile('tasks/Acme/A.md'));
+
+    await expect(service.renameProject('Acme', 'Globex')).rejects.toThrow(BoardMessage.projectNoteUnreadable);
+    expect(await fileState(boardFile('tasks/Acme/A.md'))).toEqual(before);
+    expect(existsSync(boardFile('projects/Acme.md'))).toBe(true);
+  });
+
+  it('stops at a task it cannot write, says how far it got, and finishes when renamed again', async () => {
+    await openBoard();
+    const write = AtomicFileWriter.prototype.write;
+    const failing = vi
+      .spyOn(AtomicFileWriter.prototype, 'write')
+      .mockImplementation(function (this: AtomicFileWriter, target, content) {
+        if (target.endsWith(path.join('Acme', 'B.md'))) return Promise.reject(new Error('The disk is full.'));
+        return write.call(this, target, content);
+      });
+
+    await expect(service.renameProject('Acme', 'Globex')).rejects.toThrow(
+      'Renamed the project on 2 of 3 tasks, then stopped: The disk is full. Rename it again to finish.',
+    );
+    expect(taskIn(service.snapshot(), 'tasks/Acme/B.md')?.project).toBe('Acme');
+
+    failing.mockRestore();
+    const result = await service.renameProject('Acme', 'Globex');
+
+    expect(result).toMatchObject({ project: 'Globex', renamed: 1 });
+    expect(service.snapshot().tasks.filter((task) => task.project === 'Globex')).toHaveLength(3);
+    expect(await read('projects/Globex.md')).toContain('colour: teal');
+  });
+
+  it('skips a task whose project an outside edit changed since the board last read it', async () => {
+    await openBoard();
+    await seedTask('tasks/Acme/B.md', { title: 'B', status: 'Done', project: 'Zeta' });
+
+    const result = await service.renameProject('Acme', 'Globex');
+
+    expect(result.renamed).toBe(2);
+    expect(await read('tasks/Acme/B.md')).toContain('project: Zeta\n');
+  });
+
+  it('refuses an empty name, and changes nothing when the name stays the same', async () => {
+    await openBoard();
+    const before = await fileState(boardFile('tasks/Other.md'));
+    await expect(service.renameProject('Acme', '   ')).rejects.toThrow(BoardMessage.projectNewNameMissing);
+    expect(await service.renameProject('Beta', ' Beta ')).toEqual({ project: 'Beta', renamed: 0, moves: [] });
+    expect(await fileState(boardFile('tasks/Other.md'))).toEqual(before);
+  });
+});
+
+describe('project notes', () => {
+  it("links a task to its project's note by its path from the vault's root", async () => {
+    await mkdir(path.join(root, 'Vault', '.obsidian'));
+    await openBoard();
+    await service.createTask(NEW_TASK);
+
+    expect(await read('tasks/Acme website/Fix login bug.md')).toContain(
+      'project: "[[Board/projects/Acme website|Acme website]]"\n',
+    );
+    expect(await read(ACME_NOTE)).toMatch(/^# Acme website\n/);
+  });
+
+  it('links by note name alone when the board folder is named with a character that would break a link', async () => {
+    const hashBoard = path.join(root, 'Vault', 'Board #2');
+    await mkdir(path.join(root, 'Vault', '.obsidian'));
+    await mkdir(path.join(hashBoard, 'tasks'), { recursive: true });
+    await service.open(hashBoard);
+    const task = await service.createTask(NEW_TASK);
+
+    expect(await readBoardFile(hashBoard, task.id)).toContain('project: "[[Acme website]]"\n');
+    expect(taskIn(service.snapshot(), task.id)?.project).toBe('Acme website');
+  });
+
+  it('creates a note only when an update links to it, never just by opening a board', async () => {
+    await seedTask('tasks/Plain.md', { title: 'Plain', status: 'To do', project: 'Acme website' });
+    await openBoard();
+    expect(existsSync(boardFile('projects'))).toBe(false);
+
+    await service.addComment('tasks/Plain.md', 'Hello');
+    expect(await read(ACME_NOTE)).toMatch(/^# Acme website\n/);
+  });
+
+  it('keeps a link the person wrote to a note of their own, and makes no note for it', async () => {
+    await seed('tasks/Linked.md', taskFileText({ title: 'Linked', status: 'To do', project: '"[[Clients/Acme]]"' }));
+    await openBoard();
+    await service.addComment('tasks/Linked.md', 'Hello');
+
+    expect(await read('tasks/Acme/Linked.md')).toContain('project: "[[Clients/Acme]]"\n');
+    expect(existsSync(boardFile('projects'))).toBe(false);
+  });
+
+  it("creates a project's note to open it, matching the name ignoring case", async () => {
+    await openBoard();
+    await service.createTask(NEW_TASK);
+    expect(await service.projectNotePath('ACME WEBSITE')).toBe(boardFile(ACME_NOTE));
+    await expect(service.projectNotePath('???')).rejects.toThrow(BoardMessage.projectWithoutNote);
   });
 });

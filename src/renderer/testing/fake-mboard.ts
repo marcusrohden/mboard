@@ -83,7 +83,7 @@ function idFor(folder: 'tasks' | 'archive', project: string | null, name: string
 
 function documentOf(task: Task): TaskDocument {
   const { id: _id, isArchived: _isArchived, ...fields } = task;
-  return { ...fields, rawStatus: null, unknownFrontmatter: [] };
+  return { ...fields, rawStatus: null, rawProject: null, unknownFrontmatter: [] };
 }
 
 function emitAll<T>(listeners: Listeners<T>, payload: T): void {
@@ -158,6 +158,34 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     return { ...task, ...changes, updated: now, history: [...task.history, { at: logStamp, text }] };
   }
 
+  function recordedQuietly(task: Task, text: string, changes: Partial<Task>): Task {
+    return { ...task, ...changes, history: [...task.history, { at: logStamp, text }] };
+  }
+
+  function folderOf(task: Task): 'tasks' | 'archive' {
+    return task.isArchived ? 'archive' : 'tasks';
+  }
+
+  function changeProject(task: Task, value: string | null): Task {
+    const project = normaliseProject(value);
+    if (project === task.project) return task;
+    return recordedQuietly(task, `Project changed from ${task.project ?? '(none)'} to ${project ?? '(none)'}`, {
+      project,
+      id: idFor(folderOf(task), project, nameOf(task.id)),
+    });
+  }
+
+  function colourOf(project: string): ProjectColour | null {
+    const wanted = project.toLowerCase();
+    return Object.entries(projectColours).find(([name]) => name.toLowerCase() === wanted)?.[1] ?? null;
+  }
+
+  function withColour(project: string, colour: ProjectColour | null): void {
+    const wanted = project.toLowerCase();
+    const others = Object.entries(projectColours).filter(([existing]) => existing.toLowerCase() !== wanted);
+    projectColours = Object.fromEntries(colour === null ? others : [...others, [project, colour]]);
+  }
+
   function topOrder(status: Status, excluding: TaskId | null): number {
     const orders = columnTasks(tasks, status)
       .filter((task) => task.id !== excluding)
@@ -166,7 +194,8 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   }
 
   function applyEdit(task: Task, edit: TaskEdit): Task {
-    if (task.isArchived) throw new Error("Archived tasks can't be edited. Restore the task first.");
+    if (task.isArchived && edit.field === 'project') return changeProject(task, edit.value);
+    if (task.isArchived) throw new Error("An archived task's project is all that can change.");
     switch (edit.field) {
       case 'title': {
         const title = edit.value.trim();
@@ -315,11 +344,36 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
     setProjectColour: vi.fn(async (project, colour) => {
       const name = normaliseProject(project);
       if (name === null) throw new Error('Choose a project before giving it a colour.');
-      const wanted = name.toLowerCase();
-      const others = Object.entries(projectColours).filter(([existing]) => existing.toLowerCase() !== wanted);
-      projectColours = Object.fromEntries(colour === null ? others : [...others, [name, colour]]);
+      withColour(name, colour);
       publish();
     }),
+    renameProject: vi.fn(async (from, to) => {
+      const source = normaliseProject(from);
+      const name = normaliseProject(to);
+      if (source === null || name === null) throw new Error('Give the project a name.');
+      const others = tasks.flatMap((task) =>
+        task.project !== null && task.project.toLowerCase() !== source.toLowerCase() ? [task.project] : [],
+      );
+      const target = others.find((project) => project.toLowerCase() === name.toLowerCase()) ?? name;
+      const colour = colourOf(target) ?? colourOf(source);
+      const moves: Array<{ from: TaskId; to: TaskId }> = [];
+      let renamed = 0;
+      tasks = tasks.map((task) => {
+        if (task.project === null || task.project.toLowerCase() !== source.toLowerCase()) return task;
+        const next = recordedQuietly(task, `Project renamed from ${task.project} to ${target}`, {
+          project: target,
+          id: idFor(folderOf(task), target, nameOf(task.id)),
+        });
+        renamed += 1;
+        if (next.id !== task.id) moves.push({ from: task.id, to: next.id });
+        return next;
+      });
+      withColour(source, null);
+      withColour(target, colour);
+      publish();
+      return { project: target, renamed, moves };
+    }),
+    openProjectNote: vi.fn(async () => undefined),
 
     getPreferences: vi.fn(async () => preferences),
     setOpenAtLogin: vi.fn(async (enabled) => {

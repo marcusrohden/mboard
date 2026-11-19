@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseTaskFile, serialiseTaskFile, toTask } from './taskFile';
 import type { ParseResult } from './taskFile';
 import type { TaskDocument } from './model';
-import { FALLBACK, makeDocument } from './testHelpers';
+import { FALLBACK, asReadBack, makeDocument } from './testHelpers';
 
 const SPEC_EXAMPLE = `---
 title: "Why is the staging build failing?"
@@ -124,14 +124,15 @@ describe('round-trip of app-written files', () => {
     });
     const text = serialiseTaskFile(document);
     expect(serialiseTaskFile(parseOk(text))).toBe(text);
-    expect(parseOk(text)).toEqual(document);
+    expect(parseOk(text)).toEqual(asReadBack(document));
   });
 
-  it('quotes a title always and other strings only when YAML needs it', () => {
-    const text = serialiseTaskFile(makeDocument({ title: 'Plain', project: '2026' }));
+  it('quotes a title always and a plain project only when YAML needs it', () => {
+    const text = serialiseTaskFile(makeDocument({ title: 'Plain', project: '2026', rawProject: '2026' }));
     expect(text).toContain('title: "Plain"');
     expect(text).toContain('project: "2026"');
-    expect(serialiseTaskFile(makeDocument({ project: 'Acme website' }))).toContain('project: Acme website\n');
+    const plain = makeDocument({ project: 'Acme website', rawProject: 'Acme website' });
+    expect(serialiseTaskFile(plain)).toContain('project: Acme website\n');
   });
 
   it('does not fold long titles', () => {
@@ -544,5 +545,35 @@ Body text.
       SPEC_EXAMPLE.replace('Moved from In progress to With client', 'Responsibility changed from Me to Client'),
     );
     expect(serialiseTaskFile(parseOk(fixed))).toBe(fixed);
+  });
+});
+
+describe('project links', () => {
+  it('reads a quoted path link by its display text and writes it back byte for byte', () => {
+    const text = serialiseTaskFile(makeDocument({ project: 'Acme: web' }), { projectNotesLinkPath: 'Work/b/projects' });
+    expect(text).toContain('project: "[[Work/b/projects/Acme web|Acme: web]]"\n');
+    const parsed = parseOk(text);
+    expect(parsed).toMatchObject({ project: 'Acme: web', rawProject: '[[Work/b/projects/Acme web|Acme: web]]' });
+    expect(serialiseTaskFile(parsed, { projectNotesLinkPath: 'Elsewhere/projects' })).toBe(text);
+  });
+
+  it('reads an unquoted link and writes it back quoted', () => {
+    const parsed = parseOk('---\ntitle: T\nproject: [[Acme website]]\n---\n');
+    expect(parsed).toMatchObject({ project: 'Acme website', rawProject: '[[Acme website]]' });
+    expect(serialiseTaskFile(parsed)).toContain('project: "[[Acme website]]"\n');
+  });
+
+  it('keeps a plain project plain until the file is updated', () => {
+    const parsed = parseOk('---\ntitle: T\nproject: Acme website\n---\n');
+    expect(parsed.rawProject).toBe('Acme website');
+    expect(serialiseTaskFile(parsed, { projectNotesLinkPath: 'projects' })).toContain('project: Acme website\n');
+    const updated = { ...parsed, rawProject: null };
+    expect(serialiseTaskFile(updated, { projectNotesLinkPath: 'projects' })).toContain(
+      'project: "[[projects/Acme website|Acme website]]"\n',
+    );
+  });
+
+  it('writes a project that cannot be linked as plain text', () => {
+    expect(serialiseTaskFile(makeDocument({ project: 'A|B' }))).toContain('project: A|B\n');
   });
 });
