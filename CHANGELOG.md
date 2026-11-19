@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.0](https://github.com/marcusrohden/mboard/compare/v0.7.0...v0.8.0) (2026-11-19)
+
+### Features
+
+* delete a task from its card ([#35](https://github.com/marcusrohden/mboard/pull/35)) ([6f26e05](https://github.com/marcusrohden/mboard/commit/6f26e05944827e07e108dee8a807f464a0ccedc9))
+
 ## [0.7.0](https://github.com/marcusrohden/mboard/compare/v0.6.1...v0.7.0) (2026-11-19)
 
 ### Features
