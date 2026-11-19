@@ -1,6 +1,6 @@
 # Fails a pull request that adds a dependency, or moves one to a version, with a known vulnerability.
 # It diffs the PR against main through GitHub's dependency graph, which must be on in the repo settings.
-# Advisories already on main don't fail it; Dependabot alerts and the weekly audit cover those.
+# Advisories already on main don't fail it; Dependabot alerts cover those.
 name: Dependency review
 
 on:
