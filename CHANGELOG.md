@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.1](https://github.com/marcusrohden/mboard/compare/v0.6.0...v0.6.1) (2026-11-19)
+
+### Bug Fixes
+
+* drag tasks smoothly and highlight the column they land in ([#31](https://github.com/marcusrohden/mboard/pull/31)) ([e7077bd](https://github.com/marcusrohden/mboard/commit/e7077bda95b098f33b48138d657cc483851619be))
+
 ## [0.6.0](https://github.com/marcusrohden/mboard/compare/v0.5.0...v0.6.0) (2026-11-18)
 
 ### Features
