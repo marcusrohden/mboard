@@ -22,6 +22,7 @@
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
   --color-column: #ebebef;
+  --color-drop-target: #d4dced;
   --color-border: #d2d2d7;
   --color-border-strong: #b0b0b8;
   --color-hover: rgba(0, 0, 0, 0.06);
@@ -82,6 +83,7 @@
     --color-surface: #2c2c2e;
     --color-surface-raised: #3a3a3c;
     --color-column: #252527;
+    --color-drop-target: #26324a;
     --color-border: #3d3d40;
     --color-border-strong: #5a5a5e;
     --color-hover: rgba(255, 255, 255, 0.08);

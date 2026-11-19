@@ -28,8 +28,19 @@
   border-left-color: var(--age-grey-edge);
 }
 
-.card[data-dragging] {
-  opacity: 0.6;
+.card[data-drag-source] {
+  border: 1px dashed var(--color-border-strong);
+  background: var(--color-hover);
+  box-shadow: none;
+}
+
+.card[data-drag-source] > * {
+  visibility: hidden;
+}
+
+.preview {
+  height: 100%;
+  box-shadow: var(--shadow-popover);
 }
 
 .title {

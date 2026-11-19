@@ -69,20 +69,31 @@ function describeComments(count: number): string {
   return count === 1 ? '1 comment' : `${count} comments`;
 }
 
+type TaskCardActions = Pick<TaskCardProps, 'onArchive' | 'onComplete' | 'onComment'>;
+
+interface TaskCardContentProps extends TaskCardActions {
+  task: Task;
+  today: LocalDate;
+}
+
+const PREVIEW_ACTIONS: TaskCardActions = {
+  onArchive: () => undefined,
+  onComplete: () => undefined,
+  onComment: () => undefined,
+};
+
 /**
  * One task on the board: title, project in its colour, then the due, created and updated dates on lines of their
  * own. A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
  * staleness tier also colours the left edge. The top right corner always shows two icon buttons: a speech bubble
  * with the comment count, which adds a comment, and a tick that completes the task (moving it to Done after the
- * move comment), or, in Done, an archive box. The whole card is the drag handle. Clicking it, or pressing Enter on
- * it, opens the detail drawer, and the task shortcuts act on it while it has focus.
+ * move comment), or, in Done, an archive box. The whole card is the drag handle; while it is dragged it stays in
+ * its list as an empty slot showing where it will land. Clicking it, or pressing Enter on it, opens the detail
+ * drawer, and the task shortcuts act on it while it has focus.
  */
 export function TaskCard({ task, index, status, today, onOpen, onArchive, onComplete, onComment }: TaskCardProps) {
-  const { ref, isDragging } = useSortableTask(task.id, index, status);
+  const { ref, isDragSource } = useSortableTask(task.id, index, status);
   const staleness = stalenessOf(task, today, useAgeThresholds());
-  const due = dueChip(task, today);
-  const commentCount = task.comments.length;
-  const comments = describeComments(commentCount);
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>): void {
     if (event.key === 'Enter' && event.target === event.currentTarget) {
@@ -100,10 +111,36 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive, onComp
       {...{ [TASK_ID_ATTRIBUTE]: task.id }}
       className={styles.card}
       data-staleness={staleness.level}
-      data-dragging={isDragging || undefined}
+      data-drag-source={isDragSource || undefined}
       onClick={() => onOpen(task.id)}
       onKeyDown={handleKeyDown}
     >
+      <TaskCardContent task={task} today={today} onArchive={onArchive} onComplete={onComplete} onComment={onComment} />
+    </article>
+  );
+}
+
+/**
+ * The copy of a task card that follows the pointer while the task is dragged. It looks like the card, but it is
+ * inert and hidden from assistive technology, and it carries no task id, so focus, shortcuts and queries only
+ * ever find the real card.
+ */
+export function TaskCardPreview({ task, today }: Pick<TaskCardContentProps, 'task' | 'today'>) {
+  const staleness = stalenessOf(task, today, useAgeThresholds());
+  return (
+    <div className={`${styles.card} ${styles.preview}`} data-staleness={staleness.level} aria-hidden inert>
+      <TaskCardContent task={task} today={today} {...PREVIEW_ACTIONS} />
+    </div>
+  );
+}
+
+function TaskCardContent({ task, today, onArchive, onComplete, onComment }: TaskCardContentProps) {
+  const due = dueChip(task, today);
+  const commentCount = task.comments.length;
+  const comments = describeComments(commentCount);
+
+  return (
+    <>
       <div className={styles.top}>
         <p className={styles.title}>{task.title}</p>
         <div className={styles.actions}>
@@ -164,6 +201,6 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive, onComp
           <AgeChip task={task} today={today} />
         </div>
       </div>
-    </article>
+    </>
   );
 }

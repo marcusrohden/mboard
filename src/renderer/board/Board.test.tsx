@@ -77,6 +77,16 @@ describe('Board', () => {
     expect(screen.queryByRole('button', { name: 'Plain' })).toBeNull();
   });
 
+  it('highlights no column and shows no drag preview while nothing is dragged', async () => {
+    await renderBoard({
+      tasks: [buildTask({ title: 'Resting' }), buildTask({ title: 'Waiting', status: 'Internal' })],
+    });
+    expect(document.querySelector('[data-drop-target]')).toBeNull();
+    expect(document.querySelector('[data-drag-source]')).toBeNull();
+    expect(document.querySelector('[data-dnd-overlay]')?.childElementCount).toBe(0);
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+  });
+
   it('invites the first task when the board is empty', async () => {
     const { user, fake } = await renderBoard();
     expect(screen.getByText('No tasks yet')).toBeTruthy();

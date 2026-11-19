@@ -9,6 +9,7 @@ interface ColumnProps {
   view: ColumnView;
   tasks: Task[];
   isFiltered: boolean;
+  isDropTarget: boolean;
   today: LocalDate;
   onOpen: (id: TaskId) => void;
   onArchive: (id: TaskId) => void;
@@ -19,11 +20,13 @@ interface ColumnProps {
 
 /**
  * One board column: its name, its "shown of total" count and its tasks. The Done column also offers Archive all.
+ * The whole column accepts a dropped task, and `isDropTarget` highlights it as where the dragged task will land.
  */
 export function Column({
   view,
   tasks,
   isFiltered,
+  isDropTarget,
   today,
   onOpen,
   onArchive,
@@ -31,11 +34,11 @@ export function Column({
   onComment,
   onArchiveAll,
 }: ColumnProps) {
-  const { ref, isDropTarget } = useColumnDropZone(view.status);
+  const { ref } = useColumnDropZone(view.status);
   const emptyText = isFiltered && view.total > 0 ? 'No matching tasks' : 'No tasks';
 
   return (
-    <section aria-label={view.status} className={styles.column}>
+    <section ref={ref} aria-label={view.status} className={styles.column} data-drop-target={isDropTarget || undefined}>
       <header className={styles.header}>
         <h2 className={styles.name}>{view.status}</h2>
         <span className={styles.count}>{columnCountLabel(view)}</span>
@@ -51,7 +54,7 @@ export function Column({
           </Button>
         )}
       </header>
-      <div ref={ref} className={styles.tasks} data-drop-target={isDropTarget || undefined}>
+      <div className={styles.tasks}>
         {tasks.map((task, index) => (
           <TaskCard
             key={task.id}
