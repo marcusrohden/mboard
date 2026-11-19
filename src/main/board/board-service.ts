@@ -683,7 +683,7 @@ export class FileBoardService implements BoardService {
 
   private emitChange(): void {
     const snapshot = this.snapshot();
-    for (const listener of [...this.listeners]) {
+    for (const listener of Array.from(this.listeners)) {
       try {
         listener(snapshot);
       } catch (error) {

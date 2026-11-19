@@ -2,7 +2,7 @@ const MAX_STEM_LENGTH = 100;
 const FALLBACK_STEM = 'Untitled';
 const EXTENSION = '.md';
 
-const FORBIDDEN_CHARACTERS = /[\u0000-\u001f\u007f-\u009f/\\:*?"<>|#^[\]]/g;
+const FORBIDDEN_CHARACTERS = /[\p{Cc}/\\:*?"<>|#^[\]]/gu;
 
 function cutToLength(text: string, maxLength: number): string {
   return Array.from(text).slice(0, maxLength).join('');
