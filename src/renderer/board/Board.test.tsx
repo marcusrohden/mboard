@@ -551,3 +551,48 @@ describe('Adding a comment from a card', () => {
     expect((within(dialog).getByLabelText('Comment') as HTMLTextAreaElement).value).toBe('Called the client');
   });
 });
+
+describe('Deleting a task from a card', () => {
+  function deleteButton(title: string): HTMLElement {
+    return within(screen.getByRole('article', { name: title })).getByRole('button', { name: 'Delete' });
+  }
+
+  it('shows a Delete button with its ⇧⌘⌫ shortcut on every card, Done included', async () => {
+    await renderBoard({
+      tasks: [buildTask({ title: 'Open' }), buildTask({ title: 'Shipped', status: 'Done' })],
+    });
+    for (const title of ['Open', 'Shipped']) {
+      expect(deleteButton(title).getAttribute('title')).toBe('Delete (⇧⌘⌫)');
+      expect(deleteButton(title).getAttribute('aria-keyshortcuts')).toBe('Shift+Meta+Backspace');
+    }
+  });
+
+  it('asks first, without opening the drawer, and deletes only when confirmed', async () => {
+    const { user, fake } = await renderBoard({
+      tasks: [buildTask({ title: 'Report' }), buildTask({ title: 'Other' })],
+    });
+    await user.click(deleteButton('Report'));
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete task?' });
+    expect(dialog.textContent).toContain('"Report" will be moved to the Trash.');
+    expect(screen.queryByRole('complementary', { name: 'Task details' })).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(fake.api.deleteTask).not.toHaveBeenCalled();
+
+    await user.click(deleteButton('Report'));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }));
+    expect(fake.api.deleteTask).toHaveBeenCalledWith('tasks/Report.md');
+    await waitFor(() => expect(screen.queryByRole('article', { name: 'Report' })).toBeNull());
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('article', { name: 'Other' })).toBeTruthy();
+  });
+
+  it('closes the confirmation when the task goes away while it is open', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Report' })] });
+    await user.click(deleteButton('Report'));
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
+    act(() => fake.setTasks([]));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(fake.api.deleteTask).not.toHaveBeenCalled();
+  });
+});

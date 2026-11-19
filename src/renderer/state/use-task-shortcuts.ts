@@ -1,6 +1,6 @@
 import { COLUMNS, type Status, type Task, type TaskId } from '../../domain';
 import { columnShortcut, type ShortcutId } from '../shortcuts/keymap';
-import { useShortcuts } from '../shortcuts/shortcuts';
+import { useShortcut, useShortcuts } from '../shortcuts/shortcuts';
 import type { TaskCommands } from './use-task-commands';
 
 /** Marks an element that shows one task, so that a shortcut can act on the one that has focus. */
@@ -15,13 +15,15 @@ function focusedTask(tasks: readonly Task[]): Task | null {
  * The task shortcuts that act on the task open in the drawer, or else on the task whose card or archived
  * row has focus: ⌘1 to ⌘5 move it to the top of that column, ⇧⌘A archives a task in Done, ⇧⌘R restores an
  * archived task, ⌘O opens it in Obsidian and ⇧⌘C asks for a comment on a live task. Each does nothing for a
- * task it doesn't apply to.
+ * task it doesn't apply to. ⇧⌘⌫ asks to delete the task whose card or row has focus, and is left to the
+ * drawer's own Delete while the drawer is open.
  */
 export function useTaskShortcuts(
   selectedTask: Task | null,
   tasks: readonly Task[],
   commands: TaskCommands,
   onComment: (id: TaskId) => void,
+  onDelete: (id: TaskId) => void,
 ): void {
   const target = (): Task | null => selectedTask ?? focusedTask(tasks);
 
@@ -62,4 +64,12 @@ export function useTaskShortcuts(
     ],
   ];
   useShortcuts(bindings);
+  useShortcut(
+    'deleteTask',
+    () => {
+      const task = focusedTask(tasks);
+      if (task !== null) onDelete(task.id);
+    },
+    selectedTask === null,
+  );
 }

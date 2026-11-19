@@ -18,6 +18,7 @@ import { ArchiveIcon } from '../ui/ArchiveIcon';
 import { CheckIcon } from '../ui/CheckIcon';
 import { CommentIcon } from '../ui/CommentIcon';
 import { ProjectLabel } from '../ui/ProjectLabel';
+import { TrashIcon } from '../ui/TrashIcon';
 import { useSortableTask } from './board-dnd';
 import styles from './TaskCard.module.css';
 
@@ -30,20 +31,21 @@ interface TaskCardProps {
   onArchive: (id: Task['id']) => void;
   onComplete: (id: Task['id']) => void;
   onComment: (id: Task['id']) => void;
+  onDelete: (id: Task['id']) => void;
 }
 
 interface CardIconButtonProps {
   label: string;
   tooltip: string;
   shortcut: ShortcutId;
-  action: 'comment' | 'complete' | 'archive';
+  action: 'comment' | 'complete' | 'archive' | 'delete';
   onPress: () => void;
   children: ReactNode;
 }
 
 /**
- * An icon button in a card's top right corner. It names itself for assistive technology and shows its
- * shortcut in its tooltip, because the card has no room for a key hint. Pressing it never opens the drawer.
+ * An icon button on a card. It names itself for assistive technology and shows its shortcut in its tooltip,
+ * because the card has no room for a key hint. Pressing it never opens the drawer.
  */
 function CardIconButton({ label, tooltip, shortcut, action, onPress, children }: CardIconButtonProps) {
   return (
@@ -69,7 +71,7 @@ function describeComments(count: number): string {
   return count === 1 ? '1 comment' : `${count} comments`;
 }
 
-type TaskCardActions = Pick<TaskCardProps, 'onArchive' | 'onComplete' | 'onComment'>;
+type TaskCardActions = Pick<TaskCardProps, 'onArchive' | 'onComplete' | 'onComment' | 'onDelete'>;
 
 interface TaskCardContentProps extends TaskCardActions {
   task: Task;
@@ -80,6 +82,7 @@ const PREVIEW_ACTIONS: TaskCardActions = {
   onArchive: () => undefined,
   onComplete: () => undefined,
   onComment: () => undefined,
+  onDelete: () => undefined,
 };
 
 /**
@@ -87,11 +90,22 @@ const PREVIEW_ACTIONS: TaskCardActions = {
  * own. A due date that is today or overdue gets a coloured chip, and the updated date the age chip, whose
  * staleness tier also colours the left edge. The top right corner always shows two icon buttons: a speech bubble
  * with the comment count, which adds a comment, and a tick that completes the task (moving it to Done after the
- * move comment), or, in Done, an archive box. The whole card is the drag handle; while it is dragged it stays in
- * its list as an empty slot showing where it will land. Clicking it, or pressing Enter on it, opens the detail
- * drawer, and the task shortcuts act on it while it has focus.
+ * move comment), or, in Done, an archive box. The bottom left corner, before the dates, always shows a bin that
+ * deletes the task once confirmed. The whole card is the drag handle; while it is dragged it stays in its list as
+ * an empty slot showing where it will land. Clicking it, or pressing Enter on it, opens the detail drawer, and
+ * the task shortcuts act on it while it has focus.
  */
-export function TaskCard({ task, index, status, today, onOpen, onArchive, onComplete, onComment }: TaskCardProps) {
+export function TaskCard({
+  task,
+  index,
+  status,
+  today,
+  onOpen,
+  onArchive,
+  onComplete,
+  onComment,
+  onDelete,
+}: TaskCardProps) {
   const { ref, isDragSource } = useSortableTask(task.id, index, status);
   const staleness = stalenessOf(task, today, useAgeThresholds());
 
@@ -115,7 +129,14 @@ export function TaskCard({ task, index, status, today, onOpen, onArchive, onComp
       onClick={() => onOpen(task.id)}
       onKeyDown={handleKeyDown}
     >
-      <TaskCardContent task={task} today={today} onArchive={onArchive} onComplete={onComplete} onComment={onComment} />
+      <TaskCardContent
+        task={task}
+        today={today}
+        onArchive={onArchive}
+        onComplete={onComplete}
+        onComment={onComment}
+        onDelete={onDelete}
+      />
     </article>
   );
 }
@@ -134,7 +155,7 @@ export function TaskCardPreview({ task, today }: Pick<TaskCardContentProps, 'tas
   );
 }
 
-function TaskCardContent({ task, today, onArchive, onComplete, onComment }: TaskCardContentProps) {
+function TaskCardContent({ task, today, onArchive, onComplete, onComment, onDelete }: TaskCardContentProps) {
   const due = dueChip(task, today);
   const commentCount = task.comments.length;
   const comments = describeComments(commentCount);
@@ -182,23 +203,34 @@ function TaskCardContent({ task, today, onArchive, onComplete, onComment }: Task
           <ProjectLabel project={task.project} />
         </p>
       )}
-      <div className={styles.dates}>
-        {task.due !== null && (
+      <div className={styles.bottom}>
+        <CardIconButton
+          label="Delete"
+          tooltip="Delete"
+          shortcut="deleteTask"
+          action="delete"
+          onPress={() => onDelete(task.id)}
+        >
+          <TrashIcon />
+        </CardIconButton>
+        <div className={styles.dates}>
+          {task.due !== null && (
+            <div className={styles.dateLine}>
+              <span>Due {formatCompactDate(task.due, today)}</span>
+              {due !== null && due.tone !== 'neutral' && (
+                <span className={styles.chip} data-tone={due.tone}>
+                  {due.text}
+                </span>
+              )}
+            </div>
+          )}
           <div className={styles.dateLine}>
-            <span>Due {formatCompactDate(task.due, today)}</span>
-            {due !== null && due.tone !== 'neutral' && (
-              <span className={styles.chip} data-tone={due.tone}>
-                {due.text}
-              </span>
-            )}
+            <span>Created {formatCompactDate(localDateOf(task.created), today)}</span>
           </div>
-        )}
-        <div className={styles.dateLine}>
-          <span>Created {formatCompactDate(localDateOf(task.created), today)}</span>
-        </div>
-        <div className={styles.dateLine}>
-          <span>Updated {formatCompactDate(localDateOf(task.updated), today)}</span>
-          <AgeChip task={task} today={today} />
+          <div className={styles.dateLine}>
+            <span>Updated {formatCompactDate(localDateOf(task.updated), today)}</span>
+            <AgeChip task={task} today={today} />
+          </div>
         </div>
       </div>
     </>

@@ -250,11 +250,24 @@ describe('Task shortcuts on the focused card', () => {
     expect(drawerOrNull()).toBeNull();
   });
 
+  it('asks before deleting the focused card with ⇧⌘⌫, confirmed with ⌘↵', async () => {
+    const { user, fake } = await renderBoard(BUSY_BOARD());
+    screen.getByRole('article', { name: 'Fix login' }).focus();
+    await user.keyboard('{Meta>}{Shift>}{Backspace}{/Shift}{/Meta}');
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete task?' });
+    expect(drawerOrNull()).toBeNull();
+    await user.keyboard('{Meta>}{Enter}{/Meta}');
+    expect(fake.api.deleteTask).toHaveBeenCalledWith('tasks/Fix login.md');
+    expect(dialog.isConnected).toBe(false);
+  });
+
   it('does nothing without a focused card or an open task', async () => {
     const { user, fake } = await renderBoard(BUSY_BOARD());
     await user.click(document.body);
     await user.keyboard('{Meta>}3{/Meta}');
     expect(fake.api.moveTask).not.toHaveBeenCalled();
+    await user.keyboard('{Meta>}{Shift>}{Backspace}{/Shift}{/Meta}');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 });
 

@@ -77,10 +77,23 @@
   color: var(--tone-red-fg);
 }
 
+.bottom {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-end;
+}
+
+.bottom > .iconButton {
+  flex: none;
+  margin: 0 0 -3px -6px;
+}
+
 .dates {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
 }
@@ -135,6 +148,10 @@
 
 .iconButton[data-action='complete']:hover {
   color: var(--color-accent);
+}
+
+.iconButton[data-action='delete']:hover {
+  color: var(--color-danger);
 }
 
 .count {
