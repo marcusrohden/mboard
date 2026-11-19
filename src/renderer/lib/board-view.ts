@@ -55,6 +55,14 @@ export interface DropTarget {
 }
 
 /**
+ * The column that holds `id` in `arrangement`, or `null` when no column does. While a task is dragged, this is
+ * the column it lands in if dropped now.
+ */
+export function columnOf(arrangement: ColumnArrangement, id: TaskId): Status | null {
+  return COLUMNS.find((column) => arrangement[column].includes(id)) ?? null;
+}
+
+/**
  * Works out the move a drop asks for: the column the dropped task landed in and the visible task it now
  * sits above. Returns `null` when the task isn't in the arrangement, or when it ended where it began.
  */
@@ -63,8 +71,8 @@ export function resolveDrop(
   arrangement: ColumnArrangement,
   droppedId: TaskId,
 ): DropTarget | null {
-  const status = COLUMNS.find((column) => arrangement[column].includes(droppedId));
-  if (status === undefined) return null;
+  const status = columnOf(arrangement, droppedId);
+  if (status === null) return null;
   const beforeId = beforeIdAfterDrop(arrangement[status], droppedId);
   const startedHere = original[status].includes(droppedId);
   const unchanged = startedHere && beforeIdAfterDrop(original[status], droppedId) === beforeId;

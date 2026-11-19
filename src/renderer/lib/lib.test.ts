@@ -4,6 +4,7 @@ import {
   beforeIdAfterDrop,
   buildColumnViews,
   columnCountLabel,
+  columnOf,
   resolveDrop,
   topOfColumnBeforeId,
   type ColumnArrangement,
@@ -117,19 +118,39 @@ describe('placing a task', () => {
   });
 });
 
-describe('resolveDrop', () => {
-  function arranged(columns: Partial<Record<Status, TaskId[]>>): ColumnArrangement {
-    const arrangement: ColumnArrangement = {
-      'To do': [],
-      'In progress': [],
-      Internal: [],
-      'With client': [],
-      Done: [],
-    };
-    for (const status of COLUMNS) arrangement[status] = columns[status] ?? [];
-    return arrangement;
-  }
+function arranged(columns: Partial<Record<Status, TaskId[]>>): ColumnArrangement {
+  const arrangement: ColumnArrangement = {
+    'To do': [],
+    'In progress': [],
+    Internal: [],
+    'With client': [],
+    Done: [],
+  };
+  for (const status of COLUMNS) arrangement[status] = columns[status] ?? [];
+  return arrangement;
+}
 
+describe('columnOf', () => {
+  it('names the column that holds the task', () => {
+    const arrangement = arranged({ 'To do': ['a'], Internal: ['b', 'c'], Done: ['d'] });
+    expect(columnOf(arrangement, 'a')).toBe('To do');
+    expect(columnOf(arrangement, 'c')).toBe('Internal');
+    expect(columnOf(arrangement, 'd')).toBe('Done');
+  });
+
+  it('follows the task as a drag moves it into another column', () => {
+    const before = arranged({ 'To do': ['a', 'b'], 'In progress': ['c'] });
+    const during = arranged({ 'To do': ['a'], 'In progress': ['b', 'c'] });
+    expect(columnOf(before, 'b')).toBe('To do');
+    expect(columnOf(during, 'b')).toBe('In progress');
+  });
+
+  it('is null for a task no column holds', () => {
+    expect(columnOf(arranged({ 'To do': ['a'] }), 'missing')).toBeNull();
+  });
+});
+
+describe('resolveDrop', () => {
   const original = arranged({
     'To do': ['a', 'b', 'c'],
     'In progress': ['d'],

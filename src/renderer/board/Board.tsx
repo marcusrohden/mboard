@@ -3,6 +3,7 @@ import type { ColumnView } from '../lib/board-view';
 import { Button } from '../ui/Button';
 import { BoardDnd, type ColumnIds } from './board-dnd';
 import { Column } from './Column';
+import { TaskCardPreview } from './TaskCard';
 import styles from './Board.module.css';
 
 interface BoardProps {
@@ -27,7 +28,8 @@ function idsByColumn(views: ColumnView[]): ColumnIds {
 }
 
 /**
- * The five columns, with drag and drop between and within them. An empty board invites the first task.
+ * The five columns, with drag and drop between and within them. While a task is dragged, the column it would
+ * land in is highlighted. An empty board invites the first task.
  */
 export function Board({
   views,
@@ -44,6 +46,11 @@ export function Board({
   const totalTasks = views.reduce((sum, view) => sum + view.total, 0);
   const taskById = new Map<TaskId, Task>(views.flatMap((view) => view.visible.map((task) => [task.id, task] as const)));
 
+  function renderDragPreview(id: TaskId) {
+    const task = taskById.get(id);
+    return task === undefined ? null : <TaskCardPreview task={task} today={today} />;
+  }
+
   if (totalTasks === 0) {
     return (
       <div className={styles.empty}>
@@ -56,8 +63,8 @@ export function Board({
   }
 
   return (
-    <BoardDnd columns={idsByColumn(views)} onMove={onMove}>
-      {(columns) => (
+    <BoardDnd columns={idsByColumn(views)} onMove={onMove} renderDragPreview={renderDragPreview}>
+      {(columns, landingStatus) => (
         <div className={styles.board}>
           {COLUMNS.map((status) => {
             const view = views.find((candidate) => candidate.status === status);
@@ -69,6 +76,7 @@ export function Board({
                 view={view}
                 tasks={tasks}
                 isFiltered={isFiltered}
+                isDropTarget={landingStatus === status}
                 today={today}
                 onOpen={onOpen}
                 onArchive={onArchive}
