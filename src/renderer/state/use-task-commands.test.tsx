@@ -25,6 +25,7 @@ const SELECTION: TaskSelection = {
   close: () => undefined,
   beginCommand: () => undefined,
   endCommand: () => undefined,
+  endCommandWithMoves: () => undefined,
 };
 
 function wrapper({ children }: { children: ReactNode }) {

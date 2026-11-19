@@ -53,3 +53,13 @@
 .iconButton {
   padding: 2px var(--space-1);
 }
+
+.projectOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.projectOption > label {
+  flex: 1;
+}

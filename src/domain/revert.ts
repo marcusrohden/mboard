@@ -1,5 +1,6 @@
 import { buildLedger, isCommentsChange, writeTrackedValue, type CommentsDelta } from './ledger';
 import type { HistoryEntry, LedgerChange, RevertExpectation, TaskComment, TaskDocument } from './model';
+import { projectSpellingAfterUpdate } from './projectLink';
 import { formatCompactDateTime, formatLocalDate, formatLocalDateTime, formatLogTimestamp } from './time';
 
 /** Why a task can't be reverted to a history entry. */
@@ -125,6 +126,7 @@ export function revertDocument(document: TaskDocument, index: number, now: Date)
   };
   return {
     ...reverted,
+    rawProject: projectSpellingAfterUpdate(reverted.rawProject),
     updated: formatLocalDateTime(now),
     history: [...document.history.slice(0, index + 1), entry],
   };

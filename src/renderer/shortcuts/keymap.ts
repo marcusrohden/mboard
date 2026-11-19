@@ -78,6 +78,7 @@ const NAMED = {
   toggleOpenAtLogin: { chord: letter('L'), scopes: ['dialog'] },
   resetAgeColours: { chord: letter('R'), scopes: ['dialog'] },
   nextTerminal: { chord: letter('T'), scopes: ['dialog'] },
+  openProjectNote: { chord: letter('O', { shift: true }), scopes: ['dialog'] },
 
   tryAgain: { chord: letter('R'), scopes: ['screen'] },
 } as const satisfies Record<string, ShortcutDefinition>;

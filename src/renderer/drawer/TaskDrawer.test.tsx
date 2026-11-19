@@ -291,7 +291,7 @@ describe('Task detail drawer project colour', () => {
     expect(drawerOrNull()).not.toBeNull();
   });
 
-  it('follows the project as it is typed, and has no picker without a project or for an archived task', async () => {
+  it('follows the project as it is typed, has no picker without a project, and has one for an archived task', async () => {
     const { user } = await renderBoard({
       tasks: [
         buildTask({ title: 'Loose' }),
@@ -307,7 +307,7 @@ describe('Task detail drawer project colour', () => {
     await user.click(screen.getByRole('button', { name: 'Archived' }));
     await user.click(screen.getByRole('button', { name: 'Old' }));
     const archived = screen.getByRole('complementary', { name: 'Task details' });
-    expect(within(archived).queryByRole('radiogroup')).toBeNull();
+    expect(within(archived).getByRole('radiogroup', { name: 'Colour for Acme' })).toBeTruthy();
   });
 });
 
@@ -684,7 +684,7 @@ describe('Task detail drawer actions', () => {
 });
 
 describe('Task detail drawer for an archived task', () => {
-  it('makes every field read-only and offers Restore', async () => {
+  it('makes every field but the project read-only and offers Restore', async () => {
     const archived = buildTask({
       title: 'Old',
       status: 'Done',
@@ -698,7 +698,7 @@ describe('Task detail drawer for an archived task', () => {
     await user.click(screen.getByRole('button', { name: 'Old' }));
     const drawer = screen.getByRole('complementary', { name: 'Task details' });
     expect(input(drawer, 'Title').readOnly).toBe(true);
-    expect(input(drawer, 'Project').readOnly).toBe(true);
+    expect(input(drawer, 'Project').readOnly).toBe(false);
     expect(input(drawer, 'Due date').readOnly).toBe(true);
     expect(input(drawer, 'Description').readOnly).toBe(true);
     expect((within(drawer).getByLabelText('Column') as HTMLSelectElement).disabled).toBe(true);
@@ -708,5 +708,27 @@ describe('Task detail drawer for an archived task', () => {
     expect(within(drawer).queryByRole('button', { name: 'Archive' })).toBeNull();
     await user.click(within(drawer).getByRole('button', { name: 'Restore' }));
     expect(fake.api.restoreTask).toHaveBeenCalledWith('archive/Old.md');
+  });
+
+  it("changes an archived task's project, following its file within the archive and keeping its age", async () => {
+    const archived = buildTask({
+      title: 'Old',
+      status: 'Done',
+      isArchived: true,
+      project: 'Acme',
+      updated: '2026-11-12T10:00:00',
+    });
+    const { user, fake } = await renderBoard({ tasks: [archived] });
+    await user.click(screen.getByRole('button', { name: 'Archived' }));
+    await user.click(screen.getByRole('button', { name: 'Old' }));
+    const drawer = screen.getByRole('complementary', { name: 'Task details' });
+
+    await user.clear(input(drawer, 'Project'));
+    await user.type(input(drawer, 'Project'), 'Globex{Enter}');
+
+    expect(fake.api.editTask).toHaveBeenLastCalledWith('archive/Old.md', { field: 'project', value: 'Globex' });
+    expect(fake.tasks()[0]).toMatchObject({ id: 'archive/Globex/Old.md', updated: '2026-11-12T10:00:00' });
+    expect(screen.getByRole('complementary', { name: 'Task details' })).toBeTruthy();
+    expect(input(screen.getByRole('complementary', { name: 'Task details' }), 'Project').value).toBe('Globex');
   });
 });

@@ -12,7 +12,7 @@ import type {
   UnknownFrontmatterEntry,
 } from './model';
 import { matchStatus } from './model';
-import { normaliseProject } from './projects';
+import { isProjectLink, projectValueToWrite, readProjectValue } from './projectLink';
 import { formatLocalDateTime, normaliseLogTimestamp, normaliseTimestamp, parseLocalDate } from './time';
 
 /** What the file system knows about a task file, used when the file itself lacks a value. */
@@ -23,6 +23,17 @@ export interface FileFallback {
 }
 
 export type ParseResult = { kind: 'ok'; document: TaskDocument } | { kind: 'unreadable'; reason: string };
+
+/** What writing a task file needs to know about its board. */
+export interface SerialiseOptions {
+  /**
+   * The path, from the vault's root, of the board's projects folder, which mboard's project links point
+   * into. `null` when the board isn't inside a vault, which writes links by the note's name alone.
+   */
+  projectNotesLinkPath: string | null;
+}
+
+const OUTSIDE_A_VAULT: SerialiseOptions = { projectNotesLinkPath: null };
 
 const HISTORY_SEPARATOR = '—';
 
@@ -200,6 +211,7 @@ export function parseTaskFile(content: string, fallback: FileFallback): ParseRes
   if (typeof properties === 'string') return { kind: 'unreadable', reason: properties };
 
   const { status, rawStatus } = readStatus(properties.get('status'), properties.get(LEGACY_RESPONSIBILITY_KEY));
+  const { project, raw: rawProject } = readProjectValue(properties.get('project'));
   const buckets = sectionBuckets(body);
   const unknownFrontmatter: UnknownFrontmatterEntry[] = [...properties]
     .filter(([key]) => !KNOWN_KEYS.has(key))
@@ -211,7 +223,8 @@ export function parseTaskFile(content: string, fallback: FileFallback): ParseRes
       title: readTitle(properties.get('title'), fallback.fileName),
       status,
       rawStatus,
-      project: normaliseProject(scalarText(properties.get('project'))),
+      project,
+      rawProject,
       due: readDue(properties.get('due')),
       created: readTimestamp(properties.get('created')) ?? formatLocalDateTime(fallback.birthtime),
       updated: readTimestamp(properties.get('updated')) ?? formatLocalDateTime(fallback.mtime),
@@ -225,18 +238,25 @@ export function parseTaskFile(content: string, fallback: FileFallback): ParseRes
   };
 }
 
-function quotedTitle(title: string): Scalar<string> {
-  const scalar = new Scalar(title);
+function doubleQuoted(text: string): Scalar<string> {
+  const scalar = new Scalar(text);
   scalar.type = Scalar.QUOTE_DOUBLE;
   return scalar;
 }
 
-function frontmatterEntries(document: TaskDocument): [unknown, unknown][] {
+function projectEntry(document: TaskDocument, options: SerialiseOptions): string | Scalar<string> | null {
+  const value = projectValueToWrite(document.project, document.rawProject, options.projectNotesLinkPath);
+  if (value === null) return null;
+  return isProjectLink(value) ? doubleQuoted(value) : value;
+}
+
+function frontmatterEntries(document: TaskDocument, options: SerialiseOptions): [unknown, unknown][] {
   const entries: [unknown, unknown][] = [
-    ['title', quotedTitle(document.title)],
+    ['title', doubleQuoted(document.title)],
     ['status', document.rawStatus ?? document.status],
   ];
-  if (document.project !== null) entries.push(['project', document.project]);
+  const project = projectEntry(document, options);
+  if (project !== null) entries.push(['project', project]);
   if (document.due !== null) entries.push(['due', document.due]);
   entries.push(['created', document.created], ['updated', document.updated]);
   if (document.archivedAt !== null) entries.push(['archived', document.archivedAt]);
@@ -245,8 +265,8 @@ function frontmatterEntries(document: TaskDocument): [unknown, unknown][] {
   return entries;
 }
 
-function serialiseFrontmatter(document: TaskDocument): string {
-  return new Document(new Map(frontmatterEntries(document)), { schema: 'core' }).toString({
+function serialiseFrontmatter(document: TaskDocument, options: SerialiseOptions): string {
+  return new Document(new Map(frontmatterEntries(document, options)), { schema: 'core' }).toString({
     lineWidth: 0,
     nullStr: '',
   });
@@ -277,10 +297,13 @@ function serialiseBody(document: TaskDocument): string {
 /**
  * Serialises a task document to file text in the app's canonical layout: known frontmatter keys in a
  * fixed order, unknown keys after them in their original order, then the Description, Comments and
- * History sections. A file the app wrote parses and serialises back to identical text.
+ * History sections. The project is written as the file spelled it while that still names the project, or
+ * else as mboard's double-quoted link to the project's note. A file the app wrote parses and serialises back
+ * to identical text.
  */
-export function serialiseTaskFile(document: TaskDocument): string {
-  return `${FRONTMATTER_FENCE}\n${serialiseFrontmatter(document)}${FRONTMATTER_FENCE}\n\n${serialiseBody(document)}`;
+export function serialiseTaskFile(document: TaskDocument, options: SerialiseOptions = OUTSIDE_A_VAULT): string {
+  const frontmatter = serialiseFrontmatter(document, options);
+  return `${FRONTMATTER_FENCE}\n${frontmatter}${FRONTMATTER_FENCE}\n\n${serialiseBody(document)}`;
 }
 
 /** Builds the renderer's view of a parsed task file. */

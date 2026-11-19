@@ -22,6 +22,7 @@ interface HeaderProps {
   onOpenAgent: () => void;
   onNewTask: () => void;
   onOpenSettings: () => void;
+  onEditProject: (project: string) => void;
 }
 
 /**
@@ -42,6 +43,7 @@ export function Header({
   onOpenAgent,
   onNewTask,
   onOpenSettings,
+  onEditProject,
 }: HeaderProps) {
   return (
     <header className={styles.header}>
@@ -67,6 +69,7 @@ export function Header({
         projects={projects}
         showBoardOnlyFilters={!isArchivedView}
         dispatch={dispatch}
+        onEditProject={onEditProject}
       />
       {isFilterActive && (
         <Button variant="quiet" shortcut="clearFilters" onClick={() => dispatch({ type: 'clear' })}>

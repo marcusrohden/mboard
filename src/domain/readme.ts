@@ -19,7 +19,9 @@ You can read and edit these files in Obsidian, in any editor, or with a script o
 \`\`\`text
 ${boardName}/
 ├── README.md     this file
-├── projects.md   project colours, once a project has one
+├── projects/     one note per project, which its tasks link to
+│   └── Acme website.md
+├── projects.md   older project colours, read when a project's note has none
 ├── tasks/        live tasks, in any column
 │   ├── Acme website/   tasks of the project Acme website
 │   └── Loose task.md   a task with no project
@@ -31,6 +33,8 @@ ${boardName}/
 - Only tasks in Done can be archived. Archiving moves the file from \`tasks/\` to \`archive/\` and adds \`archived\`. Restoring moves it back to the top of Done and removes \`archived\`.
 - Tasks are grouped by project: a task with a \`project\` lives in a folder named after it inside \`tasks/\` (or \`archive/\`), and a task without one lives directly in \`tasks/\`. Put a new task file in its project's folder, or directly in \`tasks/\` when it has none. Only one level of folders is read.
 - The \`project\` property, not the folder, decides the project. When mboard changes a task, it moves the file into the folder of its project, and removes a project folder it left empty.
+- Each project has a note in \`projects/\`, named after the project the way its folder is, and each task's \`project\` links to it. mboard writes the link with the note's path from the vault's root, so Obsidian always finds the right note, and the project's name as its display text.
+- Renaming a project in mboard renames its note and changes \`project\` on every task that has it, live and archived.
 - The file name is the title with characters that are unsafe in file names removed, for example \`Fix login bug.md\`. mboard renames the file when the title changes.
 
 ## A task file
@@ -39,7 +43,7 @@ ${boardName}/
 ---
 title: "Why is the staging build failing?"
 status: With client
-project: Acme website
+project: "[[Work/${boardName}/projects/Acme website|Acme website]]"
 due: 2026-11-20
 created: 2026-11-16T09:30:00
 updated: 2026-11-16T14:03:12
@@ -70,7 +74,7 @@ Asked the client for the staging credentials.
 | --- | --- | --- |
 | \`title\` | The task's name | Text. Always double-quoted when mboard writes it. Falls back to the file name |
 | \`status\` | The column | \`To do\`, \`In progress\`, \`Internal\`, \`With client\` or \`Done\`. Anything else reads as \`To do\` |
-| \`project\` | An optional name that groups tasks | Text. Leave it out for none |
+| \`project\` | An optional project that groups tasks | A double-quoted link to the project's note with the project's name as its display text, as in the example above, or just the name as text. Leave it out for none |
 | \`due\` | The date the task should be done by | \`YYYY-MM-DD\`, no time of day. Leave it out for none |
 | \`created\` | When the task was created | Local time, \`YYYY-MM-DDTHH:mm:ss\`, no offset |
 | \`updated\` | When mboard last changed the task | Local time, \`YYYY-MM-DDTHH:mm:ss\`, no offset |
@@ -90,20 +94,23 @@ Asked the client for the staging credentials.
 | \`## Comments\` | One \`### YYYY-MM-DD HH:mm\` heading per comment, then the comment text. Oldest first |
 | \`## History\` | One line per change, \`- YYYY-MM-DD HH:mm — <what changed>\`, oldest first, usually followed by a hidden \`<!-- mboard-ledger {…} -->\` comment |
 
-## Project colours
+## Project notes and colours
 
-\`projects.md\` gives projects a colour on the board. Its frontmatter has \`colours\`, a mapping from project name to one of ${PALETTE_TEXT}. Names match each task's \`project\` ignoring case. mboard creates the file when a project first gets a colour, and you can edit it too.
+A project's note in \`projects/\` is yours to write in: notes, links, anything. mboard creates it when a task first links to it, and only ever changes its \`colour\` and the \`# <project>\` heading it starts the note with. \`colour\` gives the project a colour on the board, one of ${PALETTE_TEXT}.
 
 \`\`\`markdown
 ---
-colours:
-  Acme website: teal
+colour: teal
 ---
+# Acme website
 \`\`\`
+
+Notes are matched to projects ignoring case. Older boards kept colours in \`projects.md\`, under \`colours\`, a mapping from project name to colour. mboard still reads it for a project whose note has no colour, and moves a project's colour into its note when the colour next changes.
 
 ## Editing tasks as a person or an agent
 
 - To add a task, create a file in \`tasks/\` with the properties above. At least \`title\` and \`status\` are needed. Set \`created\` and \`updated\` to the current local time.
+- For \`project\`, the project's name as plain text is enough. mboard writes the link the next time it changes the task. A link you write yourself, for example to a note of your own, is kept as long as it names the same project.
 - To move a task, change \`status\`. To reorder it, change \`order\`.
 - You don't need to update \`updated\` or the history. mboard never records outside edits in the history log, and it never rewrites a file just because you changed it.
 - Leave the \`<!-- mboard-ledger … -->\` comments alone. Each one records exactly what that change did, so that mboard can revert the task to an earlier history entry.

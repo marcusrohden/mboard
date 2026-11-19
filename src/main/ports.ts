@@ -8,6 +8,7 @@ import type {
   NewTaskInput,
   Preferences,
   ProjectColour,
+  ProjectRename,
   ReminderBannerItem,
   RevertExpectation,
   Status,
@@ -81,6 +82,9 @@ export interface BoardService {
   revertTask(id: TaskId, toEntryIndex: number, expected: RevertExpectation): Promise<Task>;
   deleteTask(id: TaskId): Promise<void>;
   setProjectColour(project: string, colour: ProjectColour | null): Promise<void>;
+  renameProject(from: string, to: string): Promise<ProjectRename>;
+  /** The absolute path of a project's note, created first when the project has none. */
+  projectNotePath(project: string): Promise<string>;
   absolutePath(id: TaskId): string;
 }
 

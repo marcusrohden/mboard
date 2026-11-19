@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { addComment, applyEdit, archiveDocument, createTaskDocument, moveToColumn, restoreDocument } from './changes';
+import {
+  addComment,
+  applyEdit,
+  archiveDocument,
+  changeProjectQuietly,
+  createTaskDocument,
+  moveToColumn,
+  restoreDocument,
+} from './changes';
 import type { HistoryEntry, NewTaskInput, TaskDocument, TaskEdit } from './model';
 import { isSameRevertPoint, revertBlocker, revertDocument, revertExpectationFor } from './revert';
 import { parseTaskFile, serialiseTaskFile } from './taskFile';
-import { FALLBACK } from './testHelpers';
+import { FALLBACK, asReadBack } from './testHelpers';
 
 const INPUT: NewTaskInput = {
   title: 'Original title',
@@ -236,7 +244,7 @@ describe('revertDocument', () => {
     const document = commented(edited(created(), { field: 'description', value: 'New\n\n--> text' }), 'Note');
     const result = revert(document, 0);
     const parsed = parseTaskFile(serialiseTaskFile(result), FALLBACK);
-    expect(parsed).toEqual({ kind: 'ok', document: result });
+    expect(parsed).toEqual({ kind: 'ok', document: asReadBack(result) });
   });
 
   it('refuses an entry it may not revert to, with a user-presentable message', () => {
@@ -308,5 +316,20 @@ describe('revert expectations', () => {
     expect(isSameRevertPoint(longer.history, 0, expected)).toBe(false);
     expect(isSameRevertPoint(document.history, 1, expected)).toBe(false);
     expect(isSameRevertPoint(document.history, 7, expected)).toBe(false);
+  });
+});
+
+describe('reverting across a project rename', () => {
+  it('puts back the project the task had at the entry it reverts to', () => {
+    const before = edited(created(), { field: 'title', value: 'Later' });
+    const renamed = changeProjectQuietly(
+      before,
+      'Globex',
+      { now: nextMoment(), knownProjects: [] },
+      'renamed',
+    ).document;
+    const result = revert(renamed, before.history.length - 1);
+    expect(result.project).toBe(before.project);
+    expect(result.rawProject).toBeNull();
   });
 });

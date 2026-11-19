@@ -20,7 +20,10 @@ import { filterReducer } from '../lib/filters';
 import { getMboardApi } from '../mboard-api';
 import { useMoveCommentPrompt } from '../move-comment/use-move-comment-prompt';
 import { ReminderBanner } from '../notices/ReminderBanner';
+import { useToasts } from '../notices/ToastProvider';
 import { UnreadableNotice } from '../notices/UnreadableNotice';
+import { EditProjectDialog } from '../projects/EditProjectDialog';
+import { taskCount } from '../projects/project-impact';
 import { useSettingsDialog } from '../settings/SettingsProvider';
 import { useAgeThresholds } from '../state/age-thresholds';
 import { ProjectColoursProvider } from '../state/project-colours';
@@ -31,6 +34,7 @@ import { useTaskSelection } from '../state/use-task-selection';
 import { useTaskShortcuts } from '../state/use-task-shortcuts';
 import { useShortcut } from '../shortcuts/shortcuts';
 import { NewTaskDialog } from '../task-dialog/NewTaskDialog';
+import type { ProjectRename } from '../../shared/contract';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import styles from './BoardScreen.module.css';
 
@@ -38,9 +42,14 @@ function archivedCriteria(criteria: FilterCriteria): FilterCriteria {
   return { ...EMPTY_FILTER, query: criteria.query, projects: criteria.projects };
 }
 
+function renamedMessage(from: string, rename: ProjectRename): string {
+  return `Renamed ${from} to ${rename.project} on ${taskCount(rename.renamed)}.`;
+}
+
 /**
  * The board screen: header, notices, the board or the archived view, the task detail drawer and the
- * New task, comment and Archive all dialogs, all sharing the board's project colours. Search and filters live here, in memory, and reset on launch.
+ * New task, comment, Edit project and Archive all dialogs, all sharing the board's project colours. Search and
+ * filters live here, in memory, and reset on launch; renaming a project carries it over in the filter.
  */
 export function BoardScreen({ boardName }: { boardName: string }) {
   const { snapshot, banner, preferences, dismissBanner } = useBoardData();
@@ -48,6 +57,8 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   const [isArchivedView, setIsArchivedView] = useState(false);
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [isConfirmingArchiveAll, setIsConfirmingArchiveAll] = useState(false);
+  const [editingProject, setEditingProject] = useState<string | null>(null);
+  const notify = useToasts();
   const searchRef = useRef<HTMLInputElement>(null);
   const settings = useSettingsDialog();
   const agent = useOpenAgent();
@@ -101,6 +112,11 @@ export function BoardScreen({ boardName }: { boardName: string }) {
     await commands.archiveAllDone();
   }
 
+  function projectRenamed(from: string, rename: ProjectRename): void {
+    dispatch({ type: 'renameProject', from, to: rename.project });
+    notify(renamedMessage(from, rename));
+  }
+
   if (snapshot === null)
     return (
       <p role="status" className={styles.loading}>
@@ -125,6 +141,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
           onOpenAgent={agent.open}
           onNewTask={() => setIsNewTaskOpen(true)}
           onOpenSettings={settings.open}
+          onEditProject={setEditingProject}
         />
         <UnreadableNotice files={snapshot.unreadable} />
         <ReminderBanner
@@ -168,6 +185,17 @@ export function BoardScreen({ boardName }: { boardName: string }) {
             onCreate={commands.create}
             onSetProjectColour={commands.setProjectColour}
             onClose={() => setIsNewTaskOpen(false)}
+          />
+        )}
+        {editingProject !== null && (
+          <EditProjectDialog
+            project={editingProject}
+            tasks={tasks}
+            onRename={commands.renameProject}
+            onSetColour={commands.setProjectColour}
+            onOpenNote={commands.openProjectNote}
+            onRenamed={projectRenamed}
+            onClose={() => setEditingProject(null)}
           />
         )}
         {movePrompt.dialog}

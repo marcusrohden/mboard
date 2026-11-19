@@ -48,6 +48,8 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     revertTask: vi.fn(async () => TASK),
     deleteTask: vi.fn(async () => undefined),
     setProjectColour: vi.fn(async () => undefined),
+    renameProject: vi.fn(async (_from: string, to: string) => ({ project: to, renamed: 1, moves: [] })),
+    projectNotePath: vi.fn(async (project: string) => `/Vault/Board/projects/${project}.md`),
     absolutePath: vi.fn((id: string) => `/Vault/Board/${id}`),
   };
   const setup = {
@@ -114,6 +116,11 @@ describe('createInvokeHandlers', () => {
     await handlers.revertTask('tasks/A.md', 2, EXPECTED);
     await handlers.setProjectColour('Acme', 'teal');
     await handlers.setProjectColour('Acme', null);
+    await expect(handlers.renameProject('Acme', 'Globex')).resolves.toEqual({
+      project: 'Globex',
+      renamed: 1,
+      moves: [],
+    });
 
     expect(board.createTask).toHaveBeenCalledWith(NEW_TASK);
     expect(board.editTask).toHaveBeenCalledWith('tasks/A.md', { field: 'project', value: null });
@@ -122,6 +129,7 @@ describe('createInvokeHandlers', () => {
     expect(board.revertTask).toHaveBeenCalledWith('tasks/A.md', 2, EXPECTED);
     expect(board.setProjectColour).toHaveBeenNthCalledWith(1, 'Acme', 'teal');
     expect(board.setProjectColour).toHaveBeenNthCalledWith(2, 'Acme', null);
+    expect(board.renameProject).toHaveBeenCalledWith('Acme', 'Globex');
   });
 
   it('accepts every column, including Internal and With client', async () => {
@@ -158,6 +166,9 @@ describe('createInvokeHandlers', () => {
     ['setProjectColour with a colour outside the palette', 'setProjectColour', ['Acme', 'magenta']],
     ['setProjectColour without a colour', 'setProjectColour', ['Acme']],
     ['setProjectColour with a numeric project', 'setProjectColour', [7, 'red']],
+    ['renameProject without a new name', 'renameProject', ['Acme']],
+    ['renameProject with a numeric new name', 'renameProject', ['Acme', 7]],
+    ['openProjectNote with an object', 'openProjectNote', [{ project: 'Acme' }]],
     ['setAgeThresholds without one threshold', 'setAgeThresholds', [{ nudgeFrom: 3, stallingFrom: 5 }]],
     ['setAgeThresholds with an extra key', 'setAgeThresholds', [{ ...THRESHOLDS, greenFrom: 0 }]],
     ['setAgentSettings without a prompt', 'setAgentSettings', [{ terminal: 'Ghostty', command: 'claude' }]],
@@ -314,5 +325,12 @@ describe('createInvokeHandlers', () => {
     await createInvokeHandlers(dependencies).openInObsidian('tasks/A.md');
 
     expect(dependencies.openInObsidian).toHaveBeenCalledWith('/Vault/Board/tasks/A.md');
+  });
+
+  it("opens a project's note in Obsidian by its absolute path", async () => {
+    const { dependencies } = fakeDependencies();
+    await createInvokeHandlers(dependencies).openProjectNote('Acme');
+
+    expect(dependencies.openInObsidian).toHaveBeenCalledWith('/Vault/Board/projects/Acme.md');
   });
 });

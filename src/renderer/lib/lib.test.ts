@@ -27,6 +27,16 @@ describe('filterReducer', () => {
     expect(EMPTY_FILTER.projects.size).toBe(0);
   });
 
+  it('swaps a renamed project for its new name, matched ignoring case, leaving the rest alone', () => {
+    const chosen = filterReducer(filterReducer(EMPTY_FILTER, { type: 'toggleProject', project: 'acme' }), {
+      type: 'toggleProject',
+      project: null,
+    });
+    const renamed = filterReducer(chosen, { type: 'renameProject', from: 'Acme', to: 'Globex' });
+    expect([...renamed.projects]).toEqual(['Globex', null]);
+    expect(filterReducer(chosen, { type: 'renameProject', from: 'Beta', to: 'Gamma' }).projects).toBe(chosen.projects);
+  });
+
   it('makes the criteria active and clears them again', () => {
     const narrowed = filterReducer(filterReducer(EMPTY_FILTER, { type: 'setDue', due: 'overdue' }), {
       type: 'setStaleOnly',

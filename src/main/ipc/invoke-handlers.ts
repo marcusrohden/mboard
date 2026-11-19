@@ -104,6 +104,14 @@ function boardHandlers(dependencies: InvokeHandlerDependencies) {
       const [project, colour] = expectArguments(args, 2);
       await board.setProjectColour(readProjectName(project), readProjectColour(colour));
     },
+    renameProject: async (...args: unknown[]) => {
+      const [from, to] = expectArguments(args, 2);
+      return board.renameProject(readProjectName(from), readProjectName(to));
+    },
+    openProjectNote: async (...args: unknown[]) => {
+      const notePath = await board.projectNotePath(readProjectName(expectArguments(args, 1)[0]));
+      await dependencies.openInObsidian(notePath);
+    },
     openInObsidian: async (...args: unknown[]) => {
       const absolutePath = board.absolutePath(readTaskId(expectArguments(args, 1)[0]));
       await dependencies.openInObsidian(absolutePath);

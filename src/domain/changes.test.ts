@@ -4,6 +4,7 @@ import {
   applyEdit,
   archiveDocument,
   asksForMoveComment,
+  changeProjectQuietly,
   createTaskDocument,
   moveToColumn,
   restoreDocument,
@@ -12,7 +13,7 @@ import {
 import type { ChangeContext } from './changes';
 import type { NewTaskInput, Status, TaskDocument, TaskEdit } from './model';
 import { parseTaskFile, serialiseTaskFile } from './taskFile';
-import { FALLBACK, makeDocument } from './testHelpers';
+import { FALLBACK, asReadBack, makeDocument } from './testHelpers';
 
 const NOW = new Date(2026, 10, 17, 10, 5, 30);
 const NOW_FIELD = '2026-11-17T10:05:30';
@@ -96,7 +97,7 @@ describe('createTaskDocument', () => {
   it('produces a file that parses back to the same document', () => {
     const document = createTaskDocument(INPUT, { ...CONTEXT, order: 4 });
     const parsed = parseTaskFile(serialiseTaskFile(document), FALLBACK);
-    expect(parsed).toEqual({ kind: 'ok', document });
+    expect(parsed).toEqual({ kind: 'ok', document: asReadBack(document) });
   });
 });
 
@@ -490,5 +491,57 @@ describe('ledger data on every update', () => {
     const document = addComment(edit(base, { field: 'description', value: 'Plain' }).document, 'Hi', NOW);
     const parsed = parseTaskFile(serialiseTaskFile(document), FALLBACK);
     expect(parsed.kind === 'ok' && parsed.document.history).toEqual(document.history);
+  });
+});
+
+describe('changeProjectQuietly', () => {
+  const base = makeDocument({ project: 'Acme', rawProject: 'Acme', updated: '2026-11-10T08:00:00' });
+
+  it('records a rename with its ledger but leaves updated as it was', () => {
+    const result = changeProjectQuietly(base, 'Globex', { now: NOW, knownProjects: [] }, 'renamed');
+    expect(result.changed).toBe(true);
+    expect(result.document).toMatchObject({ project: 'Globex', rawProject: null, updated: '2026-11-10T08:00:00' });
+    const entry = result.document.history.at(-1);
+    expect(entry?.text).toBe('Project renamed from Acme to Globex');
+    expect(entry?.ledger?.changes).toEqual([{ field: 'project', from: 'Acme', to: 'Globex' }]);
+  });
+
+  it('records a change on an archived task the way a field edit reads, taking the known spelling', () => {
+    const result = changeProjectQuietly(base, 'globex', { now: NOW, knownProjects: ['Globex'] }, 'changed');
+    expect(result.document.project).toBe('Globex');
+    expect(lastHistoryText(result.document)).toBe('Project changed from Acme to Globex');
+    expect(changeProjectQuietly(base, null, CONTEXT, 'changed').document.project).toBeNull();
+  });
+
+  it('can change only the case of a project when no known spelling is given', () => {
+    const result = changeProjectQuietly(base, 'ACME', { now: NOW, knownProjects: [] }, 'renamed');
+    expect(result.document.project).toBe('ACME');
+  });
+
+  it('changes nothing when the project stays the same', () => {
+    expect(changeProjectQuietly(base, ' Acme ', { now: NOW, knownProjects: [] }, 'renamed')).toEqual({
+      changed: false,
+      document: base,
+    });
+  });
+});
+
+describe("the file's own project spelling", () => {
+  const plain = makeDocument({ project: 'Acme', rawProject: 'Acme' });
+  const linked = makeDocument({ project: 'Acme', rawProject: '[[Clients/Acme]]' });
+
+  it('is dropped by an update when it is a plain name, so the file gets a link', () => {
+    expect(edit(plain, { field: 'title', value: 'Renamed' }).document.rawProject).toBeNull();
+    expect(addComment(plain, 'Hello', NOW).rawProject).toBeNull();
+    expect(moveToColumn(plain, 'Done', null, NOW).document.rawProject).toBeNull();
+  });
+
+  it('is kept by an update when it is a link, and by a reorder either way', () => {
+    expect(edit(linked, { field: 'title', value: 'Renamed' }).document.rawProject).toBe('[[Clients/Acme]]');
+    expect(setOrder(plain, 3).document.rawProject).toBe('Acme');
+  });
+
+  it('is dropped whenever the project itself changes', () => {
+    expect(edit(linked, { field: 'project', value: 'Globex' }).document.rawProject).toBeNull();
   });
 });

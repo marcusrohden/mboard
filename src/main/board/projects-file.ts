@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   PROJECTS_FILE_NAME,
   parseProjectsFile,
+  projectColourIndex,
   withProjectColour,
   type ProjectColour,
   type ProjectsFileContent,
@@ -14,8 +15,9 @@ import { BoardMessage, boardError } from './board-messages';
 const NO_PROJECT_SETTINGS: ProjectsFileContent = { kind: 'ok', colours: {} };
 
 /**
- * The board folder's `projects.md`, which holds the project colours. A missing file means no colours.
- * A file whose frontmatter can't be read is never written.
+ * The board folder's `projects.md`, which held the project colours before project notes did, and still holds
+ * the colour of a project whose name can't be a note's. Its colours are read as a fallback. A missing file
+ * means no colours. A file whose frontmatter can't be read is never written.
  */
 export class ProjectsFile {
   readonly path: string;
@@ -44,6 +46,18 @@ export class ProjectsFile {
       throw boardError(BoardMessage.projectsFileUnreadable);
     }
     await this.writer.write(this.path, withProjectColour(text, project, colour));
+  }
+
+  /**
+   * Removes `project`'s entry, matched ignoring case, once its colour lives in its note. Does nothing when the
+   * file is missing, can't be read, or has no entry for the project.
+   */
+  async removeColour(project: string): Promise<void> {
+    const text = await this.readText();
+    if (text === null) return;
+    const parsed = parseProjectsFile(text);
+    if (parsed.kind === 'unreadable' || !projectColourIndex(parsed.colours).has(project.toLowerCase())) return;
+    await this.writer.write(this.path, withProjectColour(text, project, null));
   }
 
   private async readText(): Promise<string | null> {

@@ -18,8 +18,12 @@ describe('buildBoardReadme', () => {
     expect(readme).not.toContain('not in a subfolder');
   });
 
-  it('explains project colours in projects.md', () => {
-    expect(readme).toContain('## Project colours');
+  it('explains project notes, the links to them, and colours kept in notes or in projects.md', () => {
+    expect(readme).toContain('## Project notes and colours');
+    expect(readme).toContain('├── projects/     one note per project, which its tasks link to');
+    expect(readme).toContain('project: "[[Work/Work board/projects/Acme website|Acme website]]"');
+    expect(readme).toContain('colour: teal');
+    expect(readme).toContain("the project's name as plain text is enough");
     expect(readme).toContain('red, orange, amber, green, teal, blue, indigo, purple, pink or brown');
   });
 

@@ -1,7 +1,7 @@
 import type { Dirent } from 'node:fs';
 import { readdir, rename, rmdir } from 'node:fs/promises';
 import path from 'node:path';
-import type { TaskDocument } from '../../domain';
+import type { SerialiseOptions, TaskDocument } from '../../domain';
 import { isSameFileName, serialiseTaskFile, uniqueFileName } from '../../domain';
 import type { AtomicFileWriter } from '../fs/atomic-file-writer';
 import { createChildFolder } from '../fs/create-child-folder';
@@ -39,6 +39,8 @@ export interface TaskDestination {
 
 type ContainingFolder = Pick<TaskLocation, 'folder' | 'projectFolder'>;
 
+const RESPELL_SUFFIX = '.mboard-respell';
+
 function isSameContainingFolder(a: ContainingFolder, b: ContainingFolder): boolean {
   if (a.folder !== b.folder) return false;
   if (a.projectFolder === null || b.projectFolder === null) return a.projectFolder === b.projectFolder;
@@ -65,12 +67,19 @@ function projectFolderNamesIn(entries: readonly Dirent[]): string[] {
  */
 export class TaskFiles {
   readonly boardPath: string;
+  private readonly serialiseOptions: SerialiseOptions;
 
+  /**
+   * `projectNotesLinkPath` is the path, from the vault's root, of the board's projects folder, which the
+   * project links in written files point into, or `null` when the board isn't inside a vault.
+   */
   constructor(
     boardPath: string,
     private readonly writer: AtomicFileWriter,
+    projectNotesLinkPath: string | null = null,
   ) {
     this.boardPath = path.resolve(boardPath);
+    this.serialiseOptions = { projectNotesLinkPath };
   }
 
   /**
@@ -118,7 +127,7 @@ export class TaskFiles {
   /** Writes a new task file at `destination`, under a name no other file there uses. */
   async create(destination: TaskDestination, document: TaskDocument): Promise<TaskLocation> {
     const location = await this.freeLocation(destination, null);
-    await this.writer.write(this.pathOf(location), serialiseTaskFile(document));
+    await this.writer.write(this.pathOf(location), this.serialise(document));
     return location;
   }
 
@@ -133,7 +142,7 @@ export class TaskFiles {
     document: TaskDocument,
     destination: TaskDestination = location,
   ): Promise<TaskLocation> {
-    await this.writer.write(this.pathOf(location), serialiseTaskFile(document));
+    await this.writer.write(this.pathOf(location), this.serialise(document));
     if (isSamePlace(location, destination)) return location;
     const target = await this.freeLocation(destination, location);
     if (target.id === location.id) return location;
@@ -146,6 +155,27 @@ export class TaskFiles {
     }
     if (!isSameContainingFolder(location, target)) await this.removeProjectFolderIfEmpty(location);
     return target;
+  }
+
+  /**
+   * Respells the project folder in `folder` whose name matches `spelling` ignoring case, so that it is spelt
+   * exactly `spelling`. The rename goes through a hidden temporary name, because macOS volumes ignore case.
+   * Returns the folder's old name, or `null` when no folder needed it.
+   */
+  async respellProjectFolder(folder: TaskFolder, spelling: string): Promise<string | null> {
+    const parent = path.join(this.boardPath, folder);
+    const entries = await this.readFolder(parent);
+    const existing = entries.find((entry) => entry.isDirectory() && isSameFileName(entry.name, spelling));
+    if (existing === undefined || existing.name === spelling) return null;
+    const temporaryName = `.${existing.name}${RESPELL_SUFFIX}`;
+    await rename(path.join(parent, existing.name), path.join(parent, temporaryName));
+    try {
+      await rename(path.join(parent, temporaryName), path.join(parent, spelling));
+    } catch (error) {
+      await rename(path.join(parent, temporaryName), path.join(parent, existing.name)).catch(() => undefined);
+      throw error;
+    }
+    return existing.name;
   }
 
   /**
@@ -162,6 +192,10 @@ export class TaskFiles {
         console.error(`mboard could not remove the empty folder ${folderPath}:`, error);
       }
     }
+  }
+
+  private serialise(document: TaskDocument): string {
+    return serialiseTaskFile(document, this.serialiseOptions);
   }
 
   private async restoreText(location: TaskLocation, content: string): Promise<void> {

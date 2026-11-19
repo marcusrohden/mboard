@@ -49,7 +49,7 @@ const TRACKED_FIELDS: Readonly<Record<string, TrackedField>> = {
   },
   project: {
     read: (document) => document.project,
-    write: (document, value) => ({ ...document, project: value }),
+    write: (document, value) => ({ ...document, project: value, rawProject: null }),
     accepts: isText,
   },
   due: {

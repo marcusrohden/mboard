@@ -6,9 +6,9 @@ import { buildBoardReadme } from '../../domain';
 import type { UnavailableReason } from '../../shared/contract';
 import { writeFileAtomically } from '../fs/atomic-file-writer';
 import { createChildFolder } from '../fs/create-child-folder';
+import { findVaultRoot } from '../fs/obsidian-vault';
 import { isNotFound, isPermissionDenied } from '../fs/fs-errors';
 
-const OBSIDIAN_CONFIG_FOLDER = '.obsidian';
 const README_FILE_NAME = 'README.md';
 const BOARD_SUBFOLDERS = ['tasks', 'archive'] as const;
 
@@ -27,10 +27,7 @@ async function toFolderEntry(parent: string, entry: Dirent): Promise<FolderEntry
 
 /** Whether `folderPath`, or any folder above it up to `/`, holds an Obsidian `.obsidian/` folder. */
 export async function isInsideObsidianVault(folderPath: string): Promise<boolean> {
-  for (let folder = path.resolve(folderPath); ; folder = path.dirname(folder)) {
-    if (await isDirectory(path.join(folder, OBSIDIAN_CONFIG_FOLDER))) return true;
-    if (path.dirname(folder) === folder) return false;
-  }
+  return (await findVaultRoot(folderPath)) !== null;
 }
 
 /**
