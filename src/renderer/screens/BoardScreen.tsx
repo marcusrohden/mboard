@@ -184,6 +184,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
         </div>
         {isNewTaskOpen && (
           <NewTaskDialog
+            today={snapshot.today}
             projectSuggestions={suggestions}
             onCreate={commands.create}
             onSetProjectColour={commands.setProjectColour}
