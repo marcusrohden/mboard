@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useDomEnvironment } from '../testing/dom-environment';
-import { buildTask } from '../testing/builders';
+import { TEST_TODAY, buildTask } from '../testing/builders';
 import { renderBoard } from '../testing/render-board';
 
 useDomEnvironment();
@@ -34,6 +34,7 @@ describe('New task dialog', () => {
     await user.type(within(dialog).getByLabelText('Title'), '  Write the brief  ');
     await user.selectOptions(within(dialog).getByLabelText('Column'), 'In progress');
     await user.type(within(dialog).getByLabelText('Project'), '  Acme   website ');
+    await user.clear(within(dialog).getByLabelText('Due date'));
     await user.type(within(dialog).getByLabelText('Due date'), '2026-11-20');
     await user.type(within(dialog).getByLabelText('Description'), 'Line one{Enter}Line two');
     await user.click(within(dialog).getByRole('button', { name: 'Create task' }));
@@ -52,6 +53,31 @@ describe('New task dialog', () => {
         .getAllByRole('article')
         .map((a) => a.getAttribute('aria-label')),
     ).toEqual(['Write the brief', 'Existing']);
+  });
+
+  it('starts with today as the due date, and the clear button beside it creates a task with none', async () => {
+    const { user, fake } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
+    const dialog = await openDialog(user);
+    const due = within(dialog).getByLabelText('Due date') as HTMLInputElement;
+    const clear = within(dialog).getByRole('button', { name: 'Clear due date' }) as HTMLButtonElement;
+    expect(due.value).toBe(TEST_TODAY);
+    expect(clear.disabled).toBe(false);
+
+    await user.click(clear);
+    expect(due.value).toBe('');
+    expect(clear.disabled).toBe(true);
+    await user.type(within(dialog).getByLabelText('Title'), 'No deadline{Enter}');
+    expect(fake.api.createTask).toHaveBeenCalledWith(expect.objectContaining({ title: 'No deadline', due: null }));
+  });
+
+  it('clears the due date with Cmd+Backspace in the date field', async () => {
+    const { user } = await renderBoard({ tasks: [buildTask({ title: 'Existing' })] });
+    const dialog = await openDialog(user);
+    const due = within(dialog).getByLabelText('Due date') as HTMLInputElement;
+    await user.click(due);
+    await user.keyboard('{Meta>}{Backspace}{/Meta}');
+    expect(due.value).toBe('');
+    expect(screen.getByRole('dialog', { name: 'New task' })).toBeTruthy();
   });
 
   it('offers all five columns', async () => {
@@ -78,7 +104,7 @@ describe('New task dialog', () => {
       title: 'Waiting on someone',
       status,
       project: null,
-      due: null,
+      due: TEST_TODAY,
       description: '',
     });
     const column = screen.getByRole('region', { name: status });
@@ -94,7 +120,7 @@ describe('New task dialog', () => {
     const dialog = await openDialog(user);
     await user.type(within(dialog).getByLabelText('Title'), 'Quick one{Enter}');
     expect(fake.api.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Quick one', status: 'To do', project: null, due: null }),
+      expect.objectContaining({ title: 'Quick one', status: 'To do', project: null, due: TEST_TODAY }),
     );
     expect(screen.queryByRole('dialog')).toBeNull();
   });

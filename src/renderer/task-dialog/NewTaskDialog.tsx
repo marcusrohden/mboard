@@ -1,8 +1,16 @@
 import { useId, useState } from 'react';
-import { COLUMNS, normaliseProject, type NewTaskInput, type ProjectColour, type Status } from '../../domain';
+import {
+  COLUMNS,
+  normaliseProject,
+  type LocalDate,
+  type NewTaskInput,
+  type ProjectColour,
+  type Status,
+} from '../../domain';
 import { COLUMN_SHORTCUTS_ARIA, COLUMN_SHORTCUTS_HINT, columnShortcut } from '../shortcuts/keymap';
 import { ShortcutHint, useShortcuts } from '../shortcuts/shortcuts';
 import { Button } from '../ui/Button';
+import { ClearableDateInput } from '../ui/ClearableDateInput';
 import { ColourPicker } from '../ui/ColourPicker';
 import { AUTOFOCUS_ATTRIBUTE, Modal } from '../ui/Modal';
 import { ProjectInput } from '../ui/ProjectInput';
@@ -10,6 +18,7 @@ import fields from '../ui/fields.module.css';
 import styles from './NewTaskDialog.module.css';
 
 interface NewTaskDialogProps {
+  today: LocalDate;
   projectSuggestions: readonly string[];
   onCreate: (input: NewTaskInput) => Promise<boolean>;
   onSetProjectColour: (project: string, colour: ProjectColour) => Promise<boolean>;
@@ -30,16 +39,22 @@ function isNewProject(project: string | null, knownProjects: readonly string[]):
 
 /**
  * The New task dialog. Enter in the title, or ⌘↵ anywhere, creates the task, ⌘1 to ⌘5 pick the column, and
- * ⌘. or Esc cancels.
+ * ⌘. or Esc cancels. The due date starts as today and can be cleared to create a task with none.
  * Typing a project the board doesn't have yet offers a colour for it, saved once the task exists. The
  * dialog stays open if the task can't be created, so nothing typed is lost.
  */
-export function NewTaskDialog({ projectSuggestions, onCreate, onSetProjectColour, onClose }: NewTaskDialogProps) {
+export function NewTaskDialog({
+  today,
+  projectSuggestions,
+  onCreate,
+  onSetProjectColour,
+  onClose,
+}: NewTaskDialogProps) {
   const ids = { title: useId(), status: useId(), project: useId(), due: useId(), description: useId() };
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState<Status>('To do');
   const [project, setProject] = useState('');
-  const [due, setDue] = useState('');
+  const [due, setDue] = useState(today);
   const [description, setDescription] = useState('');
   const [projectColour, setProjectColour] = useState<ProjectColour | null>(null);
   const normalisedProject = normaliseProject(project);
@@ -138,7 +153,7 @@ export function NewTaskDialog({ projectSuggestions, onCreate, onSetProjectColour
             <label htmlFor={ids.due} className={fields.label}>
               Due date
             </label>
-            <input id={ids.due} type="date" value={due} onChange={(event) => setDue(event.target.value)} />
+            <ClearableDateInput id={ids.due} value={due} onChange={setDue} clearLabel="Clear due date" />
           </div>
         </div>
         {offersColour && (
