@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.0](https://github.com/marcusrohden/mboard/compare/v0.8.0...v0.9.0) (2026-11-20)
+
+### Features
+
+* default a new task's due date to today, with a clear button ([#36](https://github.com/marcusrohden/mboard/pull/36)) ([8e7658a](https://github.com/marcusrohden/mboard/commit/8e7658a26a949f4f96180f5e9d536b25a56c3b18))
+
 ## [0.8.0](https://github.com/marcusrohden/mboard/compare/v0.7.0...v0.8.0) (2026-11-19)
 
 ### Features
