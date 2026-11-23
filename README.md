@@ -9,7 +9,7 @@ Every task is one markdown file in a board folder, so you can read and edit task
 - Every task shows how many working days have passed since its last update, coloured by age. You choose the thresholds in Settings.
 - Projects can have a colour, and a task can be reverted to an earlier point in its history.
 - Moving a task to another column asks for an optional comment, except when work starts (To do to In progress). Every card has a comment button and a tick to complete it, top right, and a bin to delete it, bottom left.
-- **Open agent** opens your terminal (Ghostty or Terminal) with your AI agent, such as `claude`, `codex` or one of your shell aliases. It starts with a prompt you set in Settings and the tasks in the columns you choose, Done by default, for example to write up a timesheet.
+- **Open agent** opens your terminal (Ghostty or Terminal) with your AI agent, such as `claude`, `codex` or one of your shell aliases. First it shows your saved prompts: pick one, or write and edit them there. Every save keeps a version, with a diff of what changed, so an earlier one can be restored. The agent starts with the prompt and the tasks in the columns you choose, Done by default, for example to write up a timesheet.
 - Every button and action has a Command shortcut, shown faded on the button.
 - Updates itself from GitHub releases.
 

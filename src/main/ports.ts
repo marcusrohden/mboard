@@ -1,5 +1,8 @@
 import type {
   AgeThresholds,
+  AgentPromptDraft,
+  AgentPromptId,
+  AgentPromptLibrary,
   AgentSettings,
   AppState,
   AppUpdateStatus,
@@ -89,8 +92,48 @@ export interface BoardService {
 }
 
 /**
- * Opens the person's AI agent in their terminal, in the board folder, with their prompt and the tasks in
- * Done, and keeps the settings for it in `settings.json` (ADR 0011).
+ * The saved agent prompts and every version of each, kept in `agent-prompts.json` in the user-data folder
+ * (ADR 0014). Each change resolves with the whole library as saved.
+ */
+export interface AgentPromptStore {
+  /** Reads the library. The first read ever starts it with the prompt `settings.json` used to keep. */
+  load(): Promise<AgentPromptLibrary>;
+  /**
+   * Saves a new prompt as its version 1 and selects it.
+   *
+   * @throws Error with a user-presentable message when the draft can't be saved.
+   */
+  create(draft: AgentPromptDraft): Promise<AgentPromptLibrary>;
+  /**
+   * Saves a draft as the prompt's next version and selects the prompt. A draft that matches the latest version
+   * adds nothing.
+   *
+   * @throws Error with a user-presentable message when the prompt is gone or the draft can't be saved.
+   */
+  save(id: AgentPromptId, draft: AgentPromptDraft): Promise<AgentPromptLibrary>;
+  /**
+   * Deletes a prompt with all its versions.
+   *
+   * @throws Error with a user-presentable message when the prompt is gone or is the last one.
+   */
+  remove(id: AgentPromptId): Promise<AgentPromptLibrary>;
+  /**
+   * Makes a prompt the one the Open agent dialog starts on.
+   *
+   * @throws Error with a user-presentable message when the prompt is gone.
+   */
+  select(id: AgentPromptId): Promise<AgentPromptLibrary>;
+  /**
+   * The text of the prompt's latest version.
+   *
+   * @throws Error with a user-presentable message when the prompt is gone.
+   */
+  promptText(id: AgentPromptId): Promise<string>;
+}
+
+/**
+ * Opens the person's AI agent in their terminal, in the board folder, with a saved prompt and the tasks in the
+ * agent's columns, and keeps the settings for it in `settings.json` (ADR 0011).
  */
 export interface AgentLauncher {
   settings(): Promise<AgentSettings>;
@@ -103,12 +146,13 @@ export interface AgentLauncher {
   /** Tells `listener` the settings each time they are saved. Returns a function that stops listening. */
   onSettingsChange(listener: (settings: AgentSettings) => void): () => void;
   /**
-   * Opens the agent. Resolves once the terminal has been asked to start it.
+   * Opens the agent with the latest version of the saved prompt `promptId`. Resolves once the terminal has been
+   * asked to start it.
    *
-   * @throws Error with a user-presentable message when no board is open, the agent's columns are empty or the
-   * terminal can't open.
+   * @throws Error with a user-presentable message when no board is open, the prompt is gone, the agent's columns
+   * are empty or the terminal can't open.
    */
-  open(): Promise<void>;
+  open(promptId: AgentPromptId): Promise<void>;
 }
 
 /** Moves a deleted task's file somewhere recoverable: the macOS Trash, or a test folder. */

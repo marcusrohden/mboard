@@ -353,22 +353,16 @@ describe('Settings agent', () => {
     return within(section('Agent')).getByLabelText(label) as T;
   }
 
-  it('shows the terminal, the agent command and the prompt', async () => {
+  it('shows the terminal, the agent command and the columns, and leaves prompts to the Open agent dialog', async () => {
     await openFromGear(
-      {
-        agentSettings: {
-          terminal: 'Ghostty',
-          command: 'claude-personal',
-          prompt: 'List my work.',
-          columns: ['In progress', 'Done'],
-        },
-      },
+      { agentSettings: { terminal: 'Ghostty', command: 'claude-personal', columns: ['In progress', 'Done'] } },
       'Agent',
     );
     expect((await within(section('Agent')).findByLabelText<HTMLSelectElement>('Terminal')).value).toBe('Ghostty');
     expect(agentField<HTMLInputElement>('Agent command').value).toBe('claude-personal');
-    expect((within(section('Prompt')).getByLabelText('Prompt') as HTMLTextAreaElement).value).toBe('List my work.');
-    const ticked = within(section('Prompt'))
+    expect(within(settingsDialog()).queryByLabelText('Prompt')).toBeNull();
+    expect(within(section('Tasks')).getByText(/Your prompts are saved in the Open agent dialog/)).toBeTruthy();
+    const ticked = within(section('Tasks'))
       .getAllByRole('checkbox')
       .filter((box) => (box as HTMLInputElement).checked)
       .map((box) => box.parentElement?.textContent);
@@ -385,26 +379,17 @@ describe('Settings agent', () => {
     expect(agentField<HTMLSelectElement>('Terminal').value).toBe('Ghostty');
   });
 
-  it('saves the command on Enter and the prompt when its field is left, trimmed', async () => {
+  it('saves the command on Enter, trimmed', async () => {
     const { user, fake } = await openFromGear({}, 'Agent');
     const command = await within(section('Agent')).findByLabelText('Agent command');
     await user.clear(command);
     await user.type(command, '  claude-april9 {Enter}');
-    expect(fake.api.setAgentSettings).toHaveBeenLastCalledWith(
-      expect.objectContaining({ command: '  claude-april9 ' }),
-    );
-    expect(agentField<HTMLInputElement>('Agent command').value).toBe('claude-april9');
-
-    const prompt = within(section('Prompt')).getByLabelText('Prompt');
-    await user.clear(prompt);
-    await user.type(prompt, 'Summarise my week.');
-    await user.tab();
     expect(fake.api.setAgentSettings).toHaveBeenLastCalledWith({
       terminal: 'Ghostty',
-      command: 'claude-april9',
-      prompt: 'Summarise my week.',
+      command: '  claude-april9 ',
       columns: ['Done'],
     });
+    expect(agentField<HTMLInputElement>('Agent command').value).toBe('claude-april9');
   });
 
   it('explains a command that cannot be saved, and saves nothing', async () => {
@@ -417,14 +402,14 @@ describe('Settings agent', () => {
     expect(fake.api.setAgentSettings).not.toHaveBeenCalled();
   });
 
-  it('saves a prompt still being typed when Settings closes with Esc', async () => {
+  it('saves a command still being typed when Settings closes with Esc', async () => {
     const { user, fake } = await openFromGear({}, 'Agent');
-    const prompt = await within(section('Prompt')).findByLabelText('Prompt');
-    await user.clear(prompt);
-    await user.type(prompt, 'Draft prompt');
+    const command = await within(section('Agent')).findByLabelText('Agent command');
+    await user.clear(command);
+    await user.type(command, 'codex');
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Settings' })).toBeNull();
-    expect(fake.api.setAgentSettings).toHaveBeenLastCalledWith(expect.objectContaining({ prompt: 'Draft prompt' }));
+    expect(fake.api.setAgentSettings).toHaveBeenLastCalledWith(expect.objectContaining({ command: 'codex' }));
   });
 });
 
@@ -461,14 +446,14 @@ describe('Settings tabs', () => {
 
 describe('Settings agent columns', () => {
   function columnBox(name: string): HTMLInputElement {
-    return within(within(section('Prompt')).getByRole('group', { name: 'Agent column options' })).getByLabelText(
+    return within(within(section('Tasks')).getByRole('group', { name: 'Agent column options' })).getByLabelText(
       name,
     ) as HTMLInputElement;
   }
 
   it('saves a column as soon as it is ticked or unticked, and keeps the last one ticked', async () => {
     const { user, fake } = await openFromGear({}, 'Agent');
-    await within(section('Prompt')).findByLabelText('Prompt');
+    await within(section('Agent')).findByLabelText('Agent command');
     expect(columnBox('Done').checked).toBe(true);
     expect(columnBox('Done').disabled).toBe(true);
 
@@ -483,13 +468,12 @@ describe('Settings agent columns', () => {
     expect(columnBox('In progress').disabled).toBe(true);
   });
 
-  it('turns Open agent on for the columns chosen, even with nothing in Done', async () => {
+  it('tells Open agent which columns the agent gets, even with nothing in Done', async () => {
     const { user } = await openFromGear({ tasks: [buildTask({ title: 'Doing', status: 'In progress' })] }, 'Agent');
     const openAgent = () => screen.getByRole('button', { name: 'Open agent', hidden: true }) as HTMLButtonElement;
-    expect(openAgent().disabled).toBe(true);
-    await within(section('Prompt')).findByLabelText('Prompt');
+    await within(section('Agent')).findByLabelText('Agent command');
     await user.click(columnBox('In progress'));
     expect(openAgent().disabled).toBe(false);
-    expect(openAgent().title).toBe('Open your agent in a terminal with the tasks in In progress and Done');
+    expect(openAgent().title).toBe('Choose a prompt and open your agent with the tasks in In progress and Done');
   });
 });

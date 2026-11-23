@@ -9,7 +9,7 @@ import {
   projectSuggestions,
   type FilterCriteria,
 } from '../../domain';
-import { useOpenAgent } from '../agent/use-open-agent';
+import { AgentPromptsDialog } from '../agent/AgentPromptsDialog';
 import { ArchivedView } from '../archived/ArchivedView';
 import { Board } from '../board/Board';
 import { useAddCommentPrompt } from '../comments/use-add-comment-prompt';
@@ -48,9 +48,9 @@ function renamedMessage(from: string, rename: ProjectRename): string {
 }
 
 /**
- * The board screen: header, notices, the board or the archived view, the task detail drawer and the
- * New task, comment, Edit project, Delete task and Archive all dialogs, all sharing the board's project colours. Search and
- * filters live here, in memory, and reset on launch; renaming a project carries it over in the filter.
+ * The board screen: header, notices, the board or the archived view, the task detail drawer and the New task,
+ * comment, Edit project, Delete task, Archive all and Open agent dialogs, all sharing the board's project colours.
+ * Search and filters live here, in memory, and reset on launch; renaming a project carries it over in the filter.
  */
 export function BoardScreen({ boardName }: { boardName: string }) {
   const { snapshot, banner, preferences, dismissBanner } = useBoardData();
@@ -59,10 +59,10 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [isConfirmingArchiveAll, setIsConfirmingArchiveAll] = useState(false);
   const [editingProject, setEditingProject] = useState<string | null>(null);
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
   const notify = useToasts();
   const searchRef = useRef<HTMLInputElement>(null);
   const settings = useSettingsDialog();
-  const agent = useOpenAgent();
   const api = getMboardApi();
   const agentSettings = useLoadedAndPushed(api.getAgentSettings, api.onAgentSettings);
 
@@ -103,6 +103,7 @@ export function BoardScreen({ boardName }: { boardName: string }) {
   const activeCriteria = isArchivedView ? archivedCriteria(criteria) : criteria;
   const doneCount = columnTasks(tasks, 'Done').length;
   const agentTaskCount = agentSettings === null ? 0 : tasksForAgent(tasks, agentSettings.columns).length;
+  const agentColumns = agentSettings === null ? null : describeColumns(agentSettings.columns);
 
   function dismissReminders(): void {
     dismissBanner();
@@ -135,12 +136,11 @@ export function BoardScreen({ boardName }: { boardName: string }) {
           projects={projectOptions}
           isArchivedView={isArchivedView}
           isFilterActive={isFilterActive(activeCriteria)}
-          canOpenAgent={agentTaskCount > 0 && !agent.isOpening}
-          agentColumns={agentSettings === null ? null : describeColumns(agentSettings.columns)}
+          agentColumns={agentColumns}
           searchRef={searchRef}
           dispatch={dispatch}
           onToggleArchived={() => setIsArchivedView((current) => !current)}
-          onOpenAgent={agent.open}
+          onOpenAgent={() => setIsAgentDialogOpen(true)}
           onNewTask={() => setIsNewTaskOpen(true)}
           onOpenSettings={settings.open}
           onEditProject={setEditingProject}
@@ -200,6 +200,14 @@ export function BoardScreen({ boardName }: { boardName: string }) {
             onOpenNote={commands.openProjectNote}
             onRenamed={projectRenamed}
             onClose={() => setEditingProject(null)}
+          />
+        )}
+        {isAgentDialogOpen && (
+          <AgentPromptsDialog
+            agentColumns={agentColumns}
+            taskCount={agentTaskCount}
+            today={snapshot.today}
+            onClose={() => setIsAgentDialogOpen(false)}
           />
         )}
         {movePrompt.dialog}

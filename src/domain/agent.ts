@@ -1,3 +1,4 @@
+import { DEFAULT_AGENT_PROMPT } from './agentPrompts';
 import { isCommentsChange } from './ledger';
 import { COLUMNS, isStatus, type HistoryEntry, type LocalDate, type Status, type Task } from './model';
 import { localDateOf } from './time';
@@ -9,13 +10,12 @@ export type AgentTerminal = (typeof AGENT_TERMINALS)[number];
 
 /**
  * How **Open agent** starts the person's AI agent: the terminal it opens, the shell command that starts the
- * agent (an alias works), the prompt the agent starts with, and the columns whose tasks follow that prompt.
- * A command holding `{prompt}` gets the prompt there; any other command gets it as its last argument.
+ * agent (an alias works), and the columns whose tasks follow the saved prompt the agent starts with. A command
+ * holding `{prompt}` gets the prompt there; any other command gets it as its last argument.
  */
 export interface AgentSettings {
   terminal: AgentTerminal;
   command: string;
-  prompt: string;
   columns: Status[];
 }
 
@@ -23,13 +23,10 @@ export interface AgentSettings {
 export const AGENT_PROMPT_PLACEHOLDER = '{prompt}';
 
 export const AGENT_COMMAND_MAX_LENGTH = 500;
-export const AGENT_PROMPT_MAX_LENGTH = 20_000;
 
 export const DEFAULT_AGENT_SETTINGS: Readonly<AgentSettings> = Object.freeze<AgentSettings>({
   terminal: 'Ghostty',
   command: 'claude',
-  prompt:
-    'Generate my list of activities split by project so I can lodge them on my timesheet. Use the pattern "project - task name - task description".',
   columns: ['Done'],
 });
 
@@ -45,15 +42,11 @@ function inBoardOrder(columns: readonly Status[]): Status[] {
   return COLUMNS.filter((column) => columns.includes(column));
 }
 
-/**
- * The settings as they are saved: the command trimmed, the prompt trimmed with `\n` line breaks, and the
- * columns in board order, each once.
- */
+/** The settings as they are saved: the command trimmed, and the columns in board order, each once. */
 export function normaliseAgentSettings(settings: AgentSettings): AgentSettings {
   return {
     terminal: settings.terminal,
     command: settings.command.trim(),
-    prompt: settings.prompt.replace(/\r\n?/g, '\n').trim(),
     columns: inBoardOrder(settings.columns),
   };
 }
@@ -61,15 +54,12 @@ export function normaliseAgentSettings(settings: AgentSettings): AgentSettings {
 /** The problem with agent settings in plain words, or `null` when they can be saved. */
 export function agentSettingsProblem(settings: AgentSettings): string | null {
   if (!settings.columns.every(isStatus)) return `Choose columns from: ${COLUMNS.join(', ')}.`;
-  const { terminal, command, prompt, columns } = normaliseAgentSettings(settings);
+  const { terminal, command, columns } = normaliseAgentSettings(settings);
   if (!isAgentTerminal(terminal)) return `Choose one of these terminals: ${AGENT_TERMINALS.join(', ')}.`;
   if (command === '') return 'Enter the command that starts your agent, for example claude.';
   if (/[\r\n]/.test(command)) return 'The agent command must fit on one line.';
   if (command.length > AGENT_COMMAND_MAX_LENGTH) {
     return `The agent command can be at most ${AGENT_COMMAND_MAX_LENGTH} characters long.`;
-  }
-  if (prompt.length > AGENT_PROMPT_MAX_LENGTH) {
-    return `The prompt can be at most ${AGENT_PROMPT_MAX_LENGTH.toLocaleString('en-GB')} characters long.`;
   }
   if (columns.length === 0) return 'Choose at least one column whose tasks the agent gets.';
   return null;
@@ -81,23 +71,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Turns whatever `settings.json` held into usable agent settings. Each field that is missing or unusable falls
- * back to its default on its own, so one bad value never loses the others.
+ * back to its default on its own, so one bad value never loses the others. A `prompt` kept there by an earlier
+ * version of mboard is left for `legacyAgentPrompt`.
  */
 export function sanitiseAgentSettings(raw: unknown): AgentSettings {
   const source = isRecord(raw) ? raw : {};
   const candidate = (patch: Partial<AgentSettings>): AgentSettings => ({ ...DEFAULT_AGENT_SETTINGS, ...patch });
   const terminal = isAgentTerminal(source['terminal']) ? source['terminal'] : DEFAULT_AGENT_SETTINGS.terminal;
   const command = typeof source['command'] === 'string' ? source['command'] : null;
-  const prompt = typeof source['prompt'] === 'string' ? source['prompt'] : null;
   const listed = Array.isArray(source['columns']) ? (source['columns'] as unknown[]).filter(isStatus) : [];
   const usableCommand = command !== null && agentSettingsProblem(candidate({ command })) === null;
-  const usablePrompt = prompt !== null && agentSettingsProblem(candidate({ prompt })) === null;
   return normaliseAgentSettings({
     terminal,
     command: usableCommand ? command : DEFAULT_AGENT_SETTINGS.command,
-    prompt: usablePrompt ? prompt : DEFAULT_AGENT_SETTINGS.prompt,
     columns: listed.length > 0 ? listed : [...DEFAULT_AGENT_SETTINGS.columns],
   });
+}
+
+/**
+ * The prompt an earlier version of mboard kept in the agent settings of `settings.json`, which the first saved
+ * prompt starts from (ADR 0014). The default prompt when there is none.
+ */
+export function legacyAgentPrompt(rawAgentSettings: unknown): string {
+  const prompt = isRecord(rawAgentSettings) ? rawAgentSettings['prompt'] : undefined;
+  return typeof prompt === 'string' ? prompt : DEFAULT_AGENT_PROMPT;
 }
 
 /** The live tasks in the agent's columns, which **Open agent** hands to the agent. */
@@ -194,8 +191,8 @@ function introduction(count: number, columns: readonly Status[]): string {
 }
 
 /**
- * The prompt **Open agent** starts the agent with: the person's own prompt, then the tasks from the agent's
- * columns, grouped by project (No project last) and ordered by column, then by the date each entered its
+ * The prompt **Open agent** starts the agent with: the saved prompt the person chose, then the tasks from the
+ * agent's columns, grouped by project (No project last) and ordered by column, then by the date each entered its
  * column. Each task lists its dates (a task in Done, the date it was completed), its file and, quoted, its
  * description and comments. With more than one column, each task also says which column it is in.
  */

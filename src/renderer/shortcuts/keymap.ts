@@ -79,6 +79,12 @@ const NAMED = {
   resetAgeColours: { chord: letter('R'), scopes: ['dialog'] },
   nextTerminal: { chord: letter('T'), scopes: ['dialog'] },
   openProjectNote: { chord: letter('O', { shift: true }), scopes: ['dialog'] },
+  newPrompt: { chord: letter('N'), scopes: ['dialog'] },
+  savePrompt: { chord: letter('S'), scopes: ['dialog'] },
+  deletePrompt: { chord: { code: 'Backspace', shift: true }, scopes: ['dialog'] },
+  togglePromptHistory: { chord: letter('H', { shift: true }), scopes: ['dialog'] },
+  restorePromptVersion: { chord: letter('U', { shift: true }), scopes: ['dialog'] },
+  discardChanges: { chord: letter('D'), scopes: ['dialog'] },
 
   tryAgain: { chord: letter('R'), scopes: ['screen'] },
 } as const satisfies Record<string, ShortcutDefinition>;

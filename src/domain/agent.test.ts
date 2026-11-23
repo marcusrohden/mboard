@@ -5,18 +5,19 @@ import {
   describeColumns,
   enteredColumnOn,
   composeAgentPrompt,
+  legacyAgentPrompt,
   normaliseAgentSettings,
   sanitiseAgentSettings,
   tasksForAgent,
   type AgentSettings,
 } from './agent';
+import { DEFAULT_AGENT_PROMPT } from './agentPrompts';
 import type { HistoryEntry } from './model';
 import { makeTask } from './testHelpers';
 
 const SETTINGS: AgentSettings = {
   terminal: 'Ghostty',
   command: 'claude-personal',
-  prompt: 'List my work.',
   columns: ['Done'],
 };
 
@@ -29,9 +30,8 @@ function movedToDone(at: string, from = 'In progress'): HistoryEntry {
 }
 
 describe('agent settings', () => {
-  it('accepts a terminal, a one-line command and a prompt', () => {
+  it('accepts a terminal and a one-line command', () => {
     expect(agentSettingsProblem(SETTINGS)).toBeNull();
-    expect(agentSettingsProblem({ ...SETTINGS, prompt: '' })).toBeNull();
     expect(agentSettingsProblem({ ...SETTINGS, command: 'gemini -i {prompt}' })).toBeNull();
   });
 
@@ -39,7 +39,6 @@ describe('agent settings', () => {
     ['an empty command', { command: '   ' }, /Enter the command that starts your agent/],
     ['a command over two lines', { command: 'claude\nrm -rf ~' }, /must fit on one line/],
     ['a very long command', { command: 'x'.repeat(501) }, /at most 500 characters/],
-    ['a very long prompt', { prompt: 'x'.repeat(20_001) }, /at most 20,000 characters/],
     ['an unknown terminal', { terminal: 'Hyper' as AgentSettings['terminal'] }, /Ghostty, Terminal/],
     ['no column', { columns: [] }, /Choose at least one column/],
     ['an unknown column', { columns: ['Pending' as AgentSettings['columns'][number]] }, /Choose columns from: To do/],
@@ -47,15 +46,10 @@ describe('agent settings', () => {
     expect(agentSettingsProblem({ ...SETTINGS, ...patch })).toMatch(message);
   });
 
-  it('trims the command and the prompt, keeps the prompt to \\n line breaks, and the columns in board order', () => {
+  it('trims the command and keeps the columns in board order', () => {
     expect(
-      normaliseAgentSettings({
-        terminal: 'Terminal',
-        command: '  codex ',
-        prompt: '\r\nOne\r\nTwo\n ',
-        columns: ['Done', 'In progress', 'Done'],
-      }),
-    ).toEqual({ terminal: 'Terminal', command: 'codex', prompt: 'One\nTwo', columns: ['In progress', 'Done'] });
+      normaliseAgentSettings({ terminal: 'Terminal', command: '  codex ', columns: ['Done', 'In progress', 'Done'] }),
+    ).toEqual({ terminal: 'Terminal', command: 'codex', columns: ['In progress', 'Done'] });
   });
 
   it('reads what settings.json held, falling back field by field', () => {
@@ -64,21 +58,22 @@ describe('agent settings', () => {
       sanitiseAgentSettings({
         terminal: 'Terminal',
         command: ' codex ',
-        prompt: 7,
+        prompt: 'Left for the saved prompts',
         columns: ['Done', 'Pending', 'To do'],
       }),
-    ).toEqual({
-      terminal: 'Terminal',
-      command: 'codex',
-      prompt: DEFAULT_AGENT_SETTINGS.prompt,
-      columns: ['To do', 'Done'],
-    });
-    expect(sanitiseAgentSettings({ terminal: 'Hyper', command: '', prompt: 'Mine', columns: [] })).toEqual({
+    ).toEqual({ terminal: 'Terminal', command: 'codex', columns: ['To do', 'Done'] });
+    expect(sanitiseAgentSettings({ terminal: 'Hyper', command: '', columns: [] })).toEqual({
       terminal: 'Ghostty',
       command: 'claude',
-      prompt: 'Mine',
       columns: ['Done'],
     });
+  });
+
+  it('finds the prompt an earlier version kept in the agent settings, or the default prompt', () => {
+    expect(legacyAgentPrompt({ terminal: 'Ghostty', prompt: 'My own prompt' })).toBe('My own prompt');
+    expect(legacyAgentPrompt({ prompt: '' })).toBe('');
+    expect(legacyAgentPrompt({ prompt: 7 })).toBe(DEFAULT_AGENT_PROMPT);
+    expect(legacyAgentPrompt(undefined)).toBe(DEFAULT_AGENT_PROMPT);
   });
 
   it('describes the columns in board order', () => {

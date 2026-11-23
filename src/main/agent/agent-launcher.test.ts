@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, stat, utimes } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_AGENT_SETTINGS, type AgentSettings } from '../../domain';
+import { AgentPromptMessage, DEFAULT_AGENT_SETTINGS, type AgentSettings } from '../../domain';
 import { makeTask } from '../../domain/testHelpers';
 import { FakeBoard, FakeClock, FakeSettings } from '../platform/testing/fakes';
 import { createTemporaryFolder, removeTemporaryFolder } from '../test-support/temporary-folder';
@@ -21,9 +21,9 @@ const NOW = '2026-11-18T10:00:00';
 const AGENT: AgentSettings = {
   terminal: 'Ghostty',
   command: 'claude-personal',
-  prompt: 'List my work by project.',
   columns: ['Done'],
 };
+const PROMPT_ID = 'timesheet';
 
 const SHIPPED = makeTask({
   id: 'tasks/Acme/Shipped.md',
@@ -42,10 +42,18 @@ describe('TerminalAgentLauncher', () => {
   let opened: Array<{ terminal: string; scriptPath: string; script: string; prompt: string }>;
   let openInTerminal: OpenInTerminal;
   let boardPath: string | null;
+  let savedPrompts: Map<string, string>;
 
   function launcher(): TerminalAgentLauncher {
     return new TerminalAgentLauncher({
       settings,
+      prompts: {
+        promptText: async (id) => {
+          const text = savedPrompts.get(id);
+          if (text === undefined) throw new Error(AgentPromptMessage.missing);
+          return text;
+        },
+      },
       board,
       boardPath: async () => boardPath,
       shell: '/bin/zsh',
@@ -65,6 +73,10 @@ describe('TerminalAgentLauncher', () => {
     board.tasks = [SHIPPED, ARCHIVED, DOING];
     settings = new FakeSettings({ agent: AGENT });
     boardPath = BOARD_PATH;
+    savedPrompts = new Map([
+      [PROMPT_ID, 'List my work by project.'],
+      ['empty', ''],
+    ]);
     opened = [];
     openInTerminal = vi.fn(async (terminal, scriptPath) => {
       const folder = path.dirname(scriptPath);
@@ -81,8 +93,8 @@ describe('TerminalAgentLauncher', () => {
     await removeTemporaryFolder(temporaryFolder);
   });
 
-  it('opens a private launch script in the chosen terminal, with the prompt and only the live tasks in Done', async () => {
-    await launcher().open();
+  it('opens a private launch script in the chosen terminal, with the saved prompt and only the live tasks in Done', async () => {
+    await launcher().open(PROMPT_ID);
 
     expect(opened).toHaveLength(1);
     const [launch] = opened;
@@ -103,17 +115,17 @@ describe('TerminalAgentLauncher', () => {
 
   it('hands over the tasks of every column the settings choose', async () => {
     await settings.update({ agent: { ...AGENT, columns: ['In progress', 'Done'] } });
-    await launcher().open();
+    await launcher().open(PROMPT_ID);
 
     expect(opened[0]?.prompt).toMatch(/The 2 tasks in In progress and Done/);
     expect(opened[0]?.prompt).toContain('### Doing');
     expect(opened[0]?.prompt).not.toContain('### Old');
   });
 
-  it('reads the settings at every launch, so a change applies straight away', async () => {
-    await launcher().open();
-    await settings.update({ agent: { terminal: 'Terminal', command: 'codex', prompt: '', columns: ['Done'] } });
-    await launcher().open();
+  it('reads the settings and the prompt at every launch, so a change applies straight away', async () => {
+    await launcher().open(PROMPT_ID);
+    await settings.update({ agent: { terminal: 'Terminal', command: 'codex', columns: ['Done'] } });
+    await launcher().open('empty');
 
     expect(opened[1]?.terminal).toBe('Terminal');
     expect(opened[1]?.script).toContain(`-ilc 'codex "$MBOARD_AGENT_PROMPT";`);
@@ -125,7 +137,7 @@ describe('TerminalAgentLauncher', () => {
       throw new Error("mboard couldn't open Ghostty.");
     });
 
-    await expect(launcher().open()).rejects.toThrow("mboard couldn't open Ghostty.");
+    await expect(launcher().open(PROMPT_ID)).rejects.toThrow("mboard couldn't open Ghostty.");
     expect(await launchFolders()).toEqual([]);
   });
 
@@ -140,7 +152,7 @@ describe('TerminalAgentLauncher', () => {
     const tenMinutesAgo = new Date(2026, 10, 18, 9, 50, 0);
     await utimes(recent, tenMinutesAgo, tenMinutesAgo);
 
-    await launcher().open();
+    await launcher().open(PROMPT_ID);
 
     expect(existsSync(stale)).toBe(false);
     expect(existsSync(recent)).toBe(true);
@@ -149,6 +161,7 @@ describe('TerminalAgentLauncher', () => {
 
   it.each<[string, () => void, string]>([
     ['no board is open', () => (boardPath = null), AgentMessage.noBoard],
+    ['the prompt was deleted', () => savedPrompts.delete(PROMPT_ID), AgentPromptMessage.missing],
     ['Done is empty', () => (board.tasks = [ARCHIVED, DOING]), AgentMessage.nothingInColumns(['Done'])],
     [
       'the tasks are too long to pass as one argument',
@@ -158,7 +171,7 @@ describe('TerminalAgentLauncher', () => {
   ])('refuses when %s, without opening anything', async (_case, arrange, message) => {
     arrange();
 
-    await expect(launcher().open()).rejects.toThrow(message);
+    await expect(launcher().open(PROMPT_ID)).rejects.toThrow(message);
     expect(openInTerminal).not.toHaveBeenCalled();
     expect(await launchFolders()).toEqual([]);
   });
@@ -169,20 +182,10 @@ describe('TerminalAgentLauncher', () => {
 
     const heard: AgentSettings[] = [];
     launcherUnderTest.onSettingsChange((saved) => heard.push(saved));
-    const expected: AgentSettings = {
-      terminal: 'Terminal',
-      command: 'codex',
-      prompt: 'Hi',
-      columns: ['In progress', 'Done'],
-    };
+    const expected: AgentSettings = { terminal: 'Terminal', command: 'codex', columns: ['In progress', 'Done'] };
 
     await expect(
-      launcherUnderTest.saveSettings({
-        terminal: 'Terminal',
-        command: '  codex  ',
-        prompt: ' Hi \r\n',
-        columns: ['Done', 'In progress'],
-      }),
+      launcherUnderTest.saveSettings({ terminal: 'Terminal', command: '  codex  ', columns: ['Done', 'In progress'] }),
     ).resolves.toEqual(expected);
     expect(settings.value.agent).toEqual(expected);
     expect(heard).toEqual([expected]);

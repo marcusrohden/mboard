@@ -62,7 +62,7 @@ Starting mboard from VS Code runs it from source with `pnpm start`: **F5** (`.vs
 
 mboard keeps running in the menu bar after its window closes, so `open` on its own would only bring back the old process. `scripts/quit-mboard.sh` quits it first through AppleScript; the first run asks macOS to let VS Code control mboard. Stop a running **mboard: dev** before opening the packaged app, because both share one single-instance lock.
 
-The packaged and dev apps share `~/Library/Application Support/mboard/settings.json` (board folder, Open at Login, window bounds), so every build starts with the existing settings. Nothing here deletes that folder.
+The packaged and dev apps share `~/Library/Application Support/mboard/settings.json` (board folder, Open at Login, window bounds, the agent) and `agent-prompts.json` (the saved agent prompts and their versions), so every build starts with the existing settings and prompts. Nothing here deletes that folder.
 
 ## Releasing
 

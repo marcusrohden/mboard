@@ -6,16 +6,18 @@ import {
   describeColumns,
   normaliseAgentSettings,
   tasksForAgent,
+  type AgentPromptId,
   type AgentSettings,
   type Status,
 } from '../../domain';
-import type { AgentLauncher, BoardService, Clock, SettingsStore } from '../ports';
+import type { AgentLauncher, AgentPromptStore, BoardService, Clock, SettingsStore } from '../ports';
 import { agentLaunchScript } from './agent-launch-script';
 import type { OpenInTerminal } from './terminal-opener';
 
 /** What the launcher needs from the rest of main. */
 export interface AgentLauncherOptions {
   settings: SettingsStore;
+  prompts: Pick<AgentPromptStore, 'promptText'>;
   board: Pick<BoardService, 'snapshot'>;
   /** The open board's folder, or `null` when no board is open. */
   boardPath(): Promise<string | null>;
@@ -47,12 +49,11 @@ const OWNER_ONLY_FILE = 0o600;
 const OWNER_ONLY_SCRIPT = 0o700;
 
 /**
- * Starts the agent through a terminal (ADR 0011), with the live tasks in the agent's columns. For each launch it
- * writes the composed prompt and a
- * `.command` script into a fresh, private temporary folder and opens the script in the chosen terminal.
- * The script removes the folder once it has read the prompt; a folder left behind because the terminal
- * never ran it is removed by a later launch. Settings are read from `settings.json` at every launch, so a
- * change in Settings applies straight away.
+ * Starts the agent through a terminal (ADR 0011), with a saved prompt (ADR 0014) and the live tasks in the
+ * agent's columns. For each launch it writes the composed prompt and a `.command` script into a fresh, private
+ * temporary folder and opens the script in the chosen terminal. The script removes the folder once it has read
+ * the prompt; a folder left behind because the terminal never ran it is removed by a later launch. Settings and
+ * the prompt are read from disk at every launch, so a change applies straight away.
  */
 export class TerminalAgentLauncher implements AgentLauncher {
   private readonly listeners = new Set<(settings: AgentSettings) => void>();
@@ -78,13 +79,14 @@ export class TerminalAgentLauncher implements AgentLauncher {
     };
   }
 
-  async open(): Promise<void> {
+  async open(promptId: AgentPromptId): Promise<void> {
     const boardPath = await this.options.boardPath();
     if (boardPath === null) throw new Error(AgentMessage.noBoard);
     const { agent } = await this.options.settings.read();
     const tasks = tasksForAgent(this.options.board.snapshot().tasks, agent.columns);
     if (tasks.length === 0) throw new Error(AgentMessage.nothingInColumns(agent.columns));
-    const prompt = composeAgentPrompt(agent.prompt, tasks, agent.columns);
+    const ownPrompt = await this.options.prompts.promptText(promptId);
+    const prompt = composeAgentPrompt(ownPrompt, tasks, agent.columns);
     if (Buffer.byteLength(prompt, 'utf8') > MAX_PROMPT_BYTES) throw new Error(AgentMessage.tooLong);
 
     await this.removeStaleLaunchFolders();

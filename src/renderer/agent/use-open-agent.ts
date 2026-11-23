@@ -1,8 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
+import type { AgentPromptId } from '../../shared/contract';
 import { useRunCommand } from '../state/use-run-command';
 
 export interface OpenAgent {
-  open: () => void;
+  /** Opens the agent with a saved prompt, and resolves with whether the terminal was asked to start it. */
+  open: (promptId: AgentPromptId) => Promise<boolean>;
   isOpening: boolean;
 }
 
@@ -15,15 +17,20 @@ export function useOpenAgent(): OpenAgent {
   const [isOpening, setIsOpening] = useState(false);
   const inFlight = useRef(false);
 
-  const open = useCallback(() => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setIsOpening(true);
-    void run((api) => api.openAgent()).finally(() => {
-      inFlight.current = false;
-      setIsOpening(false);
-    });
-  }, [run]);
+  const open = useCallback(
+    async (promptId: AgentPromptId) => {
+      if (inFlight.current) return false;
+      inFlight.current = true;
+      setIsOpening(true);
+      try {
+        return (await run((api) => api.openAgent(promptId))).ok;
+      } finally {
+        inFlight.current = false;
+        setIsOpening(false);
+      }
+    },
+    [run],
+  );
 
   return { open, isOpening };
 }

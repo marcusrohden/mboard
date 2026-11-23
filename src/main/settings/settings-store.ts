@@ -2,7 +2,9 @@ import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   DEFAULT_AGE_THRESHOLDS,
+  DEFAULT_AGENT_PROMPT,
   DEFAULT_AGENT_SETTINGS,
+  legacyAgentPrompt,
   sanitiseAgeThresholds,
   sanitiseAgentSettings,
 } from '../../domain';
@@ -90,6 +92,20 @@ export class FileSettingsStore implements SettingsStore {
       if (isNotFound(error)) return { ...DEFAULT_SETTINGS };
       console.error('mboard could not read its settings, so it is using the defaults:', error);
       return { ...DEFAULT_SETTINGS };
+    }
+  }
+
+  /**
+   * The agent prompt an earlier version of mboard kept in `settings.json`, read from the file as it is, since
+   * `read` no longer has it. The default prompt when the file or the prompt is missing or can't be read.
+   */
+  async legacyAgentPrompt(): Promise<string> {
+    try {
+      const raw = JSON.parse(await readFile(this.filePath, 'utf8')) as unknown;
+      return legacyAgentPrompt(isRecord(raw) ? raw['agent'] : null);
+    } catch (error) {
+      if (!isNotFound(error)) console.error('mboard could not read the agent prompt from its settings:', error);
+      return DEFAULT_AGENT_PROMPT;
     }
   }
 

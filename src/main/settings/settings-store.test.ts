@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_AGENT_SETTINGS } from '../../domain';
+import { DEFAULT_AGENT_PROMPT, DEFAULT_AGENT_SETTINGS } from '../../domain';
 import { createTemporaryFolder, listFilesRecursively, removeTemporaryFolder } from '../test-support/temporary-folder';
 import { FileSettingsStore, SETTINGS_FILE_NAME, sanitiseSettings } from './settings-store';
 
@@ -67,13 +67,23 @@ describe('FileSettingsStore', () => {
   });
 
   it('keeps valid agent settings and defaults only the unusable fields', () => {
-    const custom = { terminal: 'Terminal', command: 'claude-personal', prompt: 'List my work.', columns: ['Done'] };
+    const custom = { terminal: 'Terminal', command: 'claude-personal', columns: ['Done'] };
     expect(sanitiseSettings({ agent: custom }).agent).toEqual(custom);
+    expect(sanitiseSettings({ agent: { ...custom, prompt: 'Kept by an earlier version' } }).agent).toEqual(custom);
     expect(sanitiseSettings({ agent: { ...custom, terminal: 'Hyper', command: 'a\nb' } }).agent).toEqual({
       ...custom,
       terminal: DEFAULT_AGENT.terminal,
       command: DEFAULT_AGENT.command,
     });
+  });
+
+  it('reads the agent prompt an earlier version kept, falling back to the default prompt', async () => {
+    const store = new FileSettingsStore(userData);
+    await expect(store.legacyAgentPrompt()).resolves.toBe(DEFAULT_AGENT_PROMPT);
+    await writeFile(settingsPath, JSON.stringify({ agent: { command: 'claude', prompt: 'My own prompt' } }));
+    await expect(store.legacyAgentPrompt()).resolves.toBe('My own prompt');
+    await writeFile(settingsPath, '{ broken');
+    await expect(store.legacyAgentPrompt()).resolves.toBe(DEFAULT_AGENT_PROMPT);
   });
 
   it('rejects a relative board path', () => {

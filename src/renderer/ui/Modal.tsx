@@ -12,12 +12,17 @@ interface ModalProps {
   role?: 'dialog' | 'alertdialog';
   /**
    * `wide` is a taller, wider panel with no padding of its own, laid out as a column, for a dialog with its own
-   * header, scrolling body and footer.
+   * header, scrolling body and footer. `large` is the same, wider and taller again, for a dialog with a sidebar.
    */
-  size?: 'regular' | 'wide';
+  size?: 'regular' | 'wide' | 'large';
   label: string;
   onClose: () => void;
   children: ReactNode;
+}
+
+function panelClassName(size: NonNullable<ModalProps['size']>): string {
+  if (size === 'regular') return styles.panel ?? '';
+  return [styles.panel, styles.wide, size === 'large' ? styles.large : undefined].filter(Boolean).join(' ');
 }
 
 function focusableElementsIn(container: HTMLElement): HTMLElement[] {
@@ -78,7 +83,7 @@ export function Modal({ role = 'dialog', size = 'regular', label, onClose, child
         role={role}
         aria-modal="true"
         aria-label={label}
-        className={size === 'wide' ? `${styles.panel} ${styles.wide}` : styles.panel}
+        className={panelClassName(size)}
         onKeyDown={handleKeyDown}
       >
         <ShortcutLayer>{children}</ShortcutLayer>
