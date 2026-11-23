@@ -3,6 +3,7 @@ import { isFileSystemError } from '../fs/fs-errors';
 import type {
   AgeThresholdsSetting,
   AgentLauncher,
+  AgentPromptStore,
   AppUpdates,
   BoardService,
   BoardSetupService,
@@ -12,6 +13,8 @@ import { userFacingMessage } from '../user-facing-error';
 import {
   expectArguments,
   readAgeThresholds,
+  readAgentPromptDraft,
+  readAgentPromptId,
   readAgentSettings,
   readBoolean,
   readFolderPath,
@@ -35,6 +38,7 @@ export interface InvokeHandlerDependencies {
   platform: Pick<Platform, 'preferences' | 'setOpenAtLogin' | 'reminderBanner' | 'dismissReminderBanner'>;
   ageThresholds: Pick<AgeThresholdsSetting, 'get' | 'set'>;
   agent: AgentLauncher;
+  agentPrompts: AgentPromptStore;
   appUpdates: AppUpdates;
   /** Claims a pending request from the menu to open Settings. */
   settingsRequests: { take(): boolean };
@@ -150,9 +154,20 @@ function settingsHandlers({ ageThresholds, agent }: InvokeHandlerDependencies) {
   };
 }
 
-function agentHandlers({ agent }: InvokeHandlerDependencies) {
+function agentHandlers({ agent, agentPrompts }: InvokeHandlerDependencies) {
   return {
-    openAgent: withoutArguments(() => agent.open()),
+    openAgent: async (...args: unknown[]) => agent.open(readAgentPromptId(expectArguments(args, 1)[0])),
+    getAgentPrompts: withoutArguments(() => agentPrompts.load()),
+    createAgentPrompt: async (...args: unknown[]) =>
+      agentPrompts.create(readAgentPromptDraft(expectArguments(args, 1)[0])),
+    saveAgentPrompt: async (...args: unknown[]) => {
+      const [id, draft] = expectArguments(args, 2);
+      return agentPrompts.save(readAgentPromptId(id), readAgentPromptDraft(draft));
+    },
+    deleteAgentPrompt: async (...args: unknown[]) =>
+      agentPrompts.remove(readAgentPromptId(expectArguments(args, 1)[0])),
+    selectAgentPrompt: async (...args: unknown[]) =>
+      agentPrompts.select(readAgentPromptId(expectArguments(args, 1)[0])),
   };
 }
 

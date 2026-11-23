@@ -13,7 +13,6 @@ interface HeaderProps {
   projects: readonly string[];
   isArchivedView: boolean;
   isFilterActive: boolean;
-  canOpenAgent: boolean;
   /** The agent's columns as a phrase, such as `In progress and Done`, or `null` while they load. */
   agentColumns: string | null;
   searchRef: Ref<HTMLInputElement>;
@@ -27,7 +26,8 @@ interface HeaderProps {
 
 /**
  * The board header: name, search, filters, Clear, the Archived toggle, Open agent, New task and the Settings
- * gear, each showing its Command shortcut. Open agent is off while the agent's columns have no tasks to give it.
+ * gear, each showing its Command shortcut. Open agent opens the dialog where a saved prompt is chosen, edited and
+ * started, so it works even while the agent's columns are empty.
  */
 export function Header({
   boardName,
@@ -35,7 +35,6 @@ export function Header({
   projects,
   isArchivedView,
   isFilterActive,
-  canOpenAgent,
   agentColumns,
   searchRef,
   dispatch,
@@ -81,12 +80,7 @@ export function Header({
           Archived
         </Button>
         <Button
-          disabled={!canOpenAgent}
-          title={
-            canOpenAgent
-              ? `Open your agent in a terminal with the tasks in ${agentColumns ?? 'its columns'}`
-              : `No tasks in ${agentColumns ?? 'the agent’s columns'} yet`
-          }
+          title={`Choose a prompt and open your agent with the tasks in ${agentColumns ?? 'its columns'}`}
           shortcut="openAgent"
           onClick={onOpenAgent}
         >

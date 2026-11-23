@@ -1,15 +1,20 @@
 import {
+  AGENT_PROMPT_MAX_LENGTH,
+  AGENT_PROMPT_NAME_MAX_LENGTH,
   AGENT_TERMINALS,
   COLUMNS,
   PROJECT_COLOURS,
   ageThresholdsProblem,
   agentSettingsProblem,
+  isAgentPromptId,
   isAgentTerminal,
   isProjectColour,
   isStatus,
 } from '../../domain';
 import type {
   AgeThresholds,
+  AgentPromptDraft,
+  AgentPromptId,
   AgentSettings,
   LocalDate,
   NewTaskInput,
@@ -26,7 +31,10 @@ const NEW_TASK_KEYS = ['description', 'due', 'project', 'status', 'title'] as co
 const TASK_EDIT_KEYS = ['field', 'value'] as const;
 const REVERT_EXPECTATION_KEYS = ['at', 'historyLength', 'text'] as const;
 const AGE_THRESHOLD_KEYS = ['nudgeFrom', 'staleFrom', 'stallingFrom'] as const;
-const AGENT_SETTINGS_KEYS = ['columns', 'command', 'prompt', 'terminal'] as const;
+const AGENT_SETTINGS_KEYS = ['columns', 'command', 'terminal'] as const;
+const AGENT_PROMPT_DRAFT_KEYS = ['name', 'text'] as const;
+/** Room for the whitespace a draft is trimmed of, while keeping what the renderer can send bounded. */
+const DRAFT_TEXT_SLACK = 1_000;
 
 /** Builds the error for a request from the renderer that doesn't have the shape the contract describes. */
 export function invalidRequest(detail: string): Error {
@@ -194,7 +202,7 @@ export function readProjectColour(value: unknown): ProjectColour | null {
 }
 
 /**
- * Agent settings, with exactly `terminal`, `command`, `prompt` and `columns`.
+ * Agent settings, with exactly `terminal`, `command` and `columns`.
  *
  * @throws Error naming the problem in plain words when they can't be saved.
  */
@@ -209,10 +217,35 @@ export function readAgentSettings(value: unknown): AgentSettings {
   const settings: AgentSettings = {
     terminal,
     command: readString(value['command'], 'the agent command'),
-    prompt: readString(value['prompt'], 'the prompt'),
     columns: columns.map(readStatus),
   };
   const problem = agentSettingsProblem(settings);
   if (problem !== null) throw new Error(problem);
   return settings;
+}
+
+/** A saved prompt's id, as main made it. Whether a prompt has it is the prompt store's decision. */
+export function readAgentPromptId(value: unknown): AgentPromptId {
+  if (!isAgentPromptId(value)) throw invalidRequest('the prompt id must be letters, digits, - or _');
+  return value;
+}
+
+function readBoundedString(value: unknown, what: string, maxLength: number): string {
+  const text = readString(value, what);
+  if (text.length > maxLength + DRAFT_TEXT_SLACK) throw invalidRequest(`${what} is far too long`);
+  return text;
+}
+
+/**
+ * A prompt draft, with exactly `name` and `text`. Whether it can be saved, for example whether its name is
+ * taken, is the prompt store's decision.
+ */
+export function readAgentPromptDraft(value: unknown): AgentPromptDraft {
+  if (!isPlainObject(value) || !hasExactKeys(value, AGENT_PROMPT_DRAFT_KEYS)) {
+    throw invalidRequest(`a prompt needs exactly ${AGENT_PROMPT_DRAFT_KEYS.join(', ')}`);
+  }
+  return {
+    name: readBoundedString(value['name'], "the prompt's name", AGENT_PROMPT_NAME_MAX_LENGTH),
+    text: readBoundedString(value['text'], 'the prompt', AGENT_PROMPT_MAX_LENGTH),
+  };
 }

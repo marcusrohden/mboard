@@ -1,5 +1,8 @@
 import type {
   AgeThresholds,
+  AgentPromptDraft,
+  AgentPromptId,
+  AgentPromptLibrary,
   AgentSettings,
   LocalDate,
   LocalDateTime,
@@ -16,6 +19,11 @@ import type {
 
 export type {
   AgeThresholds,
+  AgentPrompt,
+  AgentPromptDraft,
+  AgentPromptId,
+  AgentPromptLibrary,
+  AgentPromptVersion,
   AgentSettings,
   AgentTerminal,
   HistoryEntry,
@@ -161,8 +169,22 @@ export interface MboardInvokeApi {
   getAgentSettings(): Promise<AgentSettings>;
   /** Saves how **Open agent** starts the agent. Rejects settings that `agentSettingsProblem` finds a problem with. */
   setAgentSettings(settings: AgentSettings): Promise<AgentSettings>;
-  /** Opens the agent in the chosen terminal, in the board folder, with the configured prompt and the tasks in Done. */
-  openAgent(): Promise<void>;
+  /**
+   * Opens the agent in the chosen terminal, in the board folder, with the latest version of the saved prompt
+   * `promptId` and the tasks in the agent's columns. Main reads the prompt's text itself.
+   */
+  openAgent(promptId: AgentPromptId): Promise<void>;
+
+  /** The saved agent prompts with their versions, and the one the Open agent dialog starts on (ADR 0014). */
+  getAgentPrompts(): Promise<AgentPromptLibrary>;
+  /** Saves a new prompt as its version 1 and selects it. Rejects drafts that `agentPromptProblem` finds a problem with. */
+  createAgentPrompt(draft: AgentPromptDraft): Promise<AgentPromptLibrary>;
+  /** Saves a draft as the prompt's next version and selects it. A draft that matches the latest version adds nothing. */
+  saveAgentPrompt(id: AgentPromptId, draft: AgentPromptDraft): Promise<AgentPromptLibrary>;
+  /** Deletes a prompt with all its versions. Rejects deleting the last prompt. */
+  deleteAgentPrompt(id: AgentPromptId): Promise<AgentPromptLibrary>;
+  /** Makes a prompt the one the Open agent dialog starts on. */
+  selectAgentPrompt(id: AgentPromptId): Promise<AgentPromptLibrary>;
 
   getAppUpdateStatus(): Promise<AppUpdateStatus>;
   checkForAppUpdate(): Promise<AppUpdateStatus>;
@@ -254,6 +276,11 @@ export const IPC = {
     getAgentSettings: 'settings:getAgentSettings',
     setAgentSettings: 'settings:setAgentSettings',
     openAgent: 'agent:openAgent',
+    getAgentPrompts: 'agent:getAgentPrompts',
+    createAgentPrompt: 'agent:createAgentPrompt',
+    saveAgentPrompt: 'agent:saveAgentPrompt',
+    deleteAgentPrompt: 'agent:deleteAgentPrompt',
+    selectAgentPrompt: 'agent:selectAgentPrompt',
     getAppUpdateStatus: 'app:getAppUpdateStatus',
     checkForAppUpdate: 'app:checkForAppUpdate',
     installAppUpdate: 'app:installAppUpdate',

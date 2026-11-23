@@ -22,11 +22,10 @@ function terminalAfter(terminal: AgentTerminal): AgentTerminal {
 
 type Field = keyof AgentSettings;
 
-const SECTION_OF_FIELD: Readonly<Record<Field, 'launch' | 'prompt'>> = {
+const SECTION_OF_FIELD: Readonly<Record<Field, 'launch' | 'tasks'>> = {
   terminal: 'launch',
   command: 'launch',
-  prompt: 'prompt',
-  columns: 'prompt',
+  columns: 'tasks',
 };
 
 function sameSettings(a: AgentSettings, b: AgentSettings): boolean {
@@ -35,21 +34,20 @@ function sameSettings(a: AgentSettings, b: AgentSettings): boolean {
   return (
     left.terminal === right.terminal &&
     left.command === right.command &&
-    left.prompt === right.prompt &&
     left.columns.join('\n') === right.columns.join('\n')
   );
 }
 
 /**
  * Settings for **Open agent**, in two groups: Agent (the terminal and the command that starts the agent) and
- * Prompt (the prompt it starts with and the columns whose tasks follow it). The terminal saves as soon as it is
- * picked, or switched with ⌘T, and a column as soon as it is ticked; the last ticked column can't be unticked.
- * The command and prompt save when their field is left, Enter is pressed in the command, or Settings closes.
- * Settings that can't be saved show the reason under their group and save nothing.
+ * Tasks (the columns whose tasks follow the prompt). The prompts themselves are kept in the Open agent dialog.
+ * The terminal saves as soon as it is picked, or switched with ⌘T, and a column as soon as it is ticked; the last
+ * ticked column can't be unticked. The command saves when its field is left, Enter is pressed in it, or Settings
+ * closes. Settings that can't be saved show the reason under their group and save nothing.
  */
 export function AgentSection() {
   const run = useRunCommand();
-  const ids = { terminal: useId(), command: useId(), commandHint: useId(), prompt: useId() };
+  const ids = { terminal: useId(), command: useId(), commandHint: useId() };
   const [saved, setSaved] = useState<AgentSettings | null>(null);
   const [draft, setDraft] = useState<AgentSettings | null>(null);
   const [problem, setProblem] = useState<{ field: Field; message: string } | null>(null);
@@ -119,7 +117,7 @@ export function AgentSection() {
     if (next !== null) void save(next, 'columns');
   }
 
-  const alertFor = (section: 'launch' | 'prompt') =>
+  const alertFor = (section: 'launch' | 'tasks') =>
     problem !== null && SECTION_OF_FIELD[problem.field] === section ? (
       <p role="alert" className={fields.error}>
         {problem.message}
@@ -140,7 +138,7 @@ export function AgentSection() {
         title="Agent"
         note={
           alertFor('launch') ??
-          'Open agent starts your AI agent in a terminal, in the board folder, with the prompt and tasks below.'
+          'Open agent starts your AI agent in a terminal, in the board folder, with a saved prompt and the tasks below.'
         }
       >
         <SettingsRow label="Terminal" labelFor={ids.terminal} description="Opens a new window for each agent.">
@@ -190,24 +188,16 @@ export function AgentSection() {
           />
         </SettingsRow>
       </SettingsSection>
-      <SettingsSection title="Prompt" note={alertFor('prompt')}>
-        <SettingsRow
-          label="Prompt"
-          labelFor={ids.prompt}
-          description="What you ask the agent. The tasks follow it."
-          layout="stacked"
-        >
-          <textarea
-            id={ids.prompt}
-            className={styles.textArea}
-            value={draft.prompt}
-            onChange={(event) => change({ prompt: event.target.value })}
-            onBlur={() => void save(draft, 'prompt')}
-          />
-        </SettingsRow>
+      <SettingsSection
+        title="Tasks"
+        note={
+          alertFor('tasks') ??
+          'Your prompts are saved in the Open agent dialog, which keeps a version of each prompt for every save.'
+        }
+      >
         <SettingsRow
           label="Tasks from"
-          description="The agent gets the tasks in these columns, grouped by project."
+          description="The agent gets the prompt, then the tasks in these columns, grouped by project."
           layout="stacked"
         >
           <div role="group" aria-label="Agent column options" className={styles.choices}>

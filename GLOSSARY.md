@@ -54,8 +54,12 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 - **Shortcut**: a Command key chord, sometimes with Shift or Option, that does what a button or control does. Every control shows its shortcut, faded, at its bottom right. _Avoid_: hotkey, accelerator (that's a native menu item's key).
 - **Settings**: the dialog that holds mboard's own settings: the board folder, open at login, age colours, the agent, notifications and app updates, in four tabs: General, Board, Agent and Updates. Opened with the header's gear, **Settings…** in the app and tray menus, or Cmd+,.
 - **Agent**: the person's own AI coding agent, such as Claude Code or Codex, started by a shell command they set in Settings. mboard doesn't include one. _Avoid_: assistant, bot.
-- **Open agent**: the header action that opens the chosen terminal in the board folder and starts the agent with the **agent prompt** (ADR 0011).
-- **Agent prompt**: what the agent starts with: the prompt from Settings, then every live task in the **agent's columns**, grouped by project. _Avoid_: context file.
+- **Open agent**: starting the agent: the chosen terminal opens in the board folder and starts the agent with the **agent prompt** (ADR 0011). The header's Open agent opens the **Open agent dialog**, whose Open agent does it.
+- **Open agent dialog**: the dialog where a **saved prompt** is chosen, written and edited, its **prompt versions** compared and restored, and the agent opened (ADR 0014).
+- **Saved prompt**: a named prompt the person keeps for the agent, with every **prompt version** of it, in `agent-prompts.json`. The dialog opens on the **selected prompt**, the one last shown. _Avoid_: template, preset.
+- **Prompt version**: one save of a saved prompt's name and text, numbered from 1. Every save that changes something adds one, and none is ever changed or removed. The latest is the prompt as it is now.
+- **Restore version**: putting an earlier prompt version back in the editor, to save as a new version. _Avoid_: revert (that's a task's, and removes later entries), rollback, undo.
+- **Agent prompt**: what the agent starts with: the latest version of the chosen saved prompt, then every live task in the **agent's columns**, grouped by project. _Avoid_: context file.
 - **Agent's columns**: the columns, chosen in Settings, whose tasks go into the agent prompt. Done unless changed.
 - **Release**: a published version of mboard: a `vX.Y.Z` tag and its GitHub release, with the macOS zip attached. Every feature or fix merged into `main` makes one (ADR 0008).
 - **New version**: a release newer than the running copy of mboard.

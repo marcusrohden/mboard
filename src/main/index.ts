@@ -3,6 +3,7 @@ import path from 'node:path';
 import { app, dialog, session, shell } from 'electron';
 import type { TaskId } from '../shared/contract';
 import { TerminalAgentLauncher } from './agent/agent-launcher';
+import { FileAgentPromptStore } from './agent/agent-prompt-store';
 import { loginShell } from './agent/login-shell';
 import { createTerminalOpener } from './agent/terminal-opener';
 import { registerAppSchemeAsPrivileged, serveRendererBundle } from './app-protocol';
@@ -63,8 +64,9 @@ function applyLaunchConfig(config: LaunchConfig): void {
 }
 
 /**
- * The composition root: builds the clock, settings, board, setup, platform, agent launcher and app updates, wires IPC, push
- * events, the app menu and the window, then resolves the launch state before showing the window.
+ * The composition root: builds the clock, settings, saved prompts, board, setup, platform, agent launcher and app
+ * updates, wires IPC, push events, the app menu and the window, then resolves the launch state before showing
+ * the window.
  */
 async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSource): Promise<void> {
   denyPermissionRequests(session.defaultSession);
@@ -73,6 +75,12 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
   const userDataPath = app.getPath('userData');
   const clock = createClock(launchConfig);
   const settings = new FileSettingsStore(userDataPath);
+  const agentPrompts = new FileAgentPromptStore({
+    userDataPath,
+    clock,
+    legacyPrompt: () => settings.legacyAgentPrompt(),
+  });
+  await startAgentPrompts(agentPrompts);
   const ageThresholds = new StoredAgeThresholds(settings);
   const board = new FileBoardService({ clock, trash: createTrash(launchConfig) });
   const platform = createPlatform({ userDataPath, launchConfig });
@@ -85,6 +93,7 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
   });
   const agent = new TerminalAgentLauncher({
     settings,
+    prompts: agentPrompts,
     board,
     boardPath: async () => {
       const state = await setup.getAppState();
@@ -123,6 +132,7 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
       platform,
       ageThresholds,
       agent,
+      agentPrompts,
       appUpdates,
       settingsRequests,
       pickBoardFolder: () => dialogs.pickBoardFolder(),
@@ -154,6 +164,19 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
   });
   appUpdates.start();
   await windows.show();
+}
+
+/**
+ * Reads the saved prompts before anything can write `settings.json`, so a first launch after the prompts got a
+ * file of their own starts them with the prompt Settings kept (ADR 0014). A failure only means the Open agent
+ * dialog says so later, so it never stops mboard starting.
+ */
+async function startAgentPrompts(agentPrompts: FileAgentPromptStore): Promise<void> {
+  try {
+    await agentPrompts.load();
+  } catch (error) {
+    console.error('mboard could not start its saved prompts:', error);
+  }
 }
 
 /**

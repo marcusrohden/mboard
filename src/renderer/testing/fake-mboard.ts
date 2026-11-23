@@ -1,7 +1,13 @@
 import { vi, type Mock } from 'vitest';
 import {
   DEFAULT_AGE_THRESHOLDS,
+  DEFAULT_AGENT_PROMPT,
   DEFAULT_AGENT_SETTINGS,
+  addAgentPrompt,
+  addAgentPromptVersion,
+  removeAgentPrompt,
+  selectAgentPrompt,
+  startAgentPromptLibrary,
   ageThresholdsProblem,
   agentSettingsProblem,
   normaliseAgentSettings,
@@ -17,6 +23,7 @@ import {
 } from '../../domain';
 import type {
   AgeThresholds,
+  AgentPromptLibrary,
   AgentSettings,
   AppState,
   AppUpdateStage,
@@ -46,6 +53,8 @@ export interface FakeMboardOptions {
   preferences?: Preferences;
   ageThresholds?: AgeThresholds;
   agentSettings?: AgentSettings;
+  /** The saved prompts. One prompt, `Default prompt` with id `default`, unless set. */
+  agentPrompts?: AgentPromptLibrary;
   projectColours?: ProjectColours;
   appUpdateStatus?: AppUpdateStatus;
   /** Whether the menu asked to open Settings before the app mounted. */
@@ -58,6 +67,8 @@ export interface FakeMboard {
   api: MockedApi;
   install(): void;
   tasks(): Task[];
+  /** The saved prompts as the fake's main process holds them now. */
+  agentPrompts(): AgentPromptLibrary;
   setTasks(tasks: Task[]): void;
   setUnreadable(unreadable: UnreadableFile[]): void;
   pushAppState(state: AppState): void;
@@ -110,6 +121,9 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
   let preferences = options.preferences ?? { openAtLogin: true, notificationsAvailable: true };
   let ageThresholds = options.ageThresholds ?? { ...DEFAULT_AGE_THRESHOLDS };
   let agentSettings = options.agentSettings ?? { ...DEFAULT_AGENT_SETTINGS };
+  let agentPrompts =
+    options.agentPrompts ?? startAgentPromptLibrary('default', DEFAULT_AGENT_PROMPT, new Date(options.now ?? TEST_NOW));
+  let promptIds = 0;
   let projectColours: Record<string, ProjectColour> = { ...options.projectColours };
   let appUpdateStatus = options.appUpdateStatus ?? { currentVersion: '0.1.0', stage: { kind: 'idle' } };
   let isSettingsRequested = options.pendingSettingsRequest ?? false;
@@ -398,6 +412,24 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       return { ...agentSettings };
     }),
     openAgent: vi.fn(async () => undefined),
+    getAgentPrompts: vi.fn(async () => structuredClone(agentPrompts)),
+    createAgentPrompt: vi.fn(async (draft) => {
+      promptIds += 1;
+      agentPrompts = addAgentPrompt(agentPrompts, `prompt-${promptIds}`, draft, new Date(now));
+      return structuredClone(agentPrompts);
+    }),
+    saveAgentPrompt: vi.fn(async (id, draft) => {
+      agentPrompts = addAgentPromptVersion(agentPrompts, id, draft, new Date(now));
+      return structuredClone(agentPrompts);
+    }),
+    deleteAgentPrompt: vi.fn(async (id) => {
+      agentPrompts = removeAgentPrompt(agentPrompts, id);
+      return structuredClone(agentPrompts);
+    }),
+    selectAgentPrompt: vi.fn(async (id) => {
+      agentPrompts = selectAgentPrompt(agentPrompts, id);
+      return structuredClone(agentPrompts);
+    }),
     getReminderBanner: vi.fn(async () => banner),
     dismissReminderBanner: vi.fn(async () => {
       banner = [];
@@ -435,6 +467,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       Object.defineProperty(window, 'mboard', { value: api, configurable: true, writable: true });
     },
     tasks: () => structuredClone(tasks),
+    agentPrompts: () => structuredClone(agentPrompts),
     setTasks(next) {
       tasks = [...next];
       publish();

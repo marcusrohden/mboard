@@ -8,8 +8,8 @@ import type {
   Task,
 } from '../../shared/contract';
 import { IPC } from '../../shared/contract';
-import { DEFAULT_AGENT_SETTINGS } from '../../domain';
-import type { AgentSettings } from '../../shared/contract';
+import { DEFAULT_AGENT_SETTINGS, startAgentPromptLibrary } from '../../domain';
+import type { AgentPromptDraft, AgentSettings } from '../../shared/contract';
 import type { BoardService, BoardSetupService } from '../ports';
 import { createInvokeHandlers, type InvokeHandlerDependencies } from './invoke-handlers';
 
@@ -27,6 +27,8 @@ const UPDATE_STATUS: AppUpdateStatus = {
 };
 const THRESHOLDS: AgeThresholds = { nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 };
 const EXPECTED: RevertExpectation = { historyLength: 4, at: '2026-11-16 09:30', text: 'Moved from To do to Done' };
+const PROMPTS = startAgentPromptLibrary('timesheet', 'List my work.', new Date(2026, 10, 23, 9, 30));
+const DRAFT: AgentPromptDraft = { name: 'Standup', text: 'Summarise yesterday.' };
 const NEW_TASK: NewTaskInput = {
   title: 'A',
   status: 'To do',
@@ -82,19 +84,28 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     open: vi.fn(async () => undefined),
     onSettingsChange: vi.fn(() => () => undefined),
   };
+  const agentPrompts = {
+    load: vi.fn(async () => PROMPTS),
+    create: vi.fn(async () => PROMPTS),
+    save: vi.fn(async () => PROMPTS),
+    remove: vi.fn(async () => PROMPTS),
+    select: vi.fn(async () => PROMPTS),
+    promptText: vi.fn(async () => 'List my work.'),
+  };
   const dependencies: InvokeHandlerDependencies = {
     board: board as unknown as BoardService,
     setup: setup as unknown as BoardSetupService,
     platform,
     ageThresholds,
     agent,
+    agentPrompts,
     appUpdates,
     settingsRequests,
     pickBoardFolder: vi.fn(async () => '/Vault/Board'),
     openInObsidian: vi.fn(async () => undefined),
     ...overrides,
   };
-  return { dependencies, board, setup, platform, ageThresholds, agent, appUpdates, settingsRequests };
+  return { dependencies, board, setup, platform, ageThresholds, agent, agentPrompts, appUpdates, settingsRequests };
 }
 
 describe('createInvokeHandlers', () => {
@@ -171,7 +182,12 @@ describe('createInvokeHandlers', () => {
     ['openProjectNote with an object', 'openProjectNote', [{ project: 'Acme' }]],
     ['setAgeThresholds without one threshold', 'setAgeThresholds', [{ nudgeFrom: 3, stallingFrom: 5 }]],
     ['setAgeThresholds with an extra key', 'setAgeThresholds', [{ ...THRESHOLDS, greenFrom: 0 }]],
-    ['setAgentSettings without a prompt', 'setAgentSettings', [{ terminal: 'Ghostty', command: 'claude' }]],
+    ['setAgentSettings without columns', 'setAgentSettings', [{ terminal: 'Ghostty', command: 'claude' }]],
+    [
+      'setAgentSettings with the prompt it no longer keeps',
+      'setAgentSettings',
+      [{ ...DEFAULT_AGENT_SETTINGS, prompt: '' }],
+    ],
     ['setAgentSettings with an extra key', 'setAgentSettings', [{ ...DEFAULT_AGENT_SETTINGS, cwd: '/' }]],
     [
       'setAgentSettings with an unknown terminal',
@@ -185,7 +201,18 @@ describe('createInvokeHandlers', () => {
       'setAgentSettings',
       [{ ...DEFAULT_AGENT_SETTINGS, columns: ['Pending'] }],
     ],
-    ['openAgent with a command', 'openAgent', ['rm -rf ~']],
+    ['openAgent with a command for a prompt id', 'openAgent', ['rm -rf ~']],
+    ['openAgent without a prompt id', 'openAgent', []],
+    ['openAgent with the prompt text', 'openAgent', [{ text: 'List my work.' }]],
+    ['getAgentPrompts with an argument', 'getAgentPrompts', ['timesheet']],
+    ['createAgentPrompt without a draft', 'createAgentPrompt', []],
+    ['createAgentPrompt with an extra key', 'createAgentPrompt', [{ ...DRAFT, id: 'mine' }]],
+    ['createAgentPrompt with a numeric name', 'createAgentPrompt', [{ name: 7, text: '' }]],
+    ['createAgentPrompt with far too long a prompt', 'createAgentPrompt', [{ name: 'Big', text: 'x'.repeat(30_000) }]],
+    ['saveAgentPrompt without a draft', 'saveAgentPrompt', ['timesheet']],
+    ['saveAgentPrompt with a path for an id', 'saveAgentPrompt', ['../settings', DRAFT]],
+    ['deleteAgentPrompt with an object id', 'deleteAgentPrompt', [{ id: 'timesheet' }]],
+    ['selectAgentPrompt with an empty id', 'selectAgentPrompt', ['']],
     ['getAgentSettings with an argument', 'getAgentSettings', [DEFAULT_AGENT_SETTINGS]],
     ['getAgeThresholds with an argument', 'getAgeThresholds', [THRESHOLDS]],
     ['getSnapshot with an argument', 'getSnapshot', [1]],
@@ -205,34 +232,54 @@ describe('createInvokeHandlers', () => {
     ],
     ['revertTask with a wrongly typed entry text', 'revertTask', ['tasks/A.md', 2, { ...EXPECTED, text: null }]],
   ] as const)('rejects %s before it reaches a service', async (_description, method, args) => {
-    const { dependencies, board, platform, ageThresholds, agent, appUpdates } = fakeDependencies();
+    const { dependencies, board, platform, ageThresholds, agent, agentPrompts, appUpdates } = fakeDependencies();
     const handlers = createInvokeHandlers(dependencies);
 
     await expect((handlers[method] as (...values: unknown[]) => Promise<unknown>)(...args)).rejects.toThrow(
       /^That request wasn't valid: /,
     );
-    const services = [board, platform, ageThresholds, agent, appUpdates];
+    const services = [board, platform, ageThresholds, agent, agentPrompts, appUpdates];
     for (const spy of services.flatMap((service) => Object.values(service))) {
       if (spy !== board.snapshot) expect(spy).not.toHaveBeenCalled();
     }
   });
 
-  it('reads and saves the agent settings, and opens the agent', async () => {
+  it('reads and saves the agent settings, and opens the agent with a saved prompt', async () => {
     const { dependencies, agent } = fakeDependencies();
     const handlers = createInvokeHandlers(dependencies);
-    const next: AgentSettings = {
-      terminal: 'Terminal',
-      command: 'claude-personal',
-      prompt: 'List my work.',
-      columns: ['In progress', 'Done'],
-    };
+    const next: AgentSettings = { terminal: 'Terminal', command: 'claude-personal', columns: ['In progress', 'Done'] };
 
     await expect(handlers.getAgentSettings()).resolves.toEqual(DEFAULT_AGENT_SETTINGS);
     await expect(handlers.setAgentSettings(next)).resolves.toEqual(next);
-    await handlers.openAgent();
+    await handlers.openAgent('timesheet');
 
     expect(agent.saveSettings).toHaveBeenCalledWith(next);
-    expect(agent.open).toHaveBeenCalledOnce();
+    expect(agent.open).toHaveBeenCalledWith('timesheet');
+  });
+
+  it('passes saved prompts through to the prompt store', async () => {
+    const { dependencies, agentPrompts } = fakeDependencies();
+    const handlers = createInvokeHandlers(dependencies);
+
+    await expect(handlers.getAgentPrompts()).resolves.toBe(PROMPTS);
+    await expect(handlers.createAgentPrompt(DRAFT)).resolves.toBe(PROMPTS);
+    await handlers.saveAgentPrompt('timesheet', DRAFT);
+    await handlers.deleteAgentPrompt('standup-1');
+    await handlers.selectAgentPrompt('2f1c9a8e-5b8d-4c3a-9f1e-7a6b5c4d3e2f');
+
+    expect(agentPrompts.create).toHaveBeenCalledWith(DRAFT);
+    expect(agentPrompts.save).toHaveBeenCalledWith('timesheet', DRAFT);
+    expect(agentPrompts.remove).toHaveBeenCalledWith('standup-1');
+    expect(agentPrompts.select).toHaveBeenCalledWith('2f1c9a8e-5b8d-4c3a-9f1e-7a6b5c4d3e2f');
+  });
+
+  it('passes a saved prompt that cannot be saved back in plain words', async () => {
+    const { dependencies, agentPrompts } = fakeDependencies();
+    agentPrompts.create.mockRejectedValueOnce(new Error('There’s already a prompt called “Standup”.'));
+
+    await expect(createInvokeHandlers(dependencies).createAgentPrompt(DRAFT)).rejects.toThrow(
+      'There’s already a prompt called “Standup”.',
+    );
   });
 
   it('rejects agent settings without a column, in plain words, without saving', async () => {
