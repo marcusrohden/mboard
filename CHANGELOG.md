@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.0](https://github.com/marcusrohden/mboard/compare/v0.9.0...v0.10.0) (2026-11-23)
+
+### Features
+
+* save agent prompts with versions and a diff of every change ([#37](https://github.com/marcusrohden/mboard/pull/37)) ([df84023](https://github.com/marcusrohden/mboard/commit/df840235575b4ede0f68e21780deb08e26e0b2af))
+
 ## [0.9.0](https://github.com/marcusrohden/mboard/compare/v0.8.0...v0.9.0) (2026-11-20)
 
 ### Features
