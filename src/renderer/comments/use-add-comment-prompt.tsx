@@ -1,6 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import type { Task, TaskId } from '../../domain';
-import { newestCommentsFirst } from '../lib/comment-order';
+import { newestCommentsFirst, type Task, type TaskId } from '../../domain';
 import { CommentDialog } from './CommentDialog';
 
 export interface AddCommentPrompt {

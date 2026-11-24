@@ -3,6 +3,7 @@ import {
   addComment,
   applyEdit,
   archiveDocument,
+  changeCommentDate,
   changeProjectQuietly,
   createTaskDocument,
   moveToColumn,
@@ -151,6 +152,26 @@ describe('revertDocument', () => {
     expect(result.status).toBe('To do');
     expect(texts(result.comments)).toEqual(['Kept']);
     expect(result.history[result.history.length - 1]?.text).toMatch(/— 1 change discarded$/);
+  });
+
+  it("puts a comment's old date back when it reverts past a change of that date", () => {
+    const document = commented(commented(created(), 'First'), 'Second');
+    const redated = changeCommentDate(
+      document,
+      { at: '2026-11-16 09:03', text: 'Second' },
+      '2026-11-16 09:01',
+      nextMoment(),
+    ).document;
+    expect(redated.comments).toEqual([
+      { at: '2026-11-16 09:01', text: 'Second' },
+      { at: '2026-11-16 09:02', text: 'First' },
+    ]);
+
+    expect(revert(redated, 2).comments).toEqual([
+      { at: '2026-11-16 09:02', text: 'First' },
+      { at: '2026-11-16 09:03', text: 'Second' },
+    ]);
+    expect(revert(redated, 1).comments).toEqual([{ at: '2026-11-16 09:02', text: 'First' }]);
   });
 
   it('skips a comment that was already deleted outside the app', () => {

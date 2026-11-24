@@ -9,7 +9,7 @@ import type {
 } from '../../shared/contract';
 import { IPC } from '../../shared/contract';
 import { DEFAULT_AGENT_SETTINGS, startAgentPromptLibrary } from '../../domain';
-import type { AgentPromptDraft, AgentSettings } from '../../shared/contract';
+import type { AgentPromptDraft, AgentSettings, TaskComment } from '../../shared/contract';
 import type { BoardService, BoardSetupService } from '../ports';
 import { createInvokeHandlers, type InvokeHandlerDependencies } from './invoke-handlers';
 
@@ -28,6 +28,7 @@ const UPDATE_STATUS: AppUpdateStatus = {
 const THRESHOLDS: AgeThresholds = { nudgeFrom: 3, stallingFrom: 5, staleFrom: 8 };
 const EXPECTED: RevertExpectation = { historyLength: 4, at: '2026-11-16 09:30', text: 'Moved from To do to Done' };
 const PROMPTS = startAgentPromptLibrary('timesheet', 'List my work.', new Date(2026, 10, 23, 9, 30));
+const COMMENT: TaskComment = { at: '2026-11-17 09:00', text: 'Client replied' };
 const DRAFT: AgentPromptDraft = { name: 'Standup', text: 'Summarise yesterday.' };
 const NEW_TASK: NewTaskInput = {
   title: 'A',
@@ -43,6 +44,7 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     createTask: vi.fn(async () => TASK),
     editTask: vi.fn(async () => TASK),
     addComment: vi.fn(async () => TASK),
+    changeCommentDate: vi.fn(async () => TASK),
     moveTask: vi.fn(async () => TASK),
     archiveTask: vi.fn(async () => TASK),
     archiveAllDone: vi.fn(async () => 2),
@@ -125,6 +127,7 @@ describe('createInvokeHandlers', () => {
     await expect(handlers.archiveAllDone()).resolves.toBe(2);
     await expect(handlers.getSnapshot()).resolves.toBe(SNAPSHOT);
     await handlers.revertTask('tasks/A.md', 2, EXPECTED);
+    await handlers.changeCommentDate('tasks/A.md', COMMENT, '2026-11-16T09:00');
     await handlers.setProjectColour('Acme', 'teal');
     await handlers.setProjectColour('Acme', null);
     await expect(handlers.renameProject('Acme', 'Globex')).resolves.toEqual({
@@ -138,6 +141,7 @@ describe('createInvokeHandlers', () => {
     expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'Done', null, null);
     expect(board.moveTask).toHaveBeenCalledWith('tasks/A.md', 'With client', 'tasks/B.md', 'Sent the quote');
     expect(board.revertTask).toHaveBeenCalledWith('tasks/A.md', 2, EXPECTED);
+    expect(board.changeCommentDate).toHaveBeenCalledWith('tasks/A.md', COMMENT, '2026-11-16T09:00');
     expect(board.setProjectColour).toHaveBeenNthCalledWith(1, 'Acme', 'teal');
     expect(board.setProjectColour).toHaveBeenNthCalledWith(2, 'Acme', null);
     expect(board.renameProject).toHaveBeenCalledWith('Acme', 'Globex');
@@ -172,6 +176,19 @@ describe('createInvokeHandlers', () => {
     ['moveTask without a comment argument', 'moveTask', ['tasks/A.md', 'Done', null]],
     ['moveTask with a numeric comment', 'moveTask', ['tasks/A.md', 'Done', null, 7]],
     ['addComment without text', 'addComment', ['tasks/A.md']],
+    ['changeCommentDate without a date', 'changeCommentDate', ['tasks/A.md', COMMENT]],
+    ['changeCommentDate with a numeric date', 'changeCommentDate', ['tasks/A.md', COMMENT, 20261116]],
+    ['changeCommentDate with comment text only', 'changeCommentDate', ['tasks/A.md', 'Hi', '2026-11-16 09:00']],
+    [
+      'changeCommentDate with an extra comment key',
+      'changeCommentDate',
+      ['tasks/A.md', { ...COMMENT, ledger: {} }, '2026-11-16 09:00'],
+    ],
+    [
+      'changeCommentDate with a wrongly typed comment time',
+      'changeCommentDate',
+      ['tasks/A.md', { ...COMMENT, at: null }, '2026-11-16 09:00'],
+    ],
     ['deleteTask with an object id', 'deleteTask', [{ id: 'tasks/A.md' }]],
     ['setOpenAtLogin with text', 'setOpenAtLogin', ['yes']],
     ['setProjectColour with a colour outside the palette', 'setProjectColour', ['Acme', 'magenta']],

@@ -1,3 +1,4 @@
+import { isSameComment, withCommentInDateOrder } from './comments';
 import { buildLedger, isCommentsChange, writeTrackedValue, type CommentsDelta } from './ledger';
 import type { HistoryEntry, LedgerChange, RevertExpectation, TaskComment, TaskDocument } from './model';
 import { projectSpellingAfterUpdate } from './projectLink';
@@ -56,18 +57,9 @@ export function revertBlocker(source: RevertSource, index: number): RevertBlocke
   return null;
 }
 
-function isSameComment(a: TaskComment, b: TaskComment): boolean {
-  return a.at === b.at && a.text === b.text;
-}
-
 function withoutComment(comments: readonly TaskComment[], removed: TaskComment): TaskComment[] {
   const position = comments.findLastIndex((comment) => isSameComment(comment, removed));
   return position === -1 ? [...comments] : comments.toSpliced(position, 1);
-}
-
-function withCommentInDateOrder(comments: readonly TaskComment[], added: TaskComment): TaskComment[] {
-  const position = comments.findLastIndex((comment) => comment.at <= added.at) + 1;
-  return comments.toSpliced(position, 0, { ...added });
 }
 
 function undoChange(document: TaskDocument, change: LedgerChange): TaskDocument {

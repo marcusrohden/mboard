@@ -3,7 +3,7 @@ import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { columnTasks, projectColourIndex, revertExpectationFor } from '../../domain';
-import type { BoardSnapshot, NewTaskInput, Task } from '../../shared/contract';
+import type { BoardSnapshot, NewTaskInput, Task, TaskComment } from '../../shared/contract';
 import {
   FakeClock,
   fileState,
@@ -368,6 +368,54 @@ describe('commenting', () => {
   });
 });
 
+describe('changing a comment date', () => {
+  const id = 'tasks/Acme website/Fix login bug.md';
+
+  async function taskWithTwoComments(): Promise<Task> {
+    await openBoard();
+    await service.createTask(NEW_TASK);
+    clock.advanceMinutes(30);
+    await service.addComment(id, 'Asked for the credentials.');
+    clock.advanceMinutes(60);
+    const task = await service.addComment(id, 'Got them.');
+    clock.advanceMinutes(60);
+    return task;
+  }
+
+  it("writes the new date and moves date updated to it when it is the task's latest comment", async () => {
+    const before = await taskWithTwoComments();
+    const latest = before.comments[1] as TaskComment;
+
+    const task = await service.changeCommentDate(id, latest, '2026-11-16T10:15');
+
+    expect(task.comments.map((comment) => comment.at)).toEqual(['2026-11-16 10:00', '2026-11-16 10:15']);
+    expect(task.updated).toBe('2026-11-16T10:15:00');
+    expect(task.history.at(-1)?.text).toBe('Comment date changed from 2026-11-16 11:00 to 2026-11-16 10:15');
+    expect(task.history.at(-1)?.at).toBe('2026-11-16 12:00');
+    expect(await read(id)).toContain('### 2026-11-16 10:15\n\nGot them.\n');
+    expect(service.snapshot().tasks.find((candidate) => candidate.id === id)?.updated).toBe('2026-11-16T10:15:00');
+  });
+
+  it('leaves date updated as it was when the comment is not the latest', async () => {
+    const before = await taskWithTwoComments();
+
+    const task = await service.changeCommentDate(id, before.comments[0] as TaskComment, '2026-11-16 09:45');
+
+    expect(task.comments[0]).toEqual({ at: '2026-11-16 09:45', text: 'Asked for the credentials.' });
+    expect(task.updated).toBe(before.updated);
+  });
+
+  it('refuses a date in the future and writes nothing', async () => {
+    const before = await taskWithTwoComments();
+    const file = await read(id);
+
+    await expect(service.changeCommentDate(id, before.comments[1] as TaskComment, '2026-11-16 12:01')).rejects.toThrow(
+      "A comment can't be dated in the future.",
+    );
+    expect(await read(id)).toBe(file);
+  });
+});
+
 describe('moving and reordering', () => {
   beforeEach(async () => {
     await seedTask('tasks/A.md', { title: 'A', status: 'To do', order: 1 });
@@ -552,6 +600,9 @@ describe('archiving and restoring', () => {
       BoardMessage.archivedReadOnly,
     );
     await expect(service.addComment('archive/Shipped.md', 'Hello')).rejects.toThrow(BoardMessage.archivedReadOnly);
+    await expect(
+      service.changeCommentDate('archive/Shipped.md', { at: '', text: 'Hello' }, '2026-11-16 09:00'),
+    ).rejects.toThrow(BoardMessage.archivedReadOnly);
     await expect(service.moveTask('archive/Shipped.md', 'To do', null)).rejects.toThrow(BoardMessage.archivedReadOnly);
     await expect(service.archiveTask('archive/Shipped.md')).rejects.toThrow(BoardMessage.alreadyArchived);
     await expect(service.restoreTask('tasks/Working.md')).rejects.toThrow(BoardMessage.notArchived);

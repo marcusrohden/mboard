@@ -7,6 +7,7 @@ import {
   applyEdit,
   archiveDocument,
   canonicalProject,
+  changeCommentDate as redateComment,
   changeProjectQuietly,
   columnTasks,
   createTaskDocument,
@@ -41,6 +42,7 @@ import type {
   RevertExpectation,
   Status,
   Task,
+  TaskComment,
   TaskEdit,
   TaskId,
   TaskIdMove,
@@ -268,6 +270,22 @@ export class FileBoardService implements BoardService {
       const destination = placementOf(location.folder, document, location.fileName);
       const saved = await board.files.save(location, current, document, destination);
       return this.recordWrite(board, document, saved, location);
+    });
+  }
+
+  /**
+   * Gives a live task's comment another date. Date updated follows it only when it was the task's latest
+   * comment (ADR 0015).
+   */
+  changeCommentDate(id: TaskId, comment: TaskComment, at: string): Promise<Task> {
+    return this.mutate(async (board) => {
+      const location = this.locateLiveTask(board, id);
+      const current = await board.files.read(location);
+      const result = redateComment(current.document, comment, at, this.now());
+      if (!result.changed) return taskAt(current.document, location);
+      const destination = placementOf(location.folder, result.document, location.fileName);
+      const saved = await board.files.save(location, current, result.document, destination);
+      return this.recordWrite(board, result.document, saved, location);
     });
   }
 

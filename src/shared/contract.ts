@@ -13,6 +13,7 @@ import type {
   RevertExpectation,
   Status,
   Task,
+  TaskComment,
   TaskEdit,
   TaskId,
 } from '../domain';
@@ -136,6 +137,12 @@ export interface MboardInvokeApi {
   editTask(id: TaskId, edit: TaskEdit): Promise<Task>;
   addComment(id: TaskId, text: string): Promise<Task>;
   /**
+   * Gives `comment`, as the person saw it, the date and time `at` (`YYYY-MM-DDTHH:mm` or `YYYY-MM-DD HH:mm`),
+   * no later than now and no earlier than the task's creation. When it is the task's latest comment, date
+   * updated becomes that date and time; otherwise date updated stays as it was (ADR 0015).
+   */
+  changeCommentDate(id: TaskId, comment: TaskComment, at: string): Promise<Task>;
+  /**
    * Puts a task in `status` above `beforeId`, or at the end with `null`. A `comment` that isn't empty is
    * added by the same update as the move.
    */
@@ -257,6 +264,7 @@ export const IPC = {
     createTask: 'board:createTask',
     editTask: 'board:editTask',
     addComment: 'board:addComment',
+    changeCommentDate: 'board:changeCommentDate',
     moveTask: 'board:moveTask',
     archiveTask: 'board:archiveTask',
     archiveAllDone: 'board:archiveAllDone',
