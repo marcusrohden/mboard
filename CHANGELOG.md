@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.0](https://github.com/marcusrohden/mboard/compare/v0.11.0...v0.12.0) (2026-11-24)
+
+### Features
+
+* show descriptions, comments and prompts as rendered markdown ([#39](https://github.com/marcusrohden/mboard/pull/39)) ([dcef0d5](https://github.com/marcusrohden/mboard/commit/dcef0d591cf42f83117015dd8b42b08f4b2cd483))
+
 ## [0.11.0](https://github.com/marcusrohden/mboard/compare/v0.10.0...v0.11.0) (2026-11-24)
 
 ### Features
