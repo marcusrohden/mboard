@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { newestCommentsFirst } from '../../domain';
 import type { LocalDate, LocalDateTime, TaskComment } from '../../shared/contract';
 import { CommentList } from '../comments/CommentList';
+import { MarkdownTextArea } from '../markdown/MarkdownTextArea';
 import { Button } from '../ui/Button';
 import fields from '../ui/fields.module.css';
 import { CommentDateField } from './CommentDateField';
@@ -56,8 +57,9 @@ export function CommentsSection({ comments, readOnly, created, today, onAdd, onC
       )}
       {!readOnly && (
         <div className={fields.field}>
-          <textarea
+          <MarkdownTextArea
             aria-label="New comment"
+            label="New comment"
             placeholder="Add a comment"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}

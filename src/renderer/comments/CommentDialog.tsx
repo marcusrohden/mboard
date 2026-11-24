@@ -1,5 +1,6 @@
 import { useId, useState, type KeyboardEvent } from 'react';
 import type { TaskComment } from '../../shared/contract';
+import { MarkdownTextArea } from '../markdown/MarkdownTextArea';
 import { Button } from '../ui/Button';
 import { AUTOFOCUS_ATTRIBUTE, Modal } from '../ui/Modal';
 import fields from '../ui/fields.module.css';
@@ -76,8 +77,9 @@ export function CommentDialog({
           <label htmlFor={commentId} className={fields.label}>
             {label}
           </label>
-          <textarea
+          <MarkdownTextArea
             id={commentId}
+            label={label}
             value={comment}
             placeholder={placeholder}
             aria-required={isRequired || undefined}

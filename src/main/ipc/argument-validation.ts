@@ -8,6 +8,7 @@ import {
   agentSettingsProblem,
   isAgentPromptId,
   isAgentTerminal,
+  isOpenableLink,
   isProjectColour,
   isStatus,
 } from '../../domain';
@@ -201,6 +202,13 @@ export function readAgeThresholds(value: unknown): AgeThresholds {
   const problem = ageThresholdsProblem(thresholds);
   if (problem !== null) throw new Error(problem);
   return thresholds;
+}
+
+/** A link from rendered markdown that mboard may open outside the app: http, https, mailto or obsidian. */
+export function readOpenableLink(value: unknown): string {
+  const url = readString(value, 'the link');
+  if (!isOpenableLink(url)) throw new Error('mboard only opens web, mail and Obsidian links.');
+  return url;
 }
 
 /** A project's name, as text. Whether it names a project is the board's decision. */

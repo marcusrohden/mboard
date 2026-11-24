@@ -7,6 +7,7 @@ export * from './fileName';
 export * from './folder';
 export * from './ledger';
 export * from './lineDiff';
+export * from './links';
 export * from './model';
 export * from './ordering';
 export * from './projectColours';

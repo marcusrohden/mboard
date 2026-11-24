@@ -1,5 +1,6 @@
 import { useId, type Ref } from 'react';
 import { normaliseAgentPromptDraft, type AgentPromptDraft } from '../../domain';
+import { MarkdownTextArea } from '../markdown/MarkdownTextArea';
 import { AUTOFOCUS_ATTRIBUTE } from '../ui/Modal';
 import fields from '../ui/fields.module.css';
 import { PromptDiff } from './PromptDiff';
@@ -12,12 +13,13 @@ interface PromptEditorProps {
   nextVersion: number;
   problem: string | null;
   nameRef: Ref<HTMLInputElement>;
-  textRef: Ref<HTMLTextAreaElement>;
+  /** The prompt's text field: its rendered view or its textarea, whichever is showing. */
+  textRef: Ref<HTMLElement>;
   onChange: (patch: Partial<AgentPromptDraft>) => void;
 }
 
 /**
- * The prompt's name and text, and, while they differ from the saved prompt, its unsaved changes as a diff. A
+ * The prompt's name and text, the text rendered as markdown until it is clicked, and, while they differ from the saved prompt, its unsaved changes as a diff. A
  * new prompt's diff shows its whole text as added. Why a save was refused shows under the text.
  */
 export function PromptEditor({ draft, nextVersion, problem, nameRef, textRef, onChange }: PromptEditorProps) {
@@ -46,10 +48,12 @@ export function PromptEditor({ draft, nextVersion, problem, nameRef, textRef, on
         <label htmlFor={ids.text} className={fields.label}>
           Prompt
         </label>
-        <textarea
+        <MarkdownTextArea
           ref={textRef}
           id={ids.text}
+          label="Prompt"
           className={styles.textArea}
+          previewClassName={styles.textArea}
           value={draft.text}
           aria-describedby={describedBy}
           {...{ [AUTOFOCUS_ATTRIBUTE]: '' }}

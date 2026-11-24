@@ -19,6 +19,10 @@ function input(drawer: HTMLElement, label: string): HTMLInputElement {
   return within(drawer).getByLabelText(label) as HTMLInputElement;
 }
 
+function renderedField(drawer: HTMLElement, label: string): HTMLElement {
+  return within(drawer).getByRole('group', { name: label });
+}
+
 function commentItems(drawer: HTMLElement): HTMLElement[] {
   return within(within(drawer).getByRole('region', { name: 'Comments' })).getAllByRole('listitem');
 }
@@ -64,7 +68,7 @@ describe('Task detail drawer fields', () => {
     expect((within(drawer).getByLabelText('Column') as HTMLSelectElement).value).toBe('To do');
     expect(input(drawer, 'Project').value).toBe('Acme');
     expect(input(drawer, 'Due date').value).toBe('2026-11-20');
-    expect(input(drawer, 'Description').value).toBe('Staging fails');
+    expect(renderedField(drawer, 'Description').textContent).toBe('Staging fails');
     expect(within(drawer).getByText('10 Nov 2026, 09:00')).toBeTruthy();
     expect(within(drawer).getByText('16 Nov 2026, 10:00')).toBeTruthy();
     expect(
@@ -229,7 +233,7 @@ describe('Task detail drawer fields', () => {
       );
     });
     expect(input(drawer, 'Project').value).toBe('AcmeX');
-    expect(input(drawer, 'Description').value).toBe('Edited in Obsidian');
+    expect(renderedField(drawer, 'Description').textContent).toBe('Edited in Obsidian');
   });
 
   it('closes with a notice when the task disappears', async () => {
@@ -537,10 +541,15 @@ describe('Task detail drawer comments and history', () => {
     const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
     fake.api.addComment.mockRejectedValueOnce(new Error('Comments are locked.'));
     const drawer = await openTask(user, 'Fix login');
-    await user.type(within(drawer).getByRole('textbox', { name: 'New comment' }), 'Keep me');
+    await user.type(within(drawer).getByRole('textbox', { name: 'New comment' }), 'Keep **me**');
     await user.click(within(drawer).getByRole('button', { name: 'Add comment' }));
     expect(await screen.findByText('Comments are locked.')).toBeTruthy();
-    expect((within(drawer).getByRole('textbox', { name: 'New comment' }) as HTMLTextAreaElement).value).toBe('Keep me');
+    const draft = await within(drawer).findByRole('group', { name: 'New comment' });
+    expect(draft.querySelector('strong')?.textContent).toBe('me');
+    await user.click(draft);
+    expect((within(drawer).getByRole('textbox', { name: 'New comment' }) as HTMLTextAreaElement).value).toBe(
+      'Keep **me**',
+    );
   });
 
   it('shows history newest first behind a disclosure button', async () => {
@@ -781,7 +790,11 @@ describe('Task detail drawer for an archived task', () => {
     expect(input(drawer, 'Title').readOnly).toBe(true);
     expect(input(drawer, 'Project').readOnly).toBe(false);
     expect(input(drawer, 'Due date').readOnly).toBe(true);
-    expect(input(drawer, 'Description').readOnly).toBe(true);
+    const description = renderedField(drawer, 'Description');
+    expect(description.textContent).toBe('Done long ago');
+    expect(description.tabIndex).toBe(-1);
+    await user.click(description);
+    expect(within(drawer).queryByRole('textbox', { name: 'Description' })).toBeNull();
     expect((within(drawer).getByLabelText('Column') as HTMLSelectElement).disabled).toBe(true);
     expect(within(drawer).queryByRole('textbox', { name: 'New comment' })).toBeNull();
     expect(within(drawer).getByText('Shipped')).toBeTruthy();

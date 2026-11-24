@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
   addAgentPrompt,
@@ -30,14 +30,20 @@ async function openDialog(options: FakeMboardOptions = {}) {
   const board = await renderBoard({ tasks: TASKS(), agentPrompts: prompts(), ...options });
   await board.user.click(screen.getByRole('button', { name: 'Open agent' }));
   const dialog = await screen.findByRole('dialog', { name: 'Open agent' });
-  await within(dialog).findByRole('textbox', { name: 'Prompt' });
+  await waitFor(promptField);
   return { ...board, dialog };
 }
 
-function promptText(): HTMLTextAreaElement {
-  return within(screen.getByRole('dialog', { name: 'Open agent' })).getByRole('textbox', {
-    name: 'Prompt',
-  }) as HTMLTextAreaElement;
+/** The prompt's text field: its textarea while it is edited or empty, otherwise its rendered view. */
+function promptField(): HTMLElement {
+  const dialog = within(screen.getByRole('dialog', { name: 'Open agent' }));
+  return dialog.queryByRole('textbox', { name: 'Prompt' }) ?? dialog.getByRole('group', { name: 'Prompt' });
+}
+
+/** The prompt's text as shown: the textarea's markdown, or the rendered view's text, line breaks included. */
+function promptValue(): string {
+  const field = promptField();
+  return field instanceof HTMLTextAreaElement ? field.value : (field.textContent ?? '');
 }
 
 function nameInput(): HTMLInputElement {
@@ -68,9 +74,9 @@ function diffLinesOf(group: HTMLElement): string[] {
 describe('Open agent dialog', () => {
   it('opens on the selected prompt, with the saved prompts in the sidebar and focus in the prompt', async () => {
     const { dialog } = await openDialog();
-    expect(promptText().value).toBe(TIMESHEET_TEXT);
+    expect(promptValue()).toBe(TIMESHEET_TEXT);
     expect(nameInput().value).toBe('Default prompt');
-    expect(document.activeElement).toBe(promptText());
+    expect(document.activeElement).toBe(promptField());
     expect(sidebarButton(/^Default prompt/).getAttribute('aria-current')).toBe('true');
     expect(sidebarButton(/^Standup/).getAttribute('aria-current')).toBeNull();
     expect(within(dialog).getByText('The agent starts with the prompt, then the 1 task in Done.')).toBeTruthy();
@@ -97,7 +103,7 @@ describe('Open agent dialog', () => {
     const { user, fake } = await openDialog({ tasks: [] });
     expect(dialogButton(/^Open agent/).disabled).toBe(true);
     expect(dialogButton(/^Open agent/).title).toBe('No tasks in Done yet');
-    await user.type(promptText(), '\nAnd add totals.');
+    await user.type(promptField(), '\nAnd add totals.');
     await user.keyboard('{Meta>}s{/Meta}');
     expect(fake.api.saveAgentPrompt).toHaveBeenCalledWith('timesheet', {
       name: 'Default prompt',
@@ -108,23 +114,23 @@ describe('Open agent dialog', () => {
   it('shows another prompt from the sidebar and opens on it next time', async () => {
     const { user, fake } = await openDialog();
     await user.click(sidebarButton(/^Standup/));
-    expect(promptText().value).toBe('Summarise yesterday.');
+    expect(promptValue()).toBe('Summarise yesterday.');
     expect(fake.api.selectAgentPrompt).toHaveBeenCalledWith('standup');
 
     await user.keyboard('{Meta>}[Period]{/Meta}');
     await user.click(screen.getByRole('button', { name: 'Open agent' }));
     await screen.findByRole('dialog', { name: 'Open agent' });
-    expect((await screen.findByRole('textbox', { name: 'Prompt' })) as HTMLTextAreaElement).toHaveProperty(
-      'value',
-      'Summarise yesterday.',
-    );
+    await screen.findByRole('dialog', { name: 'Open agent' });
+    await waitFor(promptField);
+    expect(promptValue()).toBe('Summarise yesterday.');
   });
 
   it('shows unsaved changes as a git-style diff against the saved prompt', async () => {
     const { user, dialog } = await openDialog();
     expect(within(dialog).queryByRole('region', { name: 'Unsaved changes' })).toBeNull();
-    await user.clear(promptText());
-    await user.type(promptText(), 'List my work by project.\nUse one line per task, with the date.\nKeep it short.');
+    await user.click(promptField());
+    await user.clear(promptField());
+    await user.type(promptField(), 'List my work by project.\nUse one line per task, with the date.\nKeep it short.');
 
     const changes = within(dialog).getByRole('region', { name: 'Unsaved changes' });
     expect(within(changes).getByText('Unsaved changes · Save adds version 2')).toBeTruthy();
@@ -141,7 +147,7 @@ describe('Open agent dialog', () => {
   describe('with unsaved changes', () => {
     async function openEdited() {
       const opened = await openDialog();
-      await opened.user.type(promptText(), '\nAdd totals.');
+      await opened.user.type(promptField(), '\nAdd totals.');
       return opened;
     }
 
@@ -157,7 +163,7 @@ describe('Open agent dialog', () => {
         name: 'Default prompt',
         text: `${TIMESHEET_TEXT}\nAdd totals.`,
       });
-      expect(promptText().value).toBe('Summarise yesterday.');
+      expect(promptValue()).toBe('Summarise yesterday.');
       const timesheet = fake.agentPrompts().prompts.find((prompt) => prompt.id === 'timesheet');
       expect(timesheet?.versions.map((version) => version.number)).toEqual([1, 2]);
     });
@@ -166,11 +172,11 @@ describe('Open agent dialog', () => {
       const { user, fake } = await openEdited();
       await user.click(sidebarButton(/^Standup/));
       await user.keyboard('{Meta>}d{/Meta}');
-      expect(promptText().value).toBe('Summarise yesterday.');
+      expect(promptValue()).toBe('Summarise yesterday.');
       expect(fake.api.saveAgentPrompt).not.toHaveBeenCalled();
 
       await user.click(sidebarButton(/^Default prompt/));
-      expect(promptText().value).toBe(TIMESHEET_TEXT);
+      expect(promptValue()).toBe(TIMESHEET_TEXT);
     });
 
     it('keeps the changes with Cancel', async () => {
@@ -178,7 +184,7 @@ describe('Open agent dialog', () => {
       await user.click(sidebarButton(/^Standup/));
       await user.keyboard('{Meta>}[Period]{/Meta}');
       expect(screen.queryByRole('alertdialog')).toBeNull();
-      expect(promptText().value).toBe(`${TIMESHEET_TEXT}\nAdd totals.`);
+      expect(promptValue()).toBe(`${TIMESHEET_TEXT}\nAdd totals.`);
     });
 
     it('asks before closing with Esc', async () => {
@@ -233,8 +239,8 @@ describe('Open agent dialog', () => {
     await user.click(within(versions).getByRole('button', { name: /^Restore this version/ }));
 
     expect(nameInput().value).toBe('Default prompt');
-    expect(promptText().value).toBe(TIMESHEET_TEXT);
-    expect(document.activeElement).toBe(promptText());
+    expect(promptValue()).toBe(TIMESHEET_TEXT);
+    expect(document.activeElement).toBe(promptField());
     expect(within(dialog).getByText('Unsaved changes · Save adds version 3')).toBeTruthy();
     await user.keyboard('{Meta>}s{/Meta}');
 
@@ -256,7 +262,7 @@ describe('Open agent dialog', () => {
 
     await user.clear(nameInput());
     await user.type(nameInput(), 'standup');
-    await user.type(promptText(), 'What did I finish this week?');
+    await user.type(promptField(), 'What did I finish this week?');
     await user.click(dialogButton(/^Save/));
     expect(within(dialog).getByRole('alert').textContent).toBe("There's already a prompt called “Standup”.");
     expect(fake.api.createAgentPrompt).not.toHaveBeenCalled();
@@ -290,7 +296,7 @@ describe('Open agent dialog', () => {
     await user.click(within(confirm).getByRole('button', { name: /^Delete/ }));
 
     expect(fake.api.deleteAgentPrompt).toHaveBeenCalledWith('timesheet');
-    expect(promptText().value).toBe('Summarise yesterday.');
+    expect(promptValue()).toBe('Summarise yesterday.');
     expect(latestVersion(fake.agentPrompts().prompts[0]!).name).toBe('Standup');
     expect(dialogButton(/^Delete/).disabled).toBe(true);
     expect(dialogButton(/^Delete/).title).toBe('Keep at least one prompt, so the agent has one to start with.');

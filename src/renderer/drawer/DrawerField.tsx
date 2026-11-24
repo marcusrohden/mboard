@@ -1,4 +1,5 @@
 import { useId, type KeyboardEvent, type ReactNode } from 'react';
+import { MarkdownTextArea } from '../markdown/MarkdownTextArea';
 import { SHORTCUTS, matchesChord } from '../shortcuts/keymap';
 import { Button } from '../ui/Button';
 import { ProjectInput } from '../ui/ProjectInput';
@@ -22,7 +23,7 @@ interface DrawerFieldProps {
 
 /**
  * One inline-editable field in the detail drawer. It saves on blur or Enter (Cmd+Enter for the
- * description), and a date can be removed with its own button or ⌘⌫. Esc reaches the drawer, which closes
+ * description, which shows its markdown rendered until it is clicked: `MarkdownTextArea`), and a date can be removed with its own button or ⌘⌫. Esc reaches the drawer, which closes
  * without saving the edit. When `readOnly` the value is shown but can't be changed. `renderBelow` adds
  * controls under the input that follow the value as shown, draft included.
  */
@@ -68,7 +69,9 @@ export function DrawerField({
       <label htmlFor={id} className={isHeading ? 'visually-hidden' : fields.label}>
         {label}
       </label>
-      {kind === 'textarea' && <textarea {...shared} onChange={(event) => editable.change(event.target.value)} />}
+      {kind === 'textarea' && (
+        <MarkdownTextArea {...shared} label={label} onChange={(event) => editable.change(event.target.value)} />
+      )}
       {kind === 'text' && (
         <input
           type="text"

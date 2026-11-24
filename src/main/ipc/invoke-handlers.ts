@@ -19,6 +19,7 @@ import {
   readBoolean,
   readFolderPath,
   readNewTaskInput,
+  readOpenableLink,
   readEntryIndex,
   readOptionalTaskId,
   readOptionalText,
@@ -46,6 +47,8 @@ export interface InvokeHandlerDependencies {
   /** Shows the native folder picker and resolves with the chosen folder, or `null` when cancelled. */
   pickBoardFolder(): Promise<string | null>;
   openInObsidian(absolutePath: string): Promise<void>;
+  /** Hands an http, https, mailto or obsidian link to the system, which opens it in its own app. */
+  openExternal(url: string): Promise<void>;
 }
 
 /** One handler per invoke method. Each takes the raw arguments from the renderer and validates them. */
@@ -176,8 +179,9 @@ function agentHandlers({ agent, agentPrompts }: InvokeHandlerDependencies) {
   };
 }
 
-function appHandlers({ appUpdates, settingsRequests }: InvokeHandlerDependencies) {
+function appHandlers({ appUpdates, settingsRequests, openExternal }: InvokeHandlerDependencies) {
   return {
+    openLink: async (...args: unknown[]) => openExternal(readOpenableLink(expectArguments(args, 1)[0])),
     getAppUpdateStatus: withoutArguments(() => appUpdates.status()),
     checkForAppUpdate: withoutArguments(() => appUpdates.check()),
     installAppUpdate: withoutArguments(() => appUpdates.install()),

@@ -362,6 +362,7 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       publish();
     }),
     openInObsidian: vi.fn(async () => undefined),
+    openLink: vi.fn(async () => undefined),
     setProjectColour: vi.fn(async (project, colour) => {
       const name = normaliseProject(project);
       if (name === null) throw new Error('Choose a project before giving it a colour.');

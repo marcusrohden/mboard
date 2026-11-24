@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { TaskComment } from '../../shared/contract';
 import { formatLogTime } from '../lib/format';
+import { MarkdownText } from '../markdown/MarkdownText';
 import styles from './CommentList.module.css';
 
 interface CommentListProps {
@@ -15,14 +16,17 @@ export function CommentTime({ at }: { at: string }) {
   return at === '' ? null : <time className={styles.time}>{formatLogTime(at)}</time>;
 }
 
-/** Comments in the order given, each with its date and time above its text. An undated one shows its text only. */
+/**
+ * Comments in the order given, each with its date and time above its text, rendered as markdown. An undated one
+ * shows its text only.
+ */
 export function CommentList({ comments, className, renderDate }: CommentListProps) {
   return (
     <ol className={[styles.list, className].filter(Boolean).join(' ')}>
       {comments.map((comment, index) => (
         <li key={`${comment.at}-${index}`} className={styles.comment}>
           {renderDate === undefined ? <CommentTime at={comment.at} /> : renderDate(comment)}
-          <p className={styles.text}>{comment.text}</p>
+          <MarkdownText text={comment.text} className={styles.text} />
         </li>
       ))}
     </ol>
