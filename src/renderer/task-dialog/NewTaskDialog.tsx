@@ -9,6 +9,7 @@ import {
 } from '../../domain';
 import { COLUMN_SHORTCUTS_ARIA, COLUMN_SHORTCUTS_HINT, columnShortcut } from '../shortcuts/keymap';
 import { ShortcutHint, useShortcuts } from '../shortcuts/shortcuts';
+import { MarkdownTextArea } from '../markdown/MarkdownTextArea';
 import { Button } from '../ui/Button';
 import { ClearableDateInput } from '../ui/ClearableDateInput';
 import { ColourPicker } from '../ui/ColourPicker';
@@ -166,7 +167,12 @@ export function NewTaskDialog({
           <label htmlFor={ids.description} className={fields.label}>
             Description
           </label>
-          <textarea id={ids.description} value={description} onChange={(event) => setDescription(event.target.value)} />
+          <MarkdownTextArea
+            id={ids.description}
+            label="Description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
         </div>
         <div className={styles.actions}>
           <Button shortcut="cancel" onClick={onClose}>

@@ -137,6 +137,7 @@ async function startApp(launchConfig: LaunchConfig, rendererSource: RendererSour
       settingsRequests,
       pickBoardFolder: () => dialogs.pickBoardFolder(),
       openInObsidian: (absolutePath) => shell.openExternal(obsidianOpenUrl(absolutePath)),
+      openExternal: (url) => shell.openExternal(url),
     }),
   );
   const stopRendererEvents = bridgeRendererEvents(

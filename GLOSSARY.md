@@ -54,6 +54,7 @@ Terms used across mboard's code, specs and tickets. Use these words; avoid the l
 ## App
 
 - **Shortcut**: a Command key chord, sometimes with Shift or Option, that does what a button or control does. Every control shows its shortcut, faded, at its bottom right. _Avoid_: hotkey, accelerator (that's a native menu item's key).
+- **Markdown field**: a text area that shows its markdown rendered until it is clicked, then its source (ADR 0016): the description, the comment boxes and the agent prompt. The text is saved exactly as typed. _Avoid_: rich text editor (nothing is converted), preview.
 - **Settings**: the dialog that holds mboard's own settings: the board folder, open at login, age colours, the agent, notifications and app updates, in four tabs: General, Board, Agent and Updates. Opened with the header's gear, **Settings…** in the app and tray menus, or Cmd+,.
 - **Agent**: the person's own AI coding agent, such as Claude Code or Codex, started by a shell command they set in Settings. mboard doesn't include one. _Avoid_: assistant, bot.
 - **Open agent**: starting the agent: the chosen terminal opens in the board folder and starts the agent with the **agent prompt** (ADR 0011). The header's Open agent opens the **Open agent dialog**, whose Open agent does it.

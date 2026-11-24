@@ -14,6 +14,8 @@ export interface SeededTask {
   readonly title: string;
   readonly status: Status;
   readonly order: number;
+  /** Markdown written under the file's `## Description` heading. */
+  readonly description?: string;
 }
 
 /** A board folder to start the app with, holding `tasks`. */
@@ -89,8 +91,8 @@ async function createBoardFolder(tasks: readonly SeededTask[]): Promise<string> 
   return boardFolder;
 }
 
-function taskFileContent({ title, status, order }: SeededTask): string {
-  return [
+function taskFileContent({ title, status, order, description }: SeededTask): string {
+  const frontmatter = [
     '---',
     `title: "${title}"`,
     `status: ${status}`,
@@ -99,7 +101,9 @@ function taskFileContent({ title, status, order }: SeededTask): string {
     `order: ${order}`,
     '---',
     '',
-  ].join('\n');
+  ];
+  const body = description === undefined ? [] : ['## Description', '', description, ''];
+  return [...frontmatter, ...body].join('\n');
 }
 
 async function writeSettings(userDataDir: string, boardFolder: string): Promise<void> {

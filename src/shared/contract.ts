@@ -199,6 +199,11 @@ export interface MboardInvokeApi {
   installAppUpdate(): Promise<void>;
   /** Opens the new version's GitHub release page in the browser, or the latest release when none is known. */
   openAppUpdateReleasePage(): Promise<void>;
+  /**
+   * Opens a link from rendered markdown outside the app: http and https in the browser, mailto in the mail app,
+   * obsidian in Obsidian. Rejects any other link (ADR 0016).
+   */
+  openLink(url: string): Promise<void>;
   /** Whether the app or tray menu asked to open Settings since the last call. Answers `true` once per request. */
   takeOpenSettingsRequest(): Promise<boolean>;
 }
@@ -294,6 +299,7 @@ export const IPC = {
     installAppUpdate: 'app:installAppUpdate',
     openAppUpdateReleasePage: 'app:openAppUpdateReleasePage',
     takeOpenSettingsRequest: 'app:takeOpenSettingsRequest',
+    openLink: 'app:openLink',
   },
   events: {
     snapshot: 'board:snapshot',

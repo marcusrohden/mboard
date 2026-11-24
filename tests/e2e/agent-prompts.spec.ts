@@ -30,8 +30,11 @@ test('keeps the prompt Settings had as the first saved prompt, and saves every c
 }) => {
   await mainWindow.getByRole('button', { name: 'Open agent' }).click();
   const dialog = mainWindow.getByRole('dialog', { name: 'Open agent' });
-  const text = dialog.getByRole('textbox', { name: 'Prompt' });
+  const rendered = dialog.getByRole('group', { name: 'Prompt' });
   await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue('Default prompt');
+  await expect(rendered).toHaveText(PROMPT_FROM_SETTINGS);
+  await rendered.click();
+  const text = dialog.getByRole('textbox', { name: 'Prompt' });
   await expect(text).toHaveValue(PROMPT_FROM_SETTINGS);
   expect((await savedPrompts(userDataDir)).prompts[0]?.versions.map((version) => version.text)).toEqual([
     PROMPT_FROM_SETTINGS,

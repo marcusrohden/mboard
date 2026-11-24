@@ -105,6 +105,7 @@ function fakeDependencies(overrides: Partial<InvokeHandlerDependencies> = {}) {
     settingsRequests,
     pickBoardFolder: vi.fn(async () => '/Vault/Board'),
     openInObsidian: vi.fn(async () => undefined),
+    openExternal: vi.fn(async () => undefined),
     ...overrides,
   };
   return { dependencies, board, setup, platform, ageThresholds, agent, agentPrompts, appUpdates, settingsRequests };
@@ -390,6 +391,28 @@ describe('createInvokeHandlers', () => {
 
     expect(dependencies.openInObsidian).toHaveBeenCalledWith('/Vault/Board/tasks/A.md');
   });
+
+  it.each(['https://example.com/a', 'mailto:sam@example.com', 'obsidian://open?vault=Work&file=Plan'])(
+    'opens the link %s outside the app',
+    async (url) => {
+      const { dependencies } = fakeDependencies();
+      await createInvokeHandlers(dependencies).openLink(url);
+
+      expect(dependencies.openExternal).toHaveBeenCalledWith(url);
+    },
+  );
+
+  it.each(['file:///etc/passwd', 'javascript:alert(1)', 'notes/Plan.md'])(
+    'refuses to open the link %o',
+    async (url) => {
+      const { dependencies } = fakeDependencies();
+
+      await expect(createInvokeHandlers(dependencies).openLink(url)).rejects.toThrow(
+        'mboard only opens web, mail and Obsidian links.',
+      );
+      expect(dependencies.openExternal).not.toHaveBeenCalled();
+    },
+  );
 
   it("opens a project's note in Obsidian by its absolute path", async () => {
     const { dependencies } = fakeDependencies();

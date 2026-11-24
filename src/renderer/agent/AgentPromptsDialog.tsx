@@ -99,7 +99,7 @@ export function AgentPromptsDialog({ agentColumns, taskCount, today, onClose }: 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [nameFocusRequest, setNameFocusRequest] = useState(0);
   const nameRef = useRef<HTMLInputElement>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  const textRef = useRef<HTMLElement>(null);
   const editorRef = useRef<HTMLElement>(null);
   const { state } = prompts;
   const isLoaded = state !== null;
