@@ -26,6 +26,7 @@ import {
   readProjectName,
   readRevertExpectation,
   readStatus,
+  readTaskComment,
   readTaskEdit,
   readTaskId,
   readText,
@@ -86,6 +87,10 @@ function boardHandlers(dependencies: InvokeHandlerDependencies) {
     addComment: async (...args: unknown[]) => {
       const [id, text] = expectArguments(args, 2);
       return board.addComment(readTaskId(id), readText(text, 'the comment'));
+    },
+    changeCommentDate: async (...args: unknown[]) => {
+      const [id, comment, at] = expectArguments(args, 3);
+      return board.changeCommentDate(readTaskId(id), readTaskComment(comment), readText(at, "the comment's new date"));
     },
     moveTask: async (...args: unknown[]) => {
       const [id, status, beforeId, comment] = expectArguments(args, 4);

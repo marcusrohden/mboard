@@ -1,6 +1,7 @@
 export * from './agent';
 export * from './agentPrompts';
 export * from './changes';
+export * from './comments';
 export * from './due';
 export * from './fileName';
 export * from './folder';

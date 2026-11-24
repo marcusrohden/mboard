@@ -1,10 +1,11 @@
 import type { LocalDate, NewTaskInput, Status, TaskComment, TaskDocument, TaskEdit } from './model';
+import { isSameComment, latestCommentPosition, withCommentInDateOrder } from './comments';
 import { buildLedger, initialLedger, type CommentsDelta } from './ledger';
 import { COLUMNS, isStatus } from './model';
 import { projectSpellingAfterUpdate } from './projectLink';
 import { canonicalProject } from './projects';
 import { trimBlankLines } from './taskFile';
-import { formatLocalDateTime, formatLogTimestamp, normaliseLogTimestamp, parseLocalDate } from './time';
+import { formatLocalDateTime, formatLogTimestamp, normaliseLogTimestamp, parseLocalDate, parseTimestamp } from './time';
 
 /** The result of a change. When `changed` is false, `document` is the document that was passed in. */
 export interface ChangeResult {
@@ -238,6 +239,55 @@ function recordComment(document: TaskDocument, comment: TaskComment, now: Date):
  */
 export function addComment(document: TaskDocument, text: string, now: Date): TaskDocument {
   return recordComment(document, newComment(text, now), now);
+}
+
+/** Why a comment's date can't be changed, as main tells the person. */
+export const COMMENT_DATE_MESSAGES = {
+  missing: 'That comment changed since you opened the task. Check it and try again.',
+  invalid: "A comment's date must be a real date and time.",
+  future: "A comment can't be dated in the future.",
+  beforeCreated: "A comment can't be dated before the task was created.",
+} as const;
+
+function commentMoment(document: TaskDocument, at: string, now: Date): Date {
+  const moment = parseTimestamp(at);
+  if (moment === null) throw new Error(COMMENT_DATE_MESSAGES.invalid);
+  const stamp = formatLogTimestamp(moment);
+  if (stamp > formatLogTimestamp(now)) throw new Error(COMMENT_DATE_MESSAGES.future);
+  const created = normaliseLogTimestamp(document.created);
+  if (created !== null && stamp < created) throw new Error(COMMENT_DATE_MESSAGES.beforeCreated);
+  return moment;
+}
+
+function describeCommentStamp(at: string): string {
+  return at === '' ? NO_VALUE_LABEL : at;
+}
+
+/**
+ * Gives `comment` the date and time `at`, read tolerantly and kept to the minute, and records
+ * `Comment date changed from <old> to <new>`. The comment moves to its place in date order in the file, and
+ * its ledger records it as removed with its old date and added with its new one, so a revert puts it back.
+ * When it was the task's latest comment (`latestCommentPosition`), date updated becomes its new date and time,
+ * so the task's age follows it. A change to any other comment leaves date updated as it was. A date that
+ * leaves the comment as it was changes nothing.
+ *
+ * `comment` is the comment as the person saw it: the last one with the same time and text is changed.
+ *
+ * @throws Error with a user-presentable message when that comment is gone, or `at` isn't a real date and time
+ *   between the task's creation and `now`.
+ */
+export function changeCommentDate(document: TaskDocument, comment: TaskComment, at: string, now: Date): ChangeResult {
+  const position = document.comments.findLastIndex((candidate) => isSameComment(candidate, comment));
+  const target = document.comments[position];
+  if (target === undefined) throw new Error(COMMENT_DATE_MESSAGES.missing);
+  const moment = commentMoment(document, at, now);
+  const redated: TaskComment = { at: formatLogTimestamp(moment), text: target.text };
+  if (redated.at === target.at) return unchanged(document);
+  const comments = withCommentInDateOrder(document.comments.toSpliced(position, 1), redated);
+  const text = `Comment date changed from ${describeCommentStamp(target.at)} to ${redated.at}`;
+  const recorded = withHistoryEntry(document, { comments }, text, now, { added: [redated], removed: [target] });
+  const wasLatest = latestCommentPosition(document.comments) === position;
+  return { changed: true, document: wasLatest ? { ...recorded, updated: formatLocalDateTime(moment) } : recorded };
 }
 
 /**

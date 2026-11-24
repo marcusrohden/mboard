@@ -8,6 +8,7 @@ import type {
   RevertExpectation,
   Status,
   Task,
+  TaskComment,
   TaskEdit,
   TaskId,
 } from '../../shared/contract';
@@ -20,6 +21,7 @@ export interface TaskCommands {
   create: (input: NewTaskInput) => Promise<boolean>;
   edit: (id: TaskId, edit: TaskEdit) => Promise<boolean>;
   addComment: (id: TaskId, text: string) => Promise<boolean>;
+  changeCommentDate: (id: TaskId, comment: TaskComment, at: string) => Promise<boolean>;
   moveToTopOf: (id: TaskId, status: Status) => Promise<boolean>;
   drop: (id: TaskId, status: Status, beforeId: TaskId | null) => Promise<boolean>;
   archive: (id: TaskId) => Promise<boolean>;
@@ -77,6 +79,7 @@ export function useTaskCommands(
       create: (input) => simple((api) => api.createTask(input)),
       edit: (id, edit) => change(id, (api) => api.editTask(id, edit)),
       addComment: (id, text) => change(id, (api) => api.addComment(id, text)),
+      changeCommentDate: (id, comment, at) => change(id, (api) => api.changeCommentDate(id, comment, at)),
       moveToTopOf: (id, status) => move(id, status, () => topOfColumnBeforeId(tasksRef.current, status, id)),
       drop: (id, status, beforeId) => move(id, status, () => beforeId),
       archive: (id) => change(id, (api) => api.archiveTask(id)),

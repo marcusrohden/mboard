@@ -4,14 +4,16 @@ import {
   applyEdit,
   archiveDocument,
   asksForMoveComment,
+  changeCommentDate,
   changeProjectQuietly,
+  COMMENT_DATE_MESSAGES,
   createTaskDocument,
   moveToColumn,
   restoreDocument,
   setOrder,
 } from './changes';
 import type { ChangeContext } from './changes';
-import type { NewTaskInput, Status, TaskDocument, TaskEdit } from './model';
+import type { NewTaskInput, Status, TaskComment, TaskDocument, TaskEdit } from './model';
 import { parseTaskFile, serialiseTaskFile } from './taskFile';
 import { FALLBACK, asReadBack, makeDocument } from './testHelpers';
 
@@ -205,6 +207,94 @@ describe('addComment', () => {
 
   it('accepts a heading that is not a date', () => {
     expect(addComment(makeDocument(), '### Notes\nok', NOW).comments).toHaveLength(1);
+  });
+});
+
+describe('changeCommentDate', () => {
+  const older = { at: '2026-11-16 11:00', text: 'Asked the client' };
+  const latest = { at: '2026-11-17 09:00', text: 'Client replied' };
+  const base = makeDocument({ comments: [older, latest], updated: '2026-11-17T09:00:00' });
+
+  function redate(comment: TaskComment, at: string, document: TaskDocument = base) {
+    return changeCommentDate(document, comment, at, NOW);
+  }
+
+  it("moves date updated to the latest comment's new date and records the change", () => {
+    const { changed, document } = redate(latest, '2026-11-16T15:20');
+    expect(changed).toBe(true);
+    expect(document.comments).toEqual([older, { at: '2026-11-16 15:20', text: 'Client replied' }]);
+    expect(document.updated).toBe('2026-11-16T15:20:00');
+    expect(document.history.at(-1)).toEqual({
+      at: NOW_LOG,
+      text: 'Comment date changed from 2026-11-17 09:00 to 2026-11-16 15:20',
+      ledger: {
+        v: 1,
+        at: NOW_FIELD,
+        changes: [
+          {
+            field: 'comments',
+            added: [{ at: '2026-11-16 15:20', text: 'Client replied' }],
+            removed: [latest],
+          },
+        ],
+      },
+    });
+  });
+
+  it('leaves date updated alone when the comment is not the latest', () => {
+    const { document } = redate(older, '2026-11-16 10:00');
+    expect(document.comments[0]).toEqual({ at: '2026-11-16 10:00', text: 'Asked the client' });
+    expect(document.updated).toBe(base.updated);
+    expect(document.history).toHaveLength(base.history.length + 1);
+  });
+
+  it('still follows the latest comment when its new date puts it behind another', () => {
+    const { document } = redate(latest, '2026-11-16 10:00');
+    expect(document.comments.map((comment) => comment.text)).toEqual(['Client replied', 'Asked the client']);
+    expect(document.updated).toBe('2026-11-16T10:00:00');
+  });
+
+  it('treats a comment moved ahead of the latest as not the latest', () => {
+    expect(redate(older, '2026-11-17 10:00').document.updated).toBe(base.updated);
+  });
+
+  it('dates an undated comment', () => {
+    const undated = { at: '', text: 'Imported note' };
+    const { document } = redate(undated, '2026-11-16 12:00', makeDocument({ comments: [undated, latest] }));
+    expect(document.comments.map((comment) => comment.at)).toEqual(['2026-11-16 12:00', '2026-11-17 09:00']);
+    expect(document.history.at(-1)?.text).toBe('Comment date changed from (none) to 2026-11-16 12:00');
+  });
+
+  it('changes nothing when the date is the one the comment has', () => {
+    const result = redate(latest, '2026-11-17T09:00');
+    expect(result.changed).toBe(false);
+    expect(result.document).toBe(base);
+  });
+
+  it('refuses a comment that is no longer on the task', () => {
+    expect(() => redate({ at: latest.at, text: 'Edited in Obsidian' }, '2026-11-16 10:00')).toThrow(
+      COMMENT_DATE_MESSAGES.missing,
+    );
+  });
+
+  it.each([
+    ['', COMMENT_DATE_MESSAGES.invalid],
+    ['2026-02-30 10:00', COMMENT_DATE_MESSAGES.invalid],
+    ['2026-11-17 10:06', COMMENT_DATE_MESSAGES.future],
+    ['2026-11-16 09:29', COMMENT_DATE_MESSAGES.beforeCreated],
+  ])('refuses %o', (at, message) => {
+    expect(() => redate(latest, at)).toThrow(message);
+  });
+
+  it('accepts the current minute and the minute the task was created', () => {
+    expect(redate(latest, NOW_LOG).changed).toBe(true);
+    expect(redate(latest, '2026-11-16 09:30').changed).toBe(true);
+  });
+
+  it('writes a file that reads back the same', () => {
+    const { document } = redate(latest, '2026-11-16 15:20');
+    const parsed = parseTaskFile(serialiseTaskFile(document), FALLBACK);
+    expect(parsed.kind === 'ok' && parsed.document).toEqual(asReadBack(document));
   });
 });
 

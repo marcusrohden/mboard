@@ -5,6 +5,7 @@ import {
   DEFAULT_AGENT_SETTINGS,
   addAgentPrompt,
   addAgentPromptVersion,
+  changeCommentDate,
   removeAgentPrompt,
   selectAgentPrompt,
   startAgentPromptLibrary,
@@ -280,6 +281,12 @@ export function createFakeMboard(options: FakeMboardOptions = {}): FakeMboard {
       const task = find(id);
       const comment = { at: logStamp, text: text.trim() };
       return replace(id, recorded(task, 'Comment added', { comments: [...task.comments, comment] }));
+    }),
+    changeCommentDate: vi.fn(async (id, comment, at) => {
+      const task = find(id);
+      if (task.isArchived) throw new Error("Archived tasks can't be changed. Restore the task first.");
+      const result = changeCommentDate(documentOf(task), comment, at, new Date(now));
+      return result.changed ? replace(id, toTask(result.document, id, false)) : structuredClone(task);
     }),
     moveTask: vi.fn(async (id, status, beforeId, comment) => {
       const task = find(id);

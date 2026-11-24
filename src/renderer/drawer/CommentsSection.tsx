@@ -1,21 +1,28 @@
 import { useState } from 'react';
-import type { TaskComment } from '../../shared/contract';
+import { newestCommentsFirst } from '../../domain';
+import type { LocalDate, LocalDateTime, TaskComment } from '../../shared/contract';
 import { CommentList } from '../comments/CommentList';
 import { Button } from '../ui/Button';
 import fields from '../ui/fields.module.css';
+import { CommentDateField } from './CommentDateField';
 import styles from './Drawer.module.css';
 
 interface CommentsSectionProps {
   comments: readonly TaskComment[];
   readOnly: boolean;
+  /** When the task was created: no comment can be dated earlier. */
+  created: LocalDateTime;
+  today: LocalDate;
   onAdd: (text: string) => Promise<boolean>;
+  onChangeDate: (comment: TaskComment, at: string) => Promise<boolean>;
 }
 
 /**
- * A task's comments, oldest first, with a box to add another. Cmd+Enter posts. Archived tasks show their
- * comments but don't accept new ones.
+ * A task's comments, newest first, with a box to add another. Cmd+Enter posts. Each comment's date can be
+ * changed, to a time between the task's creation and now. Archived tasks show their comments but don't accept
+ * new ones or date changes.
  */
-export function CommentsSection({ comments, readOnly, onAdd }: CommentsSectionProps) {
+export function CommentsSection({ comments, readOnly, created, today, onAdd, onChangeDate }: CommentsSectionProps) {
   const [draft, setDraft] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const canPost = draft.trim() !== '' && !isPosting;
@@ -28,10 +35,25 @@ export function CommentsSection({ comments, readOnly, onAdd }: CommentsSectionPr
     if (added) setDraft('');
   }
 
+  function renderDateField(comment: TaskComment) {
+    return (
+      <CommentDateField
+        comment={comment}
+        min={created.slice(0, 16)}
+        max={`${today}T23:59`}
+        onSave={(at) => onChangeDate(comment, at)}
+      />
+    );
+  }
+
   return (
     <section aria-label="Comments" className={styles.section}>
       <h3 className={styles.sectionHeading}>Comments</h3>
-      {comments.length === 0 ? <p className={styles.muted}>No comments yet.</p> : <CommentList comments={comments} />}
+      {comments.length === 0 ? (
+        <p className={styles.muted}>No comments yet.</p>
+      ) : (
+        <CommentList comments={newestCommentsFirst(comments)} renderDate={readOnly ? undefined : renderDateField} />
+      )}
       {!readOnly && (
         <div className={fields.field}>
           <textarea

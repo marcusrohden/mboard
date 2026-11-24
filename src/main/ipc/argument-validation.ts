@@ -21,6 +21,7 @@ import type {
   ProjectColour,
   RevertExpectation,
   Status,
+  TaskComment,
   TaskEdit,
   TaskId,
 } from '../../shared/contract';
@@ -30,6 +31,7 @@ type PlainObject = Record<string, unknown>;
 const NEW_TASK_KEYS = ['description', 'due', 'project', 'status', 'title'] as const;
 const TASK_EDIT_KEYS = ['field', 'value'] as const;
 const REVERT_EXPECTATION_KEYS = ['at', 'historyLength', 'text'] as const;
+const TASK_COMMENT_KEYS = ['at', 'text'] as const;
 const AGE_THRESHOLD_KEYS = ['nudgeFrom', 'staleFrom', 'stallingFrom'] as const;
 const AGENT_SETTINGS_KEYS = ['columns', 'command', 'terminal'] as const;
 const AGENT_PROMPT_DRAFT_KEYS = ['name', 'text'] as const;
@@ -123,6 +125,17 @@ export function readRevertExpectation(value: unknown): RevertExpectation {
     historyLength: readCount(value['historyLength'], 'the history length'),
     at: readString(value['at'], "the entry's time"),
     text: readString(value['text'], "the entry's text"),
+  };
+}
+
+/** A comment as the renderer shows it, with exactly `at` and `text`. */
+export function readTaskComment(value: unknown): TaskComment {
+  if (!isPlainObject(value) || !hasExactKeys(value, TASK_COMMENT_KEYS)) {
+    throw invalidRequest(`a comment needs exactly: ${TASK_COMMENT_KEYS.join(', ')}`);
+  }
+  return {
+    at: readString(value['at'], "the comment's time"),
+    text: readString(value['text'], "the comment's text"),
   };
 }
 

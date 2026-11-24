@@ -16,6 +16,7 @@ import type {
   RevertExpectation,
   Status,
   Task,
+  TaskComment,
   TaskEdit,
   TaskId,
 } from '../shared/contract';
@@ -78,6 +79,8 @@ export interface BoardService {
   createTask(input: NewTaskInput): Promise<Task>;
   editTask(id: TaskId, edit: TaskEdit): Promise<Task>;
   addComment(id: TaskId, text: string): Promise<Task>;
+  /** Gives a live task's comment another date; date updated follows only the latest comment (ADR 0015). */
+  changeCommentDate(id: TaskId, comment: TaskComment, at: string): Promise<Task>;
   moveTask(id: TaskId, status: Status, beforeId: TaskId | null, comment?: string | null): Promise<Task>;
   archiveTask(id: TaskId): Promise<Task>;
   archiveAllDone(): Promise<number>;

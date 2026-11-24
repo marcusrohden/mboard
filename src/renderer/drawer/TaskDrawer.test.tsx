@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { HistoryEntry, LedgerChange } from '../../shared/contract';
 import { useDomEnvironment } from '../testing/dom-environment';
@@ -17,6 +17,23 @@ async function openTask(user: User, title: string): Promise<HTMLElement> {
 
 function input(drawer: HTMLElement, label: string): HTMLInputElement {
   return within(drawer).getByLabelText(label) as HTMLInputElement;
+}
+
+function commentItems(drawer: HTMLElement): HTMLElement[] {
+  return within(within(drawer).getByRole('region', { name: 'Comments' })).getAllByRole('listitem');
+}
+
+function shownComments(drawer: HTMLElement): [string, string][] {
+  return commentItems(drawer).map((item) => [
+    item.querySelector('time')?.textContent ?? '',
+    item.querySelector('p')?.textContent ?? '',
+  ]);
+}
+
+function commentItem(drawer: HTMLElement, text: string): HTMLElement {
+  const item = commentItems(drawer).find((candidate) => candidate.querySelector('p')?.textContent === text);
+  if (item === undefined) throw new Error(`No comment "${text}".`);
+  return item;
 }
 
 function drawerOrNull(): HTMLElement | null {
@@ -426,14 +443,77 @@ describe('Task detail drawer focus', () => {
 });
 
 describe('Task detail drawer comments and history', () => {
-  it('lists comments oldest first with their timestamps', async () => {
+  it('lists comments newest first with their timestamps', async () => {
     const { user } = await renderBoard({ tasks: [SAMPLE()] });
     const drawer = await openTask(user, 'Fix login');
-    const comments = within(within(drawer).getByRole('region', { name: 'Comments' })).getAllByRole('listitem');
-    expect(comments.map((item) => item.textContent)).toEqual([
-      '11 Nov 2026, 09:00First comment',
-      '12 Nov 2026, 10:30Second comment',
+    expect(shownComments(drawer)).toEqual([
+      ['12 Nov 2026, 10:30', 'Second comment'],
+      ['11 Nov 2026, 09:00', 'First comment'],
     ]);
+  });
+
+  it("changes the latest comment's date, and date updated follows it", async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.click(within(commentItem(drawer, 'Second comment')).getByRole('button', { name: 'Change date' }));
+    const dateInput = input(drawer, 'Comment date');
+    expect(dateInput.value).toBe('2026-11-12T10:30');
+    expect(dateInput.min).toBe('2026-11-10T09:00');
+    expect(dateInput.max).toBe('2026-11-16T23:59');
+
+    fireEvent.change(dateInput, { target: { value: '2026-11-13T08:15' } });
+    await user.click(within(drawer).getByRole('button', { name: 'Save date' }));
+
+    expect(fake.api.changeCommentDate).toHaveBeenCalledWith(
+      'tasks/Fix login.md',
+      { at: '2026-11-12 10:30', text: 'Second comment' },
+      '2026-11-13T08:15',
+    );
+    await waitFor(() => expect(within(drawer).queryByLabelText('Comment date')).toBeNull());
+    expect(shownComments(drawer)[0]).toEqual(['13 Nov 2026, 08:15', 'Second comment']);
+    expect(within(drawer).getByText('13 Nov 2026, 08:15', { selector: 'dd time' })).toBeTruthy();
+  });
+
+  it("changes an older comment's date with Enter, leaving date updated as it was", async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    const drawer = await openTask(user, 'Fix login');
+    await user.click(within(commentItem(drawer, 'First comment')).getByRole('button', { name: 'Change date' }));
+    fireEvent.change(input(drawer, 'Comment date'), { target: { value: '2026-11-10T15:00' } });
+    await user.type(input(drawer, 'Comment date'), '{Enter}');
+
+    expect(fake.api.changeCommentDate).toHaveBeenCalledWith(
+      'tasks/Fix login.md',
+      { at: '2026-11-11 09:00', text: 'First comment' },
+      '2026-11-10T15:00',
+    );
+    await waitFor(() => expect(shownComments(drawer)[1]).toEqual(['10 Nov 2026, 15:00', 'First comment']));
+    expect(fake.tasks()[0]?.updated).toBe('2026-11-16T10:00:00');
+  });
+
+  it('keeps the date input open with what was entered when the change fails, and Cancel closes it', async () => {
+    const { user, fake } = await renderBoard({ tasks: [SAMPLE()] });
+    fake.api.changeCommentDate.mockRejectedValueOnce(new Error("A comment can't be dated in the future."));
+    const drawer = await openTask(user, 'Fix login');
+    await user.click(within(commentItem(drawer, 'Second comment')).getByRole('button', { name: 'Change date' }));
+    const save = within(drawer).getByRole('button', { name: 'Save date' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+
+    fireEvent.change(input(drawer, 'Comment date'), { target: { value: '2026-11-20T09:00' } });
+    await user.click(save);
+
+    expect(await screen.findByText("A comment can't be dated in the future.")).toBeTruthy();
+    expect(input(drawer, 'Comment date').value).toBe('2026-11-20T09:00');
+    await user.click(within(drawer).getByRole('button', { name: 'Cancel' }));
+    expect(within(drawer).queryByLabelText('Comment date')).toBeNull();
+    expect(shownComments(drawer)[0]).toEqual(['12 Nov 2026, 10:30', 'Second comment']);
+  });
+
+  it('offers Add date for an undated comment', async () => {
+    const task = buildTask({ title: 'Imported', comments: [{ at: '', text: 'From an old note' }] });
+    const { user } = await renderBoard({ tasks: [task] });
+    const drawer = await openTask(user, 'Imported');
+    await user.click(within(commentItem(drawer, 'From an old note')).getByRole('button', { name: 'Add date' }));
+    expect(input(drawer, 'Comment date').value).toBe('');
   });
 
   it('adds a comment with the button and with Cmd+Enter, ignoring blanks', async () => {
@@ -692,6 +772,7 @@ describe('Task detail drawer for an archived task', () => {
       project: 'Acme',
       due: '2026-11-01',
       description: 'Done long ago',
+      comments: [{ at: '2026-11-12 10:30', text: 'Shipped' }],
     });
     const { user, fake } = await renderBoard({ tasks: [archived] });
     await user.click(screen.getByRole('button', { name: 'Archived' }));
@@ -703,6 +784,8 @@ describe('Task detail drawer for an archived task', () => {
     expect(input(drawer, 'Description').readOnly).toBe(true);
     expect((within(drawer).getByLabelText('Column') as HTMLSelectElement).disabled).toBe(true);
     expect(within(drawer).queryByRole('textbox', { name: 'New comment' })).toBeNull();
+    expect(within(drawer).getByText('Shipped')).toBeTruthy();
+    expect(within(drawer).queryByRole('button', { name: 'Change date' })).toBeNull();
     expect(within(drawer).queryByRole('button', { name: 'Remove due date' })).toBeNull();
     expect(within(drawer).queryByRole('button', { name: 'Mark complete' })).toBeNull();
     expect(within(drawer).queryByRole('button', { name: 'Archive' })).toBeNull();

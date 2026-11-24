@@ -199,7 +199,10 @@ function TaskDrawerPanel({
         <CommentsSection
           comments={task.comments}
           readOnly={readOnly}
+          created={task.created}
+          today={today}
           onAdd={(text) => commands.addComment(task.id, text)}
+          onChangeDate={(comment, at) => commands.changeCommentDate(task.id, comment, at)}
         />
         <HistorySection
           task={task}
