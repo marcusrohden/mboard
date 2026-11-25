@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.0](https://github.com/marcusrohden/mboard/compare/v0.12.0...v0.13.0) (2026-11-25)
+
+### Features
+
+* always create a new task in To do ([#40](https://github.com/marcusrohden/mboard/pull/40)) ([9155396](https://github.com/marcusrohden/mboard/commit/9155396808d7779aaabd383e992dcdf00b2bb7d3))
+
 ## [0.12.0](https://github.com/marcusrohden/mboard/compare/v0.11.0...v0.12.0) (2026-11-24)
 
 ### Features

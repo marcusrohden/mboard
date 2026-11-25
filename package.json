@@ -1,7 +1,7 @@
 {
   "name": "mboard",
   "productName": "mboard",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "description": "Personal Kanban board for macOS backed by markdown task files in an Obsidian vault.",
   "keywords": [],
