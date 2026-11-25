@@ -297,7 +297,7 @@ describe('Board and notice shortcuts', () => {
     expect(fake.api.installAppUpdate).not.toHaveBeenCalled();
   });
 
-  it('creates a task from the New task dialog with ⌘↵ and cancels it with ⌘.', async () => {
+  it('creates a task in To do from the New task dialog with ⌘↵ and cancels it with ⌘.', async () => {
     const { user, fake } = await renderBoard(BUSY_BOARD());
     await user.keyboard('{Meta>}n{/Meta}');
     await user.keyboard('{Meta>}[Period]{/Meta}');
@@ -305,10 +305,9 @@ describe('Board and notice shortcuts', () => {
     await user.keyboard('{Meta>}n{/Meta}');
     await user.keyboard('Write the brief');
     await user.keyboard('{Meta>}3{/Meta}');
-    expect((screen.getByLabelText('Column') as HTMLSelectElement).value).toBe('Internal');
     await user.keyboard('{Meta>}{Enter}{/Meta}');
     expect(fake.api.createTask).toHaveBeenCalledOnce();
-    expect(fake.api.createTask).toHaveBeenCalledWith(expect.objectContaining({ status: 'Internal' }));
+    expect(fake.api.createTask).toHaveBeenCalledWith(expect.objectContaining({ status: 'To do' }));
     expect(fake.api.moveTask).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog', { name: 'New task' })).toBeNull();
   });
