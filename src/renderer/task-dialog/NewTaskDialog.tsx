@@ -1,14 +1,5 @@
 import { useId, useState } from 'react';
-import {
-  COLUMNS,
-  normaliseProject,
-  type LocalDate,
-  type NewTaskInput,
-  type ProjectColour,
-  type Status,
-} from '../../domain';
-import { COLUMN_SHORTCUTS_ARIA, COLUMN_SHORTCUTS_HINT, columnShortcut } from '../shortcuts/keymap';
-import { ShortcutHint, useShortcuts } from '../shortcuts/shortcuts';
+import { normaliseProject, type LocalDate, type NewTaskInput, type ProjectColour } from '../../domain';
 import { MarkdownTextArea } from '../markdown/MarkdownTextArea';
 import { Button } from '../ui/Button';
 import { ClearableDateInput } from '../ui/ClearableDateInput';
@@ -26,12 +17,6 @@ interface NewTaskDialogProps {
   onClose: () => void;
 }
 
-/** Lets ⌘1 to ⌘5 pick the column. Rendered inside the dialog, so the keys belong to its layer. */
-function ColumnShortcuts({ onPick }: { onPick: (status: Status) => void }) {
-  useShortcuts(COLUMNS.map((column, index) => [columnShortcut(index + 1), () => onPick(column)] as const));
-  return null;
-}
-
 function isNewProject(project: string | null, knownProjects: readonly string[]): project is string {
   if (project === null) return false;
   const wanted = project.toLowerCase();
@@ -39,8 +24,8 @@ function isNewProject(project: string | null, knownProjects: readonly string[]):
 }
 
 /**
- * The New task dialog. Enter in the title, or ⌘↵ anywhere, creates the task, ⌘1 to ⌘5 pick the column, and
- * ⌘. or Esc cancels. The due date starts as today and can be cleared to create a task with none.
+ * The New task dialog. Enter in the title, or ⌘↵ anywhere, creates the task in To do, and ⌘. or Esc
+ * cancels. The due date starts as today and can be cleared to create a task with none.
  * Typing a project the board doesn't have yet offers a colour for it, saved once the task exists. The
  * dialog stays open if the task can't be created, so nothing typed is lost.
  */
@@ -51,9 +36,8 @@ export function NewTaskDialog({
   onSetProjectColour,
   onClose,
 }: NewTaskDialogProps) {
-  const ids = { title: useId(), status: useId(), project: useId(), due: useId(), description: useId() };
+  const ids = { title: useId(), project: useId(), due: useId(), description: useId() };
   const [title, setTitle] = useState('');
-  const [status, setStatus] = useState<Status>('To do');
   const [project, setProject] = useState('');
   const [due, setDue] = useState(today);
   const [description, setDescription] = useState('');
@@ -72,7 +56,7 @@ export function NewTaskDialog({
     setIsSaving(true);
     const created = await onCreate({
       title: title.trim(),
-      status,
+      status: 'To do',
       project: normalisedProject,
       due: due === '' ? null : due,
       description,
@@ -85,7 +69,6 @@ export function NewTaskDialog({
   return (
     <Modal label="New task" onClose={onClose}>
       <div className={styles.form}>
-        <ColumnShortcuts onPick={setStatus} />
         <h2 className={styles.heading}>New task</h2>
         <div className={fields.field}>
           <label htmlFor={ids.title} className={fields.label}>
@@ -115,28 +98,6 @@ export function NewTaskDialog({
               Enter a title for the task.
             </p>
           )}
-        </div>
-        <div className={styles.pair}>
-          <div className={fields.field}>
-            <span className={fields.labelRow}>
-              <label htmlFor={ids.status} className={fields.label}>
-                Column
-              </label>
-              <ShortcutHint text={COLUMN_SHORTCUTS_HINT} />
-            </span>
-            <select
-              id={ids.status}
-              value={status}
-              aria-keyshortcuts={COLUMN_SHORTCUTS_ARIA}
-              onChange={(event) => setStatus(event.target.value as Status)}
-            >
-              {COLUMNS.map((column) => (
-                <option key={column} value={column}>
-                  {column}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
         <div className={styles.pair}>
           <div className={fields.field}>

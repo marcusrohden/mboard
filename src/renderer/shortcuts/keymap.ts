@@ -98,7 +98,7 @@ export const SHORTCUTS: Readonly<Record<ShortcutId, ShortcutDefinition>> = {
   ...numbered<ColumnShortcutId>(
     COLUMN_COUNT,
     (n) => `moveToColumn${n}` as ColumnShortcutId,
-    (n) => ({ chord: { code: `Digit${n}` }, scopes: ['task', 'dialog'] }),
+    (n) => ({ chord: { code: `Digit${n}` }, scopes: ['task'] }),
   ),
   ...numbered<ReminderShortcutId>(
     REMINDER_LINK_COUNT,
